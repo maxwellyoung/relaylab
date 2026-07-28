@@ -16,6 +16,10 @@ export function buildDownstreamService({
 
   app.use(express.json());
 
+  app.get("/health", (_request, response) => {
+    response.json({ status: "ok", service: "relaylab-downstream" });
+  });
+
   app.post("/api/process", async (request, response) => {
     const parsed = processRequest.safeParse(request.body);
     if (!parsed.success) {

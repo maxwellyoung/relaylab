@@ -9,6 +9,7 @@
   ],
   "scripts": {
     "dev": "concurrently -n coordinator,downstream,client -c blue,magenta,green \"npm run dev -w server\" \"npm run dev -w downstream\" \"npm run dev -w client\"",
+    "start": "node scripts/start-production.mjs",
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "build": "npm run build --workspaces --if-present"

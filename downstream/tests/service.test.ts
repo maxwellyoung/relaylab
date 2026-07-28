@@ -3,6 +3,18 @@ import { describe, expect, it } from "vitest";
 import { buildDownstreamService } from "../src/app.js";
 
 describe("downstream processing service", () => {
+  it("reports downstream health independently", async () => {
+    const service = buildDownstreamService();
+
+    const response = await request(service).get("/health");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      status: "ok",
+      service: "relaylab-downstream",
+    });
+  });
+
   it("echoes a healthy request with processing evidence", async () => {
     const service = buildDownstreamService();
 

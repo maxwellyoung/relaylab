@@ -26,6 +26,10 @@ validation, outcome classification, and persistence. The downstream process
 provides deterministic healthy and failure behaviours without relying on a
 third-party network.
 
+In production, one container starts the coordinator and downstream as separate
+Node processes. Only the coordinator port is public. It serves the built React
+client and mounts SQLite at `/data` on an encrypted Fly volume.
+
 ## Public workflow
 
 1. Save a request experiment with a name, behaviour, and JSON payload.
@@ -92,6 +96,20 @@ databases. Coordinator tests use a real TCP boundary for the downstream
 contract and cover healthy, `503`, malformed, timeout, and unreachable results.
 The downstream package independently proves each deterministic behaviour.
 
+## Production deployment
+
+The repository includes a multi-stage [`Dockerfile`](Dockerfile) and
+[`fly.toml`](fly.toml). The image runs the test, type-check, and production-build
+gates before it can be released.
+
+```bash
+flyctl deploy
+```
+
+The Fly configuration uses one machine because SQLite is attached to a single
+persistent volume. Automatic stop/start keeps the small assessment deployment
+idle when it is unused. The coordinator health endpoint is `/health`.
+
 ## Coordinator API
 
 | Method | Route | Behaviour |
@@ -121,7 +139,8 @@ Example experiment:
 - The coordinator intentionally performs no retry or circuit-breaking.
 - Experiments and runs cannot yet be edited or deleted.
 - One local user only; authentication is outside the assignment scope.
-- The application is local-only and has not been deployed.
+- The hosted demonstration is intentionally single-machine and is not designed
+  for concurrent production traffic.
 
 ## Project evidence
 

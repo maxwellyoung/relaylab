@@ -1,5 +1,6 @@
 import cors from "cors";
 import express from "express";
+import path from "node:path";
 import { z } from "zod";
 import { experimentBehaviors, openDatabase } from "./database.js";
 
@@ -25,16 +26,22 @@ export function buildApplication({
   databasePath,
   downstreamUrl = "http://127.0.0.1:3001",
   timeoutMs = 400,
+  clientDirectory,
 }: {
   databasePath: string;
   downstreamUrl?: string;
   timeoutMs?: number;
+  clientDirectory?: string;
 }): RelayLabApplication {
   const database = openDatabase(databasePath);
   const app = express();
 
   app.use(cors());
   app.use(express.json());
+
+  app.get("/health", (_request, response) => {
+    response.json({ status: "ok", service: "relaylab-coordinator" });
+  });
 
   app.post("/api/experiments", (request, response) => {
     const parsed = experimentInput.safeParse(request.body);
@@ -119,6 +126,17 @@ export function buildApplication({
       response.status(201).json(run);
     }
   });
+
+  if (clientDirectory) {
+    app.use(express.static(clientDirectory));
+    app.use((request, response, next) => {
+      if (request.method !== "GET" || request.path.startsWith("/api/")) {
+        next();
+        return;
+      }
+      response.sendFile(path.join(clientDirectory, "index.html"));
+    });
+  }
 
   return {
     app,

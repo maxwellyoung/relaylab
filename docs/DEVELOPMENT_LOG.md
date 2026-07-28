@@ -78,3 +78,18 @@
   response-evidence paths with no browser console errors.
 - Verification: thirteen public HTTP tests, all workspace type checks, and all
   three production builds pass.
+
+## 2026-07-28 - Reproducible production package
+
+- Added independent coordinator and downstream health checks.
+- Added optional static-client serving at the coordinator boundary so the
+  hosted browser and API share one public origin.
+- Added a two-stage Node container and a production supervisor that starts the
+  coordinator and downstream as separate processes.
+- Added Fly configuration for one Sydney-region machine and a persistent
+  encrypted SQLite volume at `/data`.
+- Production smoke: the built React client returned `200`, the coordinator
+  health check returned `200`, and a healthy experiment crossed the internal
+  downstream boundary and persisted a successful run.
+- Verification: fifteen public HTTP tests, all workspace type checks, all
+  production builds, and the dependency audit pass.

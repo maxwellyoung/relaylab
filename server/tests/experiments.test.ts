@@ -23,6 +23,21 @@ describe("request experiments", () => {
     }
   });
 
+  it("reports coordinator health without touching the database workflow", async () => {
+    temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
+    application = buildApplication({
+      databasePath: path.join(temporaryDirectory, "relaylab.sqlite"),
+    });
+
+    const response = await request(application.app).get("/health");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      status: "ok",
+      service: "relaylab-coordinator",
+    });
+  });
+
   it("creates an experiment and lists it later", async () => {
     temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
     application = buildApplication({

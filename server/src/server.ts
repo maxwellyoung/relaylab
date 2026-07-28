@@ -10,6 +10,7 @@ const port = Number(process.env.PORT ?? 3000);
 const downstreamUrl =
   process.env.DOWNSTREAM_URL ?? "http://127.0.0.1:3001";
 const timeoutMs = Number(process.env.DOWNSTREAM_TIMEOUT_MS ?? 400);
+const clientDirectory = process.env.CLIENT_DIST_DIR;
 
 mkdirSync(dataDirectory, { recursive: true });
 
@@ -17,6 +18,7 @@ const application = buildApplication({
   databasePath: path.join(dataDirectory, "relaylab.sqlite"),
   downstreamUrl,
   timeoutMs,
+  clientDirectory,
 });
 
 const server = application.app.listen(port, () => {
