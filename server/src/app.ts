@@ -1,93 +1,123 @@
 import cors from "cors";
 import express from "express";
 import { z } from "zod";
-import { openDatabase } from "./database.js";
+import { experimentBehaviors, openDatabase } from "./database.js";
 
-const sessionInput = z.object({
-  playedAt: z.string(),
-  map: z.string(),
-  goal: z.string(),
-  durationMinutes: z.number().int().positive().max(480),
+const experimentInput = z.object({
+  name: z.string().trim().min(1).max(80),
+  behavior: z.enum(experimentBehaviors),
+  payload: z.record(z.string(), z.unknown()),
 });
 
-const drillResultInput = z
-  .object({
-    drillName: z.string().min(1).max(100),
-    attempts: z.number().int().positive(),
-    successes: z.number().int().nonnegative(),
-    notes: z.string().max(500).optional().default(""),
-  })
-  .refine((result) => result.successes <= result.attempts, {
-    message: "Successes cannot exceed attempts",
-    path: ["successes"],
-  });
+const downstreamResponse = z.object({
+  accepted: z.literal(true),
+  experimentId: z.number().int().positive(),
+  echo: z.record(z.string(), z.unknown()),
+  processedAt: z.string(),
+});
 
-export type AimLedgerApplication = {
+export type RelayLabApplication = {
   app: express.Express;
   close: () => void;
 };
 
 export function buildApplication({
   databasePath,
+  downstreamUrl = "http://127.0.0.1:3001",
+  timeoutMs = 400,
 }: {
   databasePath: string;
-}): AimLedgerApplication {
+  downstreamUrl?: string;
+  timeoutMs?: number;
+}): RelayLabApplication {
   const database = openDatabase(databasePath);
   const app = express();
 
   app.use(cors());
   app.use(express.json());
 
-  app.post("/api/sessions", (request, response) => {
-    const parsed = sessionInput.safeParse(request.body);
+  app.post("/api/experiments", (request, response) => {
+    const parsed = experimentInput.safeParse(request.body);
     if (!parsed.success) {
       response.status(400).json({
-        error: "Invalid practice session",
+        error: "Invalid experiment",
         details: parsed.error.flatten().fieldErrors,
       });
       return;
     }
 
-    response.status(201).json(database.createSession(parsed.data));
+    response.status(201).json(database.createExperiment(parsed.data));
   });
 
-  app.get("/api/sessions", (_request, response) => {
-    response.json(database.listSessions());
+  app.get("/api/experiments", (_request, response) => {
+    response.json(database.listExperiments());
   });
 
-  app.get("/api/sessions/:sessionId", (request, response) => {
-    const sessionId = Number(request.params.sessionId);
-    const session = database.getSession(sessionId);
-    if (!session) {
-      response.status(404).json({ error: "Practice session not found" });
+  app.get("/api/experiments/:experimentId", (request, response) => {
+    const experiment = database.getExperiment(Number(request.params.experimentId));
+    if (!experiment) {
+      response.status(404).json({ error: "Experiment not found" });
+      return;
+    }
+    response.json(experiment);
+  });
+
+  app.post("/api/experiments/:experimentId/runs", async (request, response) => {
+    const experimentId = Number(request.params.experimentId);
+    const experiment = database.getExperiment(experimentId);
+    if (!experiment) {
+      response.status(404).json({ error: "Experiment not found" });
       return;
     }
 
-    response.json(session);
-  });
-
-  app.post("/api/sessions/:sessionId/results", (request, response) => {
-    const sessionId = Number(request.params.sessionId);
-    if (!database.getSession(sessionId)) {
-      response.status(404).json({ error: "Practice session not found" });
-      return;
-    }
-
-    const parsed = drillResultInput.safeParse(request.body);
-    if (!parsed.success) {
-      response.status(400).json({
-        error: "Invalid drill result",
-        details: parsed.error.flatten().fieldErrors,
+    const startedAt = performance.now();
+    try {
+      const downstream = await fetch(`${downstreamUrl}/api/process`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          experimentId,
+          behavior: experiment.behavior,
+          payload: experiment.payload,
+        }),
+        signal: AbortSignal.timeout(timeoutMs),
       });
-      return;
-    }
+      const responseText = await downstream.text();
+      let body: Record<string, unknown> | string;
+      try {
+        body = JSON.parse(responseText) as Record<string, unknown>;
+      } catch {
+        body = responseText;
+      }
 
-    response.status(201).json(
-      database.createResult({
-        sessionId,
-        ...parsed.data,
-      }),
-    );
+      const validSuccess = downstreamResponse.safeParse(body);
+      const run = database.createRun({
+        experimentId,
+        outcome:
+          downstream.ok && validSuccess.success
+            ? "success"
+            : downstream.ok
+              ? "invalid_response"
+              : "downstream_error",
+        httpStatus: downstream.status,
+        durationMs: Math.max(1, Math.round(performance.now() - startedAt)),
+        response: body,
+      });
+
+      response.status(201).json(run);
+    } catch (reason) {
+      const run = database.createRun({
+        experimentId,
+        outcome:
+          reason instanceof Error && reason.name === "TimeoutError"
+            ? "timeout"
+            : "unreachable",
+        httpStatus: null,
+        durationMs: Math.max(1, Math.round(performance.now() - startedAt)),
+        response: null,
+      });
+      response.status(201).json(run);
+    }
   });
 
   return {

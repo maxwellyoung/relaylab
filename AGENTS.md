@@ -1,6 +1,6 @@
-# AimLedger working agreement
+# RelayLab working agreement
 
-AimLedger is Maxwell's fresh COMP713 individual-project workspace.
+RelayLab is Maxwell's fresh COMP713 individual-project workspace.
 
 ## Assessment boundary
 
@@ -18,8 +18,8 @@ AimLedger is Maxwell's fresh COMP713 individual-project workspace.
 
 - Use vertical red-green-refactor slices.
 - Test behavior through the public HTTP API.
-- Keep the architecture explicit: browser client -> API -> repository ->
-  SQLite.
+- Keep the architecture explicit: browser client -> coordinator API ->
+  downstream service, with experiment/run evidence persisted in SQLite.
 - Prefer the smallest reliable implementation over authentication, external
   APIs, deployment, or speculative analytics.
 - Run `npm test`, `npm run typecheck`, and `npm run build` before describing a

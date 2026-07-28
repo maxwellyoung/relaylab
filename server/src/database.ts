@@ -1,66 +1,84 @@
 import Database from "better-sqlite3";
 
-export type PracticeSession = {
+export const experimentBehaviors = [
+  "healthy",
+  "slow",
+  "unavailable",
+  "malformed",
+] as const;
+
+export type ExperimentBehavior = (typeof experimentBehaviors)[number];
+
+export type Experiment = {
   id: number;
-  playedAt: string;
-  map: string;
-  goal: string;
-  durationMinutes: number;
+  name: string;
+  behavior: ExperimentBehavior;
+  payload: Record<string, unknown>;
   createdAt: string;
 };
 
-export type DrillResult = {
+export type RunOutcome =
+  | "success"
+  | "downstream_error"
+  | "timeout"
+  | "invalid_response"
+  | "unreachable";
+
+export type ExperimentRun = {
   id: number;
-  sessionId: number;
-  drillName: string;
-  attempts: number;
-  successes: number;
-  notes: string;
+  experimentId: number;
+  outcome: RunOutcome;
+  httpStatus: number | null;
+  durationMs: number;
+  response: Record<string, unknown> | string | null;
   createdAt: string;
 };
 
-export type PracticeSessionDetails = PracticeSession & {
-  results: DrillResult[];
+export type ExperimentDetails = Experiment & {
+  runs: ExperimentRun[];
 };
 
-type PracticeSessionRow = {
+type ExperimentRow = {
   id: number;
-  played_at: string;
-  map: string;
-  goal: string;
-  duration_minutes: number;
+  name: string;
+  behavior: ExperimentBehavior;
+  payload_json: string;
   created_at: string;
 };
 
-type DrillResultRow = {
+type ExperimentRunRow = {
   id: number;
-  session_id: number;
-  drill_name: string;
-  attempts: number;
-  successes: number;
-  notes: string;
+  experiment_id: number;
+  outcome: RunOutcome;
+  http_status: number | null;
+  duration_ms: number;
+  response_json: string | null;
   created_at: string;
 };
 
-function toPracticeSession(row: PracticeSessionRow): PracticeSession {
+function toExperiment(row: ExperimentRow): Experiment {
   return {
     id: row.id,
-    playedAt: row.played_at,
-    map: row.map,
-    goal: row.goal,
-    durationMinutes: row.duration_minutes,
+    name: row.name,
+    behavior: row.behavior,
+    payload: JSON.parse(row.payload_json) as Record<string, unknown>,
     createdAt: row.created_at,
   };
 }
 
-function toDrillResult(row: DrillResultRow): DrillResult {
+function toExperimentRun(row: ExperimentRunRow): ExperimentRun {
   return {
     id: row.id,
-    sessionId: row.session_id,
-    drillName: row.drill_name,
-    attempts: row.attempts,
-    successes: row.successes,
-    notes: row.notes,
+    experimentId: row.experiment_id,
+    outcome: row.outcome,
+    httpStatus: row.http_status,
+    durationMs: row.duration_ms,
+    response:
+      row.response_json === null
+        ? null
+        : (JSON.parse(row.response_json) as
+            | Record<string, unknown>
+            | string),
     createdAt: row.created_at,
   };
 }
@@ -70,127 +88,134 @@ export function openDatabase(databasePath: string) {
   database.pragma("foreign_keys = ON");
   database.pragma("journal_mode = WAL");
   database.exec(`
-    CREATE TABLE IF NOT EXISTS practice_sessions (
+    CREATE TABLE IF NOT EXISTS experiments (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      played_at TEXT NOT NULL,
-      map TEXT NOT NULL,
-      goal TEXT NOT NULL,
-      duration_minutes INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      behavior TEXT NOT NULL,
+      payload_json TEXT NOT NULL,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
 
-    CREATE TABLE IF NOT EXISTS drill_results (
+    CREATE TABLE IF NOT EXISTS experiment_runs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      session_id INTEGER NOT NULL,
-      drill_name TEXT NOT NULL,
-      attempts INTEGER NOT NULL,
-      successes INTEGER NOT NULL,
-      notes TEXT NOT NULL DEFAULT '',
+      experiment_id INTEGER NOT NULL,
+      outcome TEXT NOT NULL,
+      http_status INTEGER,
+      duration_ms INTEGER NOT NULL,
+      response_json TEXT,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (session_id)
-        REFERENCES practice_sessions(id)
+      FOREIGN KEY (experiment_id)
+        REFERENCES experiments(id)
         ON DELETE CASCADE
     );
   `);
 
-  const insertSession = database.prepare<
+  const insertExperiment = database.prepare<
     {
-      playedAt: string;
-      map: string;
-      goal: string;
-      durationMinutes: number;
+      name: string;
+      behavior: ExperimentBehavior;
+      payloadJson: string;
     },
-    PracticeSessionRow
+    ExperimentRow
   >(`
-    INSERT INTO practice_sessions (
-      played_at,
-      map,
-      goal,
-      duration_minutes
+    INSERT INTO experiments (
+      name,
+      behavior,
+      payload_json
     ) VALUES (
-      @playedAt,
-      @map,
-      @goal,
-      @durationMinutes
+      @name,
+      @behavior,
+      @payloadJson
     )
     RETURNING *
   `);
 
-  const listSessions = database.prepare<[], PracticeSessionRow>(`
+  const listExperiments = database.prepare<[], ExperimentRow>(`
     SELECT *
-    FROM practice_sessions
-    ORDER BY played_at DESC, id DESC
+    FROM experiments
+    ORDER BY id DESC
   `);
 
-  const findSession = database.prepare<[number], PracticeSessionRow>(`
+  const findExperiment = database.prepare<[number], ExperimentRow>(`
     SELECT *
-    FROM practice_sessions
+    FROM experiments
     WHERE id = ?
   `);
 
-  const insertResult = database.prepare<
+  const insertRun = database.prepare<
     {
-      sessionId: number;
-      drillName: string;
-      attempts: number;
-      successes: number;
-      notes: string;
+      experimentId: number;
+      outcome: RunOutcome;
+      httpStatus: number | null;
+      durationMs: number;
+      responseJson: string | null;
     },
-    DrillResultRow
+    ExperimentRunRow
   >(`
-    INSERT INTO drill_results (
-      session_id,
-      drill_name,
-      attempts,
-      successes,
-      notes
+    INSERT INTO experiment_runs (
+      experiment_id,
+      outcome,
+      http_status,
+      duration_ms,
+      response_json
     ) VALUES (
-      @sessionId,
-      @drillName,
-      @attempts,
-      @successes,
-      @notes
+      @experimentId,
+      @outcome,
+      @httpStatus,
+      @durationMs,
+      @responseJson
     )
     RETURNING *
   `);
 
-  const listResults = database.prepare<[number], DrillResultRow>(`
+  const listRuns = database.prepare<[number], ExperimentRunRow>(`
     SELECT *
-    FROM drill_results
-    WHERE session_id = ?
-    ORDER BY id ASC
+    FROM experiment_runs
+    WHERE experiment_id = ?
+    ORDER BY id DESC
   `);
 
   return {
-    createSession(
-      input: Omit<PracticeSession, "id" | "createdAt">,
-    ): PracticeSession {
-      const row = insertSession.get(input);
+    createExperiment(
+      input: Omit<Experiment, "id" | "createdAt">,
+    ): Experiment {
+      const row = insertExperiment.get({
+        name: input.name,
+        behavior: input.behavior,
+        payloadJson: JSON.stringify(input.payload),
+      });
       if (!row) {
-        throw new Error("SQLite did not return the created practice session");
+        throw new Error("SQLite did not return the created experiment");
       }
-      return toPracticeSession(row);
+      return toExperiment(row);
     },
-    listSessions(): PracticeSession[] {
-      return listSessions.all().map(toPracticeSession);
+    listExperiments(): Experiment[] {
+      return listExperiments.all().map(toExperiment);
     },
-    getSession(sessionId: number): PracticeSessionDetails | undefined {
-      const session = findSession.get(sessionId);
-      if (!session) {
-        return undefined;
-      }
+    getExperiment(experimentId: number): ExperimentDetails | undefined {
+      const experiment = findExperiment.get(experimentId);
+      if (!experiment) return undefined;
 
       return {
-        ...toPracticeSession(session),
-        results: listResults.all(sessionId).map(toDrillResult),
+        ...toExperiment(experiment),
+        runs: listRuns.all(experimentId).map(toExperimentRun),
       };
     },
-    createResult(input: Omit<DrillResult, "id" | "createdAt">): DrillResult {
-      const row = insertResult.get(input);
+    createRun(
+      input: Omit<ExperimentRun, "id" | "createdAt">,
+    ): ExperimentRun {
+      const row = insertRun.get({
+        experimentId: input.experimentId,
+        outcome: input.outcome,
+        httpStatus: input.httpStatus,
+        durationMs: input.durationMs,
+        responseJson:
+          input.response === null ? null : JSON.stringify(input.response),
+      });
       if (!row) {
-        throw new Error("SQLite did not return the created drill result");
+        throw new Error("SQLite did not return the created experiment run");
       }
-      return toDrillResult(row);
+      return toExperimentRun(row);
     },
     close() {
       database.close();
@@ -198,4 +223,4 @@ export function openDatabase(databasePath: string) {
   };
 }
 
-export type AimLedgerDatabase = ReturnType<typeof openDatabase>;
+export type RelayLabDatabase = ReturnType<typeof openDatabase>;

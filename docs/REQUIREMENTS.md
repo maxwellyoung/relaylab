@@ -1,54 +1,56 @@
-# AimLedger MVP requirements
+# RelayLab MVP requirements
 
 ## Scenario
 
-A CS2 player wants to turn an unstructured play session into deliberate
-practice. They create a practice session, record drill results, and review what
-they actually worked on.
+A developer wants to see what actually happens when an API dependency is
+healthy, slow, malformed, or unavailable. They save a small request experiment,
+run it through a coordinator service, and inspect the durable outcome.
 
 ## Public behaviors
 
-1. Create a practice session with a date, map, goal, and duration.
-2. List recorded practice sessions.
-3. Open one session and see its related drill results.
-4. Add a drill result containing its name, attempts, successes, and an optional
-   note.
-5. Reject invalid input and references to missing resources with controlled HTTP
+1. Create an experiment with a name, downstream behavior, and JSON payload.
+2. List saved experiments and open one with its previous runs.
+3. Run an experiment through a separately running downstream service.
+4. Persist the observed status, HTTP code, duration, and response for every run.
+5. Distinguish healthy, downstream-error, timeout, malformed-response, and
+   unreachable outcomes.
+6. Reject invalid experiment input and missing resources with controlled HTTP
    errors.
 
 ## Data relationship
 
 ```text
-practice_sessions 1 -> many drill_results
+experiments 1 -> many experiment_runs
 ```
 
-The drill-result foreign key is the rubric-visible relationship between the two
-persistent entities.
+The run foreign key is the rubric-visible relationship between the saved
+request definition and the evidence produced by each distributed exchange.
 
 ## Scope boundary
 
 Included:
 
-- separate browser client and API processes;
+- separate browser client, coordinator API, and downstream-service processes;
 - SQLite persistence;
-- public JSON API;
-- validation and controlled errors;
+- JSON request/response exchange;
+- bounded timeout and response-shape validation;
+- controlled downstream failures;
 - automated API behavior tests;
-- simple readable interface.
+- a simple one-action interface with an optional technical trace.
 
 Excluded:
 
 - accounts or authentication;
-- Steam or third-party APIs;
-- matchmaking imports;
 - deployment;
-- social features;
-- advanced statistics or recommendations.
+- arbitrary external URLs;
+- automatic retries, queues, or circuit breakers;
+- production monitoring or load testing.
 
 ## Done for the first milestone
 
-- The five public behaviors work through the API.
-- The browser completes the create/list/detail/add-result workflow.
-- A restart retains stored sessions and results.
+- The public behaviors work through the coordinator API.
+- The browser completes the create/run/review workflow.
+- A restart retains experiments and runs.
+- The downstream service can deterministically demonstrate success and failure.
 - Tests, type checking, and production builds pass.
-- Maxwell can trace one request from client to database and back.
+- Maxwell can trace one request across both HTTP boundaries and into SQLite.

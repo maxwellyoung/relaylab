@@ -40,3 +40,24 @@
   errors.
 - Verification: six API behavior tests, client and server type checks, and both
   production builds pass.
+
+## 2026-07-28 - Evidence-led pivot to RelayLab
+
+- Re-read the current COMP713 brief and rubric after the practice-tracker
+  domain produced a weak communication demonstration.
+- Kept Option A and preserved the truthful Git history, but changed the domain
+  to an API reliability workbench where communication and failure handling are
+  the product rather than incidental CRUD.
+- RED -> GREEN: the first coordinator test moved from a missing experiment
+  route (`404`) to creating and listing a persisted experiment.
+- RED -> GREEN: a new independently testable downstream process moved from a
+  missing module to a healthy JSON exchange.
+- Added deterministic downstream behaviours for healthy, unavailable, slow,
+  and malformed responses through separate red-green slices.
+- Added durable coordinator outcomes for success, downstream error, timeout,
+  invalid response, and unreachable service. Every attempted run is retained
+  under its experiment.
+- Added controlled invalid-input and missing-resource checks plus restart
+  persistence.
+- Verification at this checkpoint: nine coordinator HTTP tests and four
+  downstream HTTP tests pass; both service type checks pass.

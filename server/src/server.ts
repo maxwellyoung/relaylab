@@ -5,17 +5,22 @@ import { buildApplication } from "./app.js";
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 const defaultDataDirectory = path.resolve(currentDirectory, "../../data");
-const dataDirectory = process.env.AIMLEDGER_DATA_DIR ?? defaultDataDirectory;
+const dataDirectory = process.env.RELAYLAB_DATA_DIR ?? defaultDataDirectory;
 const port = Number(process.env.PORT ?? 3000);
+const downstreamUrl =
+  process.env.DOWNSTREAM_URL ?? "http://127.0.0.1:3001";
+const timeoutMs = Number(process.env.DOWNSTREAM_TIMEOUT_MS ?? 400);
 
 mkdirSync(dataDirectory, { recursive: true });
 
 const application = buildApplication({
-  databasePath: path.join(dataDirectory, "aimledger.sqlite"),
+  databasePath: path.join(dataDirectory, "relaylab.sqlite"),
+  downstreamUrl,
+  timeoutMs,
 });
 
 const server = application.app.listen(port, () => {
-  console.log(`AimLedger API listening on http://localhost:${port}`);
+  console.log(`RelayLab coordinator listening on http://localhost:${port}`);
 });
 
 function shutdown() {

@@ -1,8 +1,9 @@
-# AimLedger
+# RelayLab
 
-AimLedger is a deliberately small CS2 practice tracker built for the COMP713
-Option A individual project. It turns an unstructured play session into a
-practice intention plus measurable drill evidence.
+RelayLab is a deliberately small API reliability workbench for the COMP713
+Option A individual project. It runs a saved request experiment through a
+separate downstream service, classifies what happened, and keeps the result as
+reproducible evidence.
 
 ## Architecture
 
@@ -11,39 +12,48 @@ React browser client (port 5173)
         |
         | JSON over HTTP
         v
-Express API (port 3000)
-        |
-        | parameterised SQL through the repository
-        v
-SQLite database (data/aimledger.sqlite)
+Coordinator API (port 3000)
+        |                         |
+        | HTTP with 400 ms bound  | parameterised SQL
+        v                         v
+Downstream simulator         SQLite database
+(port 3001)                  (data/relaylab.sqlite)
 ```
 
-The client never accesses the database directly. Express owns HTTP routing and
-validation; the repository owns table creation, SQL, row mapping, and the
-session-to-results relationship.
+The browser never accesses SQLite or the downstream simulator directly. The
+coordinator owns experiment validation, outbound request timing, response-shape
+validation, outcome classification, and persistence. The downstream process
+provides deterministic healthy and failure behaviours without relying on a
+third-party network.
 
-An optional “How AimLedger stores this” disclosure exposes that path and the
-latest HTTP receipt when it is useful for a demo. It stays out of the normal
-practice flow. Accuracy is derived in the client from the persisted drill
-attempts and successes; it is not stored as a second source of truth.
+## Public workflow
 
-## Requirements
+1. Save a request experiment with a name, behaviour, and JSON payload.
+2. Run that experiment through the coordinator.
+3. The coordinator calls the separate downstream service.
+4. The coordinator classifies and stores the observed result.
+5. Reopen the experiment and review its run history.
 
-The frozen MVP contract is in
-[`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md). Its five public behaviors are:
+The frozen contract is in [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md).
 
-1. Create a practice session.
-2. List practice sessions.
-3. Open one session with its drill results.
-4. Add a drill result to a session.
-5. Return controlled errors for invalid input and missing resources.
+## Deterministic behaviours
+
+| Behaviour | Downstream action | Coordinator outcome |
+| --- | --- | --- |
+| `healthy` | Returns valid JSON with `200` | `success` |
+| `slow` | Responds after the coordinator deadline | `timeout` |
+| `unavailable` | Returns structured JSON with `503` | `downstream_error` |
+| `malformed` | Returns unexpected plain text with `200` | `invalid_response` |
+
+If the downstream process is stopped, the coordinator records `unreachable`
+instead of crashing or losing the attempt.
 
 ## Software
 
 - Node.js 24 or later
 - npm 11 or later
 
-No external database, account, API key, or cloud service is required.
+No account, API key, external database, or cloud service is required.
 
 ## Install and run
 
@@ -52,18 +62,22 @@ npm install
 npm run dev
 ```
 
-Open <http://localhost:5173>. The Vite development server proxies `/api`
-requests to Express at <http://localhost:3000>.
+Open <http://localhost:5173>. The root development command starts all three
+processes. Vite proxies browser `/api` requests to the coordinator.
 
-The first run creates `data/aimledger.sqlite`. Override the data directory when
-needed:
+The first run creates `data/relaylab.sqlite`. Runtime configuration may be
+overridden without committing secrets:
 
 ```bash
-AIMLEDGER_DATA_DIR=/absolute/path/to/runtime-data npm run dev
+PORT=3000
+RELAYLAB_DATA_DIR=/absolute/path/to/relaylab-data
+DOWNSTREAM_URL=http://127.0.0.1:3001
+DOWNSTREAM_TIMEOUT_MS=400
+DOWNSTREAM_PORT=3001
 ```
 
-The API port may be changed with `PORT`. If the client is not using the local
-Vite proxy, set `VITE_API_BASE_URL` to the API origin before building it.
+`VITE_API_BASE_URL` is only needed when a built client does not use Vite's local
+proxy.
 
 ## Test and build
 
@@ -73,47 +87,41 @@ npm run typecheck
 npm run build
 ```
 
-The integration tests drive the public HTTP API and use isolated temporary
-SQLite databases. They cover:
+The tests exercise public HTTP behaviour with isolated temporary SQLite
+databases. Coordinator tests use a real TCP boundary for the downstream
+contract and cover healthy, `503`, malformed, timeout, and unreachable results.
+The downstream package independently proves each deterministic behaviour.
 
-- create then list;
-- invalid session duration;
-- session-to-result persistence;
-- result counts where successes exceed attempts;
-- a result linked to a missing session;
-- data retained after closing and reopening the application.
+## Coordinator API
 
-## API
-
-| Method | Route | Behavior |
+| Method | Route | Behaviour |
 | --- | --- | --- |
-| `POST` | `/api/sessions` | Validate and create a practice session |
-| `GET` | `/api/sessions` | List sessions newest first |
-| `GET` | `/api/sessions/:id` | Return one session and its drill results |
-| `POST` | `/api/sessions/:id/results` | Validate and add related drill evidence |
+| `POST` | `/api/experiments` | Validate and create an experiment |
+| `GET` | `/api/experiments` | List experiments newest first |
+| `GET` | `/api/experiments/:id` | Return one experiment and its run history |
+| `POST` | `/api/experiments/:id/runs` | Execute and persist one distributed run |
 
-Example session:
+Example experiment:
 
 ```json
 {
-  "playedAt": "2026-07-28",
-  "map": "Dust II",
-  "goal": "Practise one clean counter-strafe block",
-  "durationMinutes": 20
+  "name": "Slow inventory lookup",
+  "behavior": "slow",
+  "payload": {
+    "orderId": "ORDER-42",
+    "quantity": 2
+  }
 }
 ```
 
 ## Known limitations
 
-- One local user only; authentication is deliberately outside the assignment
-  scope.
-- Map names are free text and are not sourced from Steam.
-- Sessions and results cannot yet be edited or deleted.
-- The client currently relies on API integration tests plus type/build checks;
-  its core plan/select/prove flow has been manually exercised in the browser,
-  while automated browser tests remain a later milestone.
-- The application has not been deployed and does not need deployment for this
-  milestone.
+- The downstream behaviours are deterministic simulations, not measurements of
+  arbitrary external systems.
+- The coordinator intentionally performs no retry or circuit-breaking.
+- Experiments and runs cannot yet be edited or deleted.
+- One local user only; authentication is outside the assignment scope.
+- The application is local-only and has not been deployed.
 
 ## Project evidence
 
