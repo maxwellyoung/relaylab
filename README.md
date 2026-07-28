@@ -22,6 +22,11 @@ The client never accesses the database directly. Express owns HTTP routing and
 validation; the repository owns table creation, SQL, row mapping, and the
 session-to-results relationship.
 
+An optional “How AimLedger stores this” disclosure exposes that path and the
+latest HTTP receipt when it is useful for a demo. It stays out of the normal
+practice flow. Accuracy is derived in the client from the persisted drill
+attempts and successes; it is not stored as a second source of truth.
+
 ## Requirements
 
 The frozen MVP contract is in
@@ -105,7 +110,8 @@ Example session:
 - Map names are free text and are not sourced from Steam.
 - Sessions and results cannot yet be edited or deleted.
 - The client currently relies on API integration tests plus type/build checks;
-  browser interaction tests are a later milestone.
+  its core plan/select/prove flow has been manually exercised in the browser,
+  while automated browser tests remain a later milestone.
 - The application has not been deployed and does not need deployment for this
   milestone.
 
