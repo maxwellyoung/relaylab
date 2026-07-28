@@ -93,3 +93,20 @@
   downstream boundary and persisted a successful run.
 - Verification: fifteen public HTTP tests, all workspace type checks, all
   production builds, and the dependency audit pass.
+
+## 2026-07-28 - Interface-default audit
+
+- Audited the live interface against the recurring model-generated patterns
+  documented by Default Index.
+- Removed the centered marketing opener, generic dark tech gradient, floating
+  rounded workbench, capsule status, decorative monospace labels, repeated
+  eyebrow headings, glow effects, and broad corner rounding.
+- Reframed the product as an editorial lab instrument: the request controls,
+  three-process trace, observed outcome, and SQLite history now form one
+  continuous ruled surface.
+- Kept monospace only where the content is genuinely machine-readable, such as
+  JSON, timings, and experiment identifiers.
+- Preserved the one-action workflow, accessible pressed states, visible focus,
+  mobile layout, and reduced-motion behavior.
+- Verification: fifteen public HTTP tests, every workspace type check, every
+  production build, and a source-level default-pattern scan pass.

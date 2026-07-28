@@ -190,24 +190,29 @@ export default function App() {
   }
 
   return (
-    <main>
+    <main id="main-content">
       <header className="topbar">
-        <a href="#top" aria-label="RelayLab home">
-          Relay<span>Lab</span>
+        <a href="#main-content" aria-label="RelayLab home">
+          RelayLab
         </a>
         <div>
-          <span aria-hidden="true" />
-          Three local processes
+          <span>Distributed systems</span>
+          <span>Failure observer</span>
         </div>
       </header>
 
-      <section className="intro" id="top">
-        <p>API reliability workbench</p>
-        <h1>Break the request on purpose.</h1>
-        <p className="lede">
-          Pick a dependency condition. RelayLab sends one real HTTP request and
-          preserves exactly how it failed.
-        </p>
+      <section className="intro">
+        <h1>See what survives a broken dependency.</h1>
+        <div className="intro-notes">
+          <p>
+            Send one request through a coordinator and a deliberately unreliable
+            service.
+          </p>
+          <p>
+            The outcome, timing, and response are recorded in SQLite for later
+            inspection.
+          </p>
+        </div>
       </section>
 
       {error ? (
@@ -222,10 +227,10 @@ export default function App() {
         aria-label="Request workbench"
       >
         <div className="controls">
-          <div className="section-label">
-            <span>01</span>
-            <p>Dependency condition</p>
-          </div>
+          <header className="section-heading">
+            <h2>Choose a dependency condition</h2>
+            <p>Select how the downstream service will answer.</p>
+          </header>
 
           <div className="behavior-picker">
             {(Object.keys(behaviorCopy) as ExperimentBehavior[]).map(
@@ -279,15 +284,14 @@ export default function App() {
 
         <div className="trace">
           <div className="trace-heading">
-            <div className="section-label">
-              <span>02</span>
-              <p>Live path</p>
+            <div className="section-heading">
+              <h2>Request trace</h2>
+              <p>Browser → coordinator → dependency</p>
             </div>
-            <span className={`trace-status ${currentOutcome?.tone ?? ""}`}>
-              {isRunning
-                ? "In flight"
-                : currentOutcome?.label ?? "Ready"}
-            </span>
+            <p className={`trace-status ${currentOutcome?.tone ?? ""}`}>
+              <span aria-hidden="true" />
+              {isRunning ? "In flight" : currentOutcome?.label ?? "Ready"}
+            </p>
           </div>
 
           <ol className="route" aria-label="Distributed request path">
@@ -333,7 +337,6 @@ export default function App() {
               >
                 <header>
                   <div>
-                    <p>Observed outcome</p>
                     <h2>{currentOutcome.label}</h2>
                   </div>
                   <dl>
@@ -369,8 +372,8 @@ export default function App() {
       <section className="evidence" aria-labelledby="evidence-title">
         <header>
           <div>
-            <p>SQLite evidence</p>
             <h2 id="evidence-title">Previous experiments</h2>
+            <p>Durable SQLite evidence from every configured request.</p>
           </div>
           <span>
             {experiments.length} saved · {runCount} in selected
@@ -407,7 +410,7 @@ export default function App() {
 
       <footer>
         <span>React → Express coordinator → Express dependency → SQLite</span>
-        <span>Local only</span>
+        <span>Single-machine teaching instrument</span>
       </footer>
     </main>
   );
