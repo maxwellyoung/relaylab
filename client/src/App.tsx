@@ -195,64 +195,21 @@ export default function App() {
         <a href="#main-content" aria-label="RelayLab home">
           RelayLab
         </a>
-        <div>
-          <span>Distributed systems</span>
-          <span>Failure observer</span>
-        </div>
+        <p>Browser → coordinator → dependency → SQLite</p>
       </header>
 
-      <section className="intro">
-        <h1>See what survives a broken dependency.</h1>
-        <div className="intro-notes">
-          <p>
-            Send one request through a coordinator and a deliberately unreliable
-            service.
-          </p>
-          <p>
-            The outcome, timing, and response are recorded in SQLite for later
-            inspection.
-          </p>
-        </div>
-      </section>
-
-      {error ? (
-        <div className="error-message" role="alert">
-          <strong>Couldn’t run that.</strong>
-          <span>{error}</span>
-        </div>
-      ) : null}
-
       <section
-        className={`workbench ${isRunning ? "running" : ""}`}
-        aria-label="Request workbench"
+        className={`lab ${isRunning ? "running" : ""}`}
+        aria-labelledby="lab-title"
       >
-        <div className="controls">
-          <header className="section-heading">
-            <h2>Choose a dependency condition</h2>
-            <p>Select how the downstream service will answer.</p>
-          </header>
-
-          <div className="behavior-picker">
-            {(Object.keys(behaviorCopy) as ExperimentBehavior[]).map(
-              (option) => (
-                <button
-                  aria-pressed={behavior === option}
-                  className={behavior === option ? "selected" : ""}
-                  key={option}
-                  onClick={() => chooseBehavior(option)}
-                  type="button"
-                >
-                  <span>{behaviorCopy[option].label}</span>
-                  <small>{behaviorCopy[option].signal}</small>
-                </button>
-              ),
-            )}
+        <header className="lab-heading">
+          <div>
+            <h1 id="lab-title">How should the dependency respond?</h1>
+            <p>
+              RelayLab sends a real request, then records what crossed each
+              boundary.
+            </p>
           </div>
-
-          <p className="behavior-description">
-            {behaviorCopy[behavior].description}
-          </p>
-
           <details className="request-details">
             <summary>Request payload</summary>
             <label>
@@ -270,7 +227,32 @@ export default function App() {
               />
             </label>
           </details>
+        </header>
 
+        {error ? (
+          <div className="error-message" role="alert">
+            <strong>Couldn’t run that.</strong>
+            <span>{error}</span>
+          </div>
+        ) : null}
+
+        <div className="behavior-picker" aria-label="Dependency response">
+          {(Object.keys(behaviorCopy) as ExperimentBehavior[]).map((option) => (
+            <button
+              aria-pressed={behavior === option}
+              className={behavior === option ? "selected" : ""}
+              key={option}
+              onClick={() => chooseBehavior(option)}
+              type="button"
+            >
+              <span>{behaviorCopy[option].label}</span>
+              <small>{behaviorCopy[option].signal}</small>
+            </button>
+          ))}
+        </div>
+
+        <div className="action-row">
+          <p>{behaviorCopy[behavior].description}</p>
           <button
             className="run-button"
             disabled={isRunning}
@@ -282,21 +264,12 @@ export default function App() {
           </button>
         </div>
 
-        <div className="trace">
-          <div className="trace-heading">
-            <div className="section-heading">
-              <h2>Request trace</h2>
-              <p>Browser → coordinator → dependency</p>
-            </div>
-            <p className={`trace-status ${currentOutcome?.tone ?? ""}`}>
-              <span aria-hidden="true" />
-              {isRunning ? "In flight" : currentOutcome?.label ?? "Ready"}
-            </p>
-          </div>
-
-          <ol className="route" aria-label="Distributed request path">
-            <li>
-              <span className="node-index">A</span>
+        <section className="trace" aria-label="Distributed request trace">
+          <ol
+            className={`route ${latestRun?.outcome ?? ""}`}
+            aria-label="Distributed request path"
+          >
+            <li className="route-node browser-node">
               <div>
                 <strong>Browser</strong>
                 <small>POST experiment run</small>
@@ -305,8 +278,7 @@ export default function App() {
             <li className="route-line" aria-hidden="true">
               <span />
             </li>
-            <li>
-              <span className="node-index">B</span>
+            <li className="route-node coordinator-node">
               <div>
                 <strong>Coordinator</strong>
                 <small>400 ms deadline</small>
@@ -315,8 +287,7 @@ export default function App() {
             <li className="route-line" aria-hidden="true">
               <span />
             </li>
-            <li>
-              <span className="node-index">C</span>
+            <li className="route-node dependency-node">
               <div>
                 <strong>Dependency</strong>
                 <small>{behaviorCopy[behavior].signal}</small>
@@ -336,9 +307,7 @@ export default function App() {
                 key={latestRun.id}
               >
                 <header>
-                  <div>
-                    <h2>{currentOutcome.label}</h2>
-                  </div>
+                  <h2>{currentOutcome.label}</h2>
                   <dl>
                     <div>
                       <dt>HTTP</dt>
@@ -358,60 +327,48 @@ export default function App() {
               </article>
             ) : (
               <div className="ready-state">
-                <span>↳</span>
                 <p>
-                  No request yet. The result, timing, and response body will
-                  appear here.
+                  Run the request to see its outcome, timing, and preserved
+                  response.
                 </p>
               </div>
             )}
           </div>
-        </div>
+        </section>
+
+        <details className="evidence">
+          <summary>
+            <span>Past experiments</span>
+            <span>
+              {experiments.length} saved · {runCount} in selected
+            </span>
+          </summary>
+
+          {experiments.length === 0 ? (
+            <p className="empty-evidence">
+              Your first completed request will be stored here.
+            </p>
+          ) : (
+            <div className="experiment-list">
+              {experiments.map((experiment) => (
+                <button
+                  aria-pressed={selected?.id === experiment.id}
+                  className={selected?.id === experiment.id ? "selected" : ""}
+                  key={experiment.id}
+                  onClick={() => void openExperiment(experiment.id)}
+                  type="button"
+                >
+                  <span>
+                    <strong>{experiment.name}</strong>
+                    <small>{formatTimestamp(experiment.createdAt)}</small>
+                  </span>
+                  <span>{behaviorCopy[experiment.behavior].signal}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </details>
       </section>
-
-      <section className="evidence" aria-labelledby="evidence-title">
-        <header>
-          <div>
-            <h2 id="evidence-title">Previous experiments</h2>
-            <p>Durable SQLite evidence from every configured request.</p>
-          </div>
-          <span>
-            {experiments.length} saved · {runCount} in selected
-          </span>
-        </header>
-
-        {experiments.length === 0 ? (
-          <p className="empty-evidence">
-            Your first completed request will become durable evidence here.
-          </p>
-        ) : (
-          <div className="experiment-list">
-            {experiments.map((experiment, index) => (
-              <button
-                aria-pressed={selected?.id === experiment.id}
-                className={selected?.id === experiment.id ? "selected" : ""}
-                key={experiment.id}
-                onClick={() => void openExperiment(experiment.id)}
-                type="button"
-              >
-                <span className="experiment-number">
-                  {String(experiments.length - index).padStart(2, "0")}
-                </span>
-                <span>
-                  <strong>{experiment.name}</strong>
-                  <small>{formatTimestamp(experiment.createdAt)}</small>
-                </span>
-                <span>{behaviorCopy[experiment.behavior].signal}</span>
-              </button>
-            ))}
-          </div>
-        )}
-      </section>
-
-      <footer>
-        <span>React → Express coordinator → Express dependency → SQLite</span>
-        <span>Single-machine teaching instrument</span>
-      </footer>
     </main>
   );
 }

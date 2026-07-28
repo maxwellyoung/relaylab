@@ -110,3 +110,20 @@
   mobile layout, and reduced-motion behavior.
 - Verification: fifteen public HTTP tests, every workspace type check, every
   production build, and a source-level default-pattern scan pass.
+
+## 2026-07-28 - First-principles interaction reduction
+
+- Restated the common task as one loop: choose a dependency response, run one
+  request, and understand what crossed each boundary.
+- Removed the separate introduction, two-column control panel, always-visible
+  history, duplicate section headings, status label, node badges, and large
+  empty result area.
+- Kept the four dependency conditions together as a directly comparable
+  choice, with the selected explanation and run action immediately below.
+- Made the request trace diagnostic: success completes the path in green,
+  timeout marks the coordinator deadline, and response or connection failures
+  mark the dependency boundary.
+- Moved request JSON and past experiments behind disclosures so evidence stays
+  available without competing with the common path.
+- Verification: fifteen HTTP tests, all workspace type checks and builds, local
+  health checks for all three processes, and a successful create-run smoke.
