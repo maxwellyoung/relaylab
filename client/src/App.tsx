@@ -1,486 +1,414 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  addDrillResult,
-  createSession,
-  getSession,
-  listSessions,
-  type PracticeSession,
-  type PracticeSessionDetails,
+  createExperiment,
+  getExperiment,
+  listExperiments,
+  runExperiment,
+  type Experiment,
+  type ExperimentBehavior,
+  type ExperimentDetails,
+  type ExperimentRun,
+  type RunOutcome,
 } from "./api";
 
-const today = new Intl.DateTimeFormat("sv-SE", {
-  timeZone: "Pacific/Auckland",
-}).format(new Date());
-
-const emptySession = {
-  playedAt: today,
-  map: "Dust II",
-  goal: "",
-  durationMinutes: 30,
+const behaviorCopy: Record<
+  ExperimentBehavior,
+  { label: string; signal: string; description: string }
+> = {
+  healthy: {
+    label: "Healthy",
+    signal: "Valid 200",
+    description: "The dependency accepts the payload and returns valid JSON.",
+  },
+  slow: {
+    label: "Slow",
+    signal: "Deadline exceeded",
+    description: "The dependency responds after the coordinator gives up.",
+  },
+  unavailable: {
+    label: "Unavailable",
+    signal: "503 response",
+    description: "The dependency is reachable but refuses the request.",
+  },
+  malformed: {
+    label: "Malformed",
+    signal: "Invalid body",
+    description: "The dependency returns 200 with the wrong response shape.",
+  },
 };
 
-const emptyResult = {
-  drillName: "",
-  attempts: 20,
-  successes: 0,
-  notes: "",
+const outcomeCopy: Record<
+  RunOutcome,
+  { label: string; explanation: string; tone: "good" | "warn" | "bad" }
+> = {
+  success: {
+    label: "Request completed",
+    explanation: "The response crossed both HTTP boundaries and matched the contract.",
+    tone: "good",
+  },
+  downstream_error: {
+    label: "Dependency refused",
+    explanation: "The coordinator reached the service and preserved its error response.",
+    tone: "bad",
+  },
+  timeout: {
+    label: "Deadline exceeded",
+    explanation: "The coordinator stopped waiting, classified the timeout, and kept the attempt.",
+    tone: "warn",
+  },
+  invalid_response: {
+    label: "Contract rejected",
+    explanation: "The service answered, but its body failed response-shape validation.",
+    tone: "warn",
+  },
+  unreachable: {
+    label: "Dependency unreachable",
+    explanation: "The TCP connection failed without taking down the coordinator.",
+    tone: "bad",
+  },
 };
 
-type Exchange = {
-  method: "GET" | "POST";
-  endpoint: string;
-  response: string;
-  message: string;
-  tone: "success" | "error";
-};
+const defaultPayload = `{
+  "orderId": "ORDER-42",
+  "quantity": 2
+}`;
 
-function formatDate(value: string) {
+function formatTimestamp(value: string) {
   return new Intl.DateTimeFormat("en-NZ", {
     day: "numeric",
     month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(`${value}T00:00:00Z`));
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(value.endsWith("Z") ? value : `${value}Z`));
 }
 
-function calculateAccuracy(session: PracticeSessionDetails | null) {
-  if (!session) return null;
-
-  const totals = session.results.reduce(
-    (summary, result) => ({
-      attempts: summary.attempts + result.attempts,
-      successes: summary.successes + result.successes,
-    }),
-    { attempts: 0, successes: 0 },
-  );
-
-  if (totals.attempts === 0) return null;
-
-  return {
-    ...totals,
-    percentage: Math.round((totals.successes / totals.attempts) * 100),
-  };
-}
-
-function messageFrom(reason: unknown, fallback: string) {
-  return reason instanceof Error ? reason.message : fallback;
+function responseText(run: ExperimentRun) {
+  if (run.response === null) return "No response body was received.";
+  return typeof run.response === "string"
+    ? run.response
+    : JSON.stringify(run.response, null, 2);
 }
 
 export default function App() {
-  const [sessions, setSessions] = useState<PracticeSession[]>([]);
-  const [selected, setSelected] = useState<PracticeSessionDetails | null>(null);
-  const [sessionInput, setSessionInput] = useState(emptySession);
-  const [resultInput, setResultInput] = useState(emptyResult);
-  const [exchange, setExchange] = useState<Exchange | null>(null);
+  const [behavior, setBehavior] = useState<ExperimentBehavior>("healthy");
+  const [payloadText, setPayloadText] = useState(defaultPayload);
+  const [experiments, setExperiments] = useState<Experiment[]>([]);
+  const [selected, setSelected] = useState<ExperimentDetails | null>(null);
+  const [latestRun, setLatestRun] = useState<ExperimentRun | null>(null);
+  const [isRunning, setIsRunning] = useState(false);
   const [error, setError] = useState("");
-  const [isBusy, setIsBusy] = useState(false);
 
-  const accuracy = useMemo(() => calculateAccuracy(selected), [selected]);
+  const currentOutcome = latestRun ? outcomeCopy[latestRun.outcome] : null;
+  const runCount = useMemo(
+    () => selected?.runs.length ?? 0,
+    [selected?.runs.length],
+  );
 
   useEffect(() => {
-    void loadLedger();
+    void loadInitialState();
   }, []);
 
-  async function loadLedger() {
+  async function loadInitialState() {
     try {
-      const nextSessions = await listSessions();
-      setSessions(nextSessions);
-
-      if (nextSessions[0]) {
-        const latest = await getSession(nextSessions[0].id);
-        setSelected(latest);
-        setExchange({
-          method: "GET",
-          endpoint: `/api/sessions/${latest.id}`,
-          response: "200 OK",
-          message: "The latest session and its drill evidence were loaded.",
-          tone: "success",
-        });
-      } else {
-        setExchange({
-          method: "GET",
-          endpoint: "/api/sessions",
-          response: "200 OK",
-          message: "The ledger is ready for its first session.",
-          tone: "success",
-        });
+      const nextExperiments = await listExperiments();
+      setExperiments(nextExperiments);
+      if (nextExperiments[0]) {
+        const details = await getExperiment(nextExperiments[0].id);
+        selectDetails(details);
       }
     } catch (reason) {
-      recordFailure("GET", "/api/sessions", reason, "Unable to load sessions");
-    }
-  }
-
-  async function selectSession(sessionId: number) {
-    setError("");
-    try {
-      const nextSession = await getSession(sessionId);
-      setSelected(nextSession);
-      setExchange({
-        method: "GET",
-        endpoint: `/api/sessions/${sessionId}`,
-        response: "200 OK",
-        message: "Session evidence loaded from SQLite.",
-        tone: "success",
-      });
-    } catch (reason) {
-      recordFailure(
-        "GET",
-        `/api/sessions/${sessionId}`,
-        reason,
-        "Unable to load session",
+      setError(
+        reason instanceof Error ? reason.message : "Unable to load experiments",
       );
     }
   }
 
-  function recordFailure(
-    method: Exchange["method"],
-    endpoint: string,
-    reason: unknown,
-    fallback: string,
-  ) {
-    const message = messageFrom(reason, fallback);
-    setError(message);
-    setExchange({
-      method,
-      endpoint,
-      response: "Request failed",
-      message,
-      tone: "error",
-    });
+  function selectDetails(details: ExperimentDetails) {
+    setSelected(details);
+    setBehavior(details.behavior);
+    setPayloadText(JSON.stringify(details.payload, null, 2));
+    setLatestRun(details.runs[0] ?? null);
   }
 
-  async function submitSession(event: FormEvent) {
-    event.preventDefault();
+  function chooseBehavior(nextBehavior: ExperimentBehavior) {
+    setBehavior(nextBehavior);
+    setSelected(null);
+    setLatestRun(null);
     setError("");
-    setIsBusy(true);
+  }
 
+  async function openExperiment(experimentId: number) {
+    setError("");
     try {
-      const created = await createSession(sessionInput);
-      const [nextSessions, details] = await Promise.all([
-        listSessions(),
-        getSession(created.id),
+      selectDetails(await getExperiment(experimentId));
+    } catch (reason) {
+      setError(
+        reason instanceof Error ? reason.message : "Unable to load experiment",
+      );
+    }
+  }
+
+  async function execute() {
+    setError("");
+
+    let payload: Record<string, unknown>;
+    try {
+      const parsed = JSON.parse(payloadText) as unknown;
+      if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") {
+        throw new Error("Payload must be a JSON object.");
+      }
+      payload = parsed as Record<string, unknown>;
+    } catch {
+      setError("Payload must be a valid JSON object.");
+      return;
+    }
+
+    setIsRunning(true);
+    try {
+      const experiment =
+        selected ??
+        (await createExperiment({
+          name: `${behaviorCopy[behavior].label} dependency`,
+          behavior,
+          payload,
+        }));
+      const run = await runExperiment(experiment.id);
+      const [details, nextExperiments] = await Promise.all([
+        getExperiment(experiment.id),
+        listExperiments(),
       ]);
-      setSessions(nextSessions);
       setSelected(details);
-      setSessionInput({ ...emptySession, playedAt: today });
-      setExchange({
-        method: "POST",
-        endpoint: "/api/sessions",
-        response: "201 Created",
-        message: "Your practice focus is saved.",
-        tone: "success",
-      });
+      setLatestRun(run);
+      setExperiments(nextExperiments);
     } catch (reason) {
-      recordFailure(
-        "POST",
-        "/api/sessions",
-        reason,
-        "Unable to save session",
+      setError(
+        reason instanceof Error ? reason.message : "Unable to run experiment",
       );
     } finally {
-      setIsBusy(false);
-    }
-  }
-
-  async function submitResult(event: FormEvent) {
-    event.preventDefault();
-    if (!selected) return;
-
-    setError("");
-    setIsBusy(true);
-
-    try {
-      await addDrillResult(selected.id, resultInput);
-      const details = await getSession(selected.id);
-      setSelected(details);
-      setResultInput(emptyResult);
-      setExchange({
-        method: "POST",
-        endpoint: `/api/sessions/${selected.id}/results`,
-        response: "201 Created",
-        message: "The drill result is now part of this session.",
-        tone: "success",
-      });
-    } catch (reason) {
-      recordFailure(
-        "POST",
-        `/api/sessions/${selected.id}/results`,
-        reason,
-        "Unable to save result",
-      );
-    } finally {
-      setIsBusy(false);
+      setIsRunning(false);
     }
   }
 
   return (
     <main>
       <header className="topbar">
-        <a href="#top" aria-label="AimLedger home">
-          Aim<span>/</span>Ledger
+        <a href="#top" aria-label="RelayLab home">
+          Relay<span>Lab</span>
         </a>
-        <span>Local practice log</span>
+        <div>
+          <span aria-hidden="true" />
+          Three local processes
+        </div>
       </header>
 
       <section className="intro" id="top">
-        <p>Deliberate practice, without the admin.</p>
-        <h1>What are you working on?</h1>
+        <p>API reliability workbench</p>
+        <h1>Break the request on purpose.</h1>
+        <p className="lede">
+          Pick a dependency condition. RelayLab sends one real HTTP request and
+          preserves exactly how it failed.
+        </p>
       </section>
 
       {error ? (
         <div className="error-message" role="alert">
-          {error}
+          <strong>Couldn’t run that.</strong>
+          <span>{error}</span>
         </div>
       ) : null}
 
-      <section className="start-session" aria-labelledby="start-title">
-        <h2 id="start-title" className="sr-only">
-          Start a practice session
-        </h2>
-        <form onSubmit={submitSession}>
-          <label className="focus-field">
-            <span className="sr-only">Practice focus</span>
-            <textarea
-              autoFocus
-              value={sessionInput.goal}
-              onChange={(event) =>
-                setSessionInput({ ...sessionInput, goal: event.target.value })
-              }
-              placeholder="e.g. Stop moving before the first bullet"
-              maxLength={240}
-              required
-            />
-          </label>
+      <section
+        className={`workbench ${isRunning ? "running" : ""}`}
+        aria-label="Request workbench"
+      >
+        <div className="controls">
+          <div className="section-label">
+            <span>01</span>
+            <p>Dependency condition</p>
+          </div>
 
-          <details className="session-options">
-            <summary>
-              <span>Session details</span>
-              <small>
-                {sessionInput.map} · {sessionInput.durationMinutes} min ·{" "}
-                {formatDate(sessionInput.playedAt)}
-              </small>
-            </summary>
-            <div>
-              <label>
-                Map
-                <input
-                  value={sessionInput.map}
-                  onChange={(event) =>
-                    setSessionInput({ ...sessionInput, map: event.target.value })
-                  }
-                  maxLength={50}
-                  required
-                />
-              </label>
-              <label>
-                Duration
-                <div className="unit-input">
-                  <input
-                    type="number"
-                    min="1"
-                    max="480"
-                    value={sessionInput.durationMinutes}
-                    onChange={(event) =>
-                      setSessionInput({
-                        ...sessionInput,
-                        durationMinutes: Number(event.target.value),
-                      })
-                    }
-                    required
-                  />
-                  <span>min</span>
-                </div>
-              </label>
-              <label>
-                Date
-                <input
-                  type="date"
-                  value={sessionInput.playedAt}
-                  onChange={(event) =>
-                    setSessionInput({
-                      ...sessionInput,
-                      playedAt: event.target.value,
-                    })
-                  }
-                  required
-                />
-              </label>
-            </div>
+          <div className="behavior-picker">
+            {(Object.keys(behaviorCopy) as ExperimentBehavior[]).map(
+              (option) => (
+                <button
+                  aria-pressed={behavior === option}
+                  className={behavior === option ? "selected" : ""}
+                  key={option}
+                  onClick={() => chooseBehavior(option)}
+                  type="button"
+                >
+                  <span>{behaviorCopy[option].label}</span>
+                  <small>{behaviorCopy[option].signal}</small>
+                </button>
+              ),
+            )}
+          </div>
+
+          <p className="behavior-description">
+            {behaviorCopy[behavior].description}
+          </p>
+
+          <details className="request-details">
+            <summary>Request payload</summary>
+            <label>
+              <span className="sr-only">JSON request payload</span>
+              <textarea
+                aria-label="JSON request payload"
+                value={payloadText}
+                onChange={(event) => {
+                  setPayloadText(event.target.value);
+                  setSelected(null);
+                  setLatestRun(null);
+                  setError("");
+                }}
+                spellCheck="false"
+              />
+            </label>
           </details>
 
-          <button className="primary-button" disabled={isBusy} type="submit">
-            {isBusy ? "Saving…" : "Start practice"}
+          <button
+            className="run-button"
+            disabled={isRunning}
+            onClick={() => void execute()}
+            type="button"
+          >
+            <span>{isRunning ? "Request in flight…" : selected ? "Run again" : "Run request"}</span>
             <span aria-hidden="true">→</span>
           </button>
-        </form>
+        </div>
+
+        <div className="trace">
+          <div className="trace-heading">
+            <div className="section-label">
+              <span>02</span>
+              <p>Live path</p>
+            </div>
+            <span className={`trace-status ${currentOutcome?.tone ?? ""}`}>
+              {isRunning
+                ? "In flight"
+                : currentOutcome?.label ?? "Ready"}
+            </span>
+          </div>
+
+          <ol className="route" aria-label="Distributed request path">
+            <li>
+              <span className="node-index">A</span>
+              <div>
+                <strong>Browser</strong>
+                <small>POST experiment run</small>
+              </div>
+            </li>
+            <li className="route-line" aria-hidden="true">
+              <span />
+            </li>
+            <li>
+              <span className="node-index">B</span>
+              <div>
+                <strong>Coordinator</strong>
+                <small>400 ms deadline</small>
+              </div>
+            </li>
+            <li className="route-line" aria-hidden="true">
+              <span />
+            </li>
+            <li>
+              <span className="node-index">C</span>
+              <div>
+                <strong>Dependency</strong>
+                <small>{behaviorCopy[behavior].signal}</small>
+              </div>
+            </li>
+          </ol>
+
+          <div className="result-slot" aria-live="polite">
+            {isRunning ? (
+              <div className="pending-result">
+                <span />
+                <p>Waiting at the coordinator boundary…</p>
+              </div>
+            ) : latestRun && currentOutcome ? (
+              <article
+                className={`result-card ${currentOutcome.tone}`}
+                key={latestRun.id}
+              >
+                <header>
+                  <div>
+                    <p>Observed outcome</p>
+                    <h2>{currentOutcome.label}</h2>
+                  </div>
+                  <dl>
+                    <div>
+                      <dt>HTTP</dt>
+                      <dd>{latestRun.httpStatus ?? "—"}</dd>
+                    </div>
+                    <div>
+                      <dt>Time</dt>
+                      <dd>{latestRun.durationMs} ms</dd>
+                    </div>
+                  </dl>
+                </header>
+                <p>{currentOutcome.explanation}</p>
+                <details>
+                  <summary>Response evidence</summary>
+                  <pre>{responseText(latestRun)}</pre>
+                </details>
+              </article>
+            ) : (
+              <div className="ready-state">
+                <span>↳</span>
+                <p>
+                  No request yet. The result, timing, and response body will
+                  appear here.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
       </section>
 
-      {selected ? (
-        <section className="active-session" aria-labelledby="active-title">
-          <header>
-            <div>
-              <p>
-                {formatDate(selected.playedAt)} · {selected.map} ·{" "}
-                {selected.durationMinutes} min
-              </p>
-              <h2 id="active-title">{selected.goal}</h2>
-            </div>
-            <div className="accuracy">
-              <span>{accuracy ? `${accuracy.percentage}%` : "—"}</span>
-              <small>{accuracy ? "accuracy" : "no results yet"}</small>
-            </div>
-          </header>
-
-          <div className="evidence-grid">
-            <form className="result-form" onSubmit={submitResult}>
-              <h3>Add a result</h3>
-              <label>
-                Drill
-                <input
-                  value={resultInput.drillName}
-                  onChange={(event) =>
-                    setResultInput({
-                      ...resultInput,
-                      drillName: event.target.value,
-                    })
-                  }
-                  placeholder="Counter-strafe wall targets"
-                  maxLength={100}
-                  required
-                />
-              </label>
-              <div className="score-inputs">
-                <label>
-                  Successes
-                  <input
-                    type="number"
-                    min="0"
-                    max={resultInput.attempts}
-                    value={resultInput.successes}
-                    onChange={(event) =>
-                      setResultInput({
-                        ...resultInput,
-                        successes: Number(event.target.value),
-                      })
-                    }
-                    required
-                  />
-                </label>
-                <span>out of</span>
-                <label>
-                  Attempts
-                  <input
-                    type="number"
-                    min="1"
-                    value={resultInput.attempts}
-                    onChange={(event) =>
-                      setResultInput({
-                        ...resultInput,
-                        attempts: Number(event.target.value),
-                      })
-                    }
-                    required
-                  />
-                </label>
-              </div>
-              <details className="note-field">
-                <summary>Add an observation</summary>
-                <label>
-                  <span className="sr-only">Observation</span>
-                  <textarea
-                    value={resultInput.notes}
-                    onChange={(event) =>
-                      setResultInput({
-                        ...resultInput,
-                        notes: event.target.value,
-                      })
-                    }
-                    placeholder="What changed or broke?"
-                    maxLength={500}
-                  />
-                </label>
-              </details>
-              <button disabled={isBusy} type="submit">
-                {isBusy ? "Saving…" : "Save result"}
-              </button>
-            </form>
-
-            <div className="result-history">
-              <h3>Evidence</h3>
-              {selected.results.length === 0 ? (
-                <p className="quiet-state">
-                  Add one result when you finish a repeatable drill.
-                </p>
-              ) : (
-                <ol>
-                  {selected.results.map((result) => (
-                    <li key={result.id}>
-                      <div>
-                        <strong>{result.drillName}</strong>
-                        <span>
-                          {result.successes}/{result.attempts}
-                        </span>
-                      </div>
-                      {result.notes ? <p>{result.notes}</p> : null}
-                    </li>
-                  ))}
-                </ol>
-              )}
-            </div>
-          </div>
-        </section>
-      ) : null}
-
-      <section className="practice-log" aria-labelledby="log-title">
+      <section className="evidence" aria-labelledby="evidence-title">
         <header>
-          <h2 id="log-title">Practice log</h2>
-          <span>{sessions.length}</span>
+          <div>
+            <p>SQLite evidence</p>
+            <h2 id="evidence-title">Previous experiments</h2>
+          </div>
+          <span>
+            {experiments.length} saved · {runCount} in selected
+          </span>
         </header>
-        {sessions.length === 0 ? (
-          <p className="quiet-state">
-            Your completed sessions will collect here.
+
+        {experiments.length === 0 ? (
+          <p className="empty-evidence">
+            Your first completed request will become durable evidence here.
           </p>
         ) : (
-          <div>
-            {sessions.map((session) => (
+          <div className="experiment-list">
+            {experiments.map((experiment, index) => (
               <button
-                aria-pressed={selected?.id === session.id}
-                className={selected?.id === session.id ? "selected" : ""}
-                key={session.id}
-                onClick={() => void selectSession(session.id)}
+                aria-pressed={selected?.id === experiment.id}
+                className={selected?.id === experiment.id ? "selected" : ""}
+                key={experiment.id}
+                onClick={() => void openExperiment(experiment.id)}
                 type="button"
               >
-                <span>
-                  <strong>{session.goal}</strong>
-                  <small>
-                    {formatDate(session.playedAt)} · {session.map}
-                  </small>
+                <span className="experiment-number">
+                  {String(experiments.length - index).padStart(2, "0")}
                 </span>
-                <span>{session.durationMinutes} min</span>
+                <span>
+                  <strong>{experiment.name}</strong>
+                  <small>{formatTimestamp(experiment.createdAt)}</small>
+                </span>
+                <span>{behaviorCopy[experiment.behavior].signal}</span>
               </button>
             ))}
           </div>
         )}
       </section>
 
-      <details className="system-details">
-        <summary>How AimLedger stores this</summary>
-        <div>
-          <p>
-            React sends JSON to an Express API. Zod validates it before SQLite
-            stores the session and related drill results.
-          </p>
-          {exchange ? (
-            <div className={`exchange ${exchange.tone}`} aria-live="polite">
-              <code>
-                {exchange.method} {exchange.endpoint}
-              </code>
-              <span>{exchange.response}</span>
-              <p>{exchange.message}</p>
-            </div>
-          ) : null}
-        </div>
-      </details>
+      <footer>
+        <span>React → Express coordinator → Express dependency → SQLite</span>
+        <span>Local only</span>
+      </footer>
     </main>
   );
 }

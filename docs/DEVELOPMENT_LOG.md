@@ -61,3 +61,20 @@
   persistence.
 - Verification at this checkpoint: nine coordinator HTTP tests and four
   downstream HTTP tests pass; both service type checks pass.
+
+## 2026-07-28 - One-action reliability workbench
+
+- Replaced the practice-tracker interface with one compound workbench rather
+  than a collection of dashboard cards.
+- A normal run now needs one click: the client creates a saved experiment when
+  required, triggers the coordinator, reloads the durable run, and updates the
+  evidence list.
+- Kept payload editing optional and hid raw response bodies behind a disclosure.
+- Added one purposeful in-flight signal along the real browser -> coordinator
+  -> dependency path; repeated navigation and list interactions remain
+  effectively instant and reduced-motion is supported.
+- Live browser verification completed healthy (`200`), timeout (about 400 ms),
+  downstream `503`, malformed `200`, invalid local JSON, persisted-history, and
+  response-evidence paths with no browser console errors.
+- Verification: thirteen public HTTP tests, all workspace type checks, and all
+  three production builds pass.
