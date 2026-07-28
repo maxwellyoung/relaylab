@@ -2,6 +2,10 @@ FROM node:24-bookworm-slim AS build
 
 WORKDIR /app
 
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends python3 make g++ \
+  && rm -rf /var/lib/apt/lists/*
+
 COPY package.json package-lock.json ./
 COPY client/package.json client/package.json
 COPY downstream/package.json downstream/package.json
@@ -33,8 +37,7 @@ COPY --from=build /app/server/package.json ./server/package.json
 COPY --from=build /app/server/dist ./server/dist
 COPY --from=build /app/scripts/start-production.mjs ./scripts/start-production.mjs
 
-RUN mkdir -p /data && chown -R node:node /app /data
-USER node
+RUN mkdir -p /data
 
 EXPOSE 8080
 
