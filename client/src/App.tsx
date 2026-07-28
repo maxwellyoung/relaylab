@@ -195,7 +195,7 @@ export default function App() {
         <a href="#main-content" aria-label="RelayLab home">
           RelayLab
         </a>
-        <p>Browser → coordinator → dependency → SQLite</p>
+        <p>Distributed communication demo</p>
       </header>
 
       <section
@@ -203,15 +203,42 @@ export default function App() {
         aria-labelledby="lab-title"
       >
         <header className="lab-heading">
-          <div>
-            <h1 id="lab-title">How should the dependency respond?</h1>
-            <p>
-              RelayLab sends a real request, then records what crossed each
-              boundary.
-            </p>
+          <h1 id="lab-title">Run a dependency failure experiment</h1>
+          <p>
+            Send one request through an Express coordinator to a separate
+            service. The result is stored in SQLite.
+          </p>
+        </header>
+
+        {error ? (
+          <div className="error-message" role="alert">
+            <strong>Couldn’t run that.</strong>
+            <span>{error}</span>
           </div>
+        ) : null}
+
+        <div className="experiment-controls">
+          <label className="behavior-control">
+            <span>Dependency behavior</span>
+            <select
+              value={behavior}
+              onChange={(event) =>
+                chooseBehavior(event.target.value as ExperimentBehavior)
+              }
+            >
+              {(Object.keys(behaviorCopy) as ExperimentBehavior[]).map(
+                (option) => (
+                  <option key={option} value={option}>
+                    {behaviorCopy[option].label} —{" "}
+                    {behaviorCopy[option].signal}
+                  </option>
+                ),
+              )}
+            </select>
+          </label>
+
           <details className="request-details">
-            <summary>Request payload</summary>
+            <summary>Edit request payload</summary>
             <label>
               <span className="sr-only">JSON request payload</span>
               <textarea
@@ -227,44 +254,23 @@ export default function App() {
               />
             </label>
           </details>
-        </header>
 
-        {error ? (
-          <div className="error-message" role="alert">
-            <strong>Couldn’t run that.</strong>
-            <span>{error}</span>
-          </div>
-        ) : null}
-
-        <div className="behavior-picker" aria-label="Dependency response">
-          {(Object.keys(behaviorCopy) as ExperimentBehavior[]).map((option) => (
-            <button
-              aria-pressed={behavior === option}
-              className={behavior === option ? "selected" : ""}
-              key={option}
-              onClick={() => chooseBehavior(option)}
-              type="button"
-            >
-              <span>{behaviorCopy[option].label}</span>
-              <small>{behaviorCopy[option].signal}</small>
-            </button>
-          ))}
-        </div>
-
-        <div className="action-row">
-          <p>{behaviorCopy[behavior].description}</p>
           <button
             className="run-button"
             disabled={isRunning}
             onClick={() => void execute()}
             type="button"
           >
-            <span>{isRunning ? "Request in flight…" : selected ? "Run again" : "Run request"}</span>
-            <span aria-hidden="true">→</span>
+            {isRunning ? "Running…" : selected ? "Run again" : "Run experiment"}
           </button>
         </div>
 
+        <p className="behavior-description">
+          {behaviorCopy[behavior].description}
+        </p>
+
         <section className="trace" aria-label="Distributed request trace">
+          <h2>Request path</h2>
           <ol
             className={`route ${latestRun?.outcome ?? ""}`}
             aria-label="Distributed request path"
@@ -276,16 +282,16 @@ export default function App() {
               </div>
             </li>
             <li className="route-line" aria-hidden="true">
-              <span />
+              →
             </li>
             <li className="route-node coordinator-node">
               <div>
                 <strong>Coordinator</strong>
-                <small>400 ms deadline</small>
+                <small>POST downstream · 400 ms deadline</small>
               </div>
             </li>
             <li className="route-line" aria-hidden="true">
-              <span />
+              →
             </li>
             <li className="route-node dependency-node">
               <div>
@@ -298,7 +304,6 @@ export default function App() {
           <div className="result-slot" aria-live="polite">
             {isRunning ? (
               <div className="pending-result">
-                <span />
                 <p>Waiting at the coordinator boundary…</p>
               </div>
             ) : latestRun && currentOutcome ? (
@@ -307,7 +312,7 @@ export default function App() {
                 key={latestRun.id}
               >
                 <header>
-                  <h2>{currentOutcome.label}</h2>
+                  <h3>{currentOutcome.label}</h3>
                   <dl>
                     <div>
                       <dt>HTTP</dt>
@@ -338,7 +343,7 @@ export default function App() {
 
         <details className="evidence">
           <summary>
-            <span>Past experiments</span>
+            <span>Saved experiments</span>
             <span>
               {experiments.length} saved · {runCount} in selected
             </span>

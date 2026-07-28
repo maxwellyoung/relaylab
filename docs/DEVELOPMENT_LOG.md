@@ -127,3 +127,18 @@
   available without competing with the common path.
 - Verification: fifteen HTTP tests, all workspace type checks and builds, local
   health checks for all three processes, and a successful create-run smoke.
+
+## 2026-07-28 - Purpose-neutral assessment UI
+
+- Removed the remaining authored art direction after it made the demonstration
+  feel like a design showcase rather than a distributed-systems exercise.
+- Replaced the custom four-option strip with a native select and conventional
+  Run button.
+- Reduced the heading, spacing, palette, motion, and result typography to
+  ordinary application defaults.
+- Kept color only for the primary action and semantic success, warning, and
+  failure states.
+- Replaced the animated route with a compact static request-path readout while
+  retaining boundary-level outcome evidence.
+- Verification: fifteen HTTP tests, all workspace type checks, and all
+  production builds pass.
