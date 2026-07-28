@@ -1,0 +1,29 @@
+import { mkdirSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { buildApplication } from "./app.js";
+
+const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
+const defaultDataDirectory = path.resolve(currentDirectory, "../../data");
+const dataDirectory = process.env.AIMLEDGER_DATA_DIR ?? defaultDataDirectory;
+const port = Number(process.env.PORT ?? 3000);
+
+mkdirSync(dataDirectory, { recursive: true });
+
+const application = buildApplication({
+  databasePath: path.join(dataDirectory, "aimledger.sqlite"),
+});
+
+const server = application.app.listen(port, () => {
+  console.log(`AimLedger API listening on http://localhost:${port}`);
+});
+
+function shutdown() {
+  server.close(() => {
+    application.close();
+    process.exit(0);
+  });
+}
+
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);

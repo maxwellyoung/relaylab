@@ -1,0 +1,18 @@
+{
+  "name": "aimledger",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "concurrently -n api,client -c blue,green \"npm run dev -w server\" \"npm run dev -w client\"",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.4"
+  }
+}
