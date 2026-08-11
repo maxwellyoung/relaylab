@@ -146,7 +146,8 @@
 ## 2026-08-11 - Lecturer database readiness
 
 - Reconciled the project with the lecturer's database-server announcement and
-  requested Maxwell's private schema credentials by direct email.
+  prepared a private credential request. Outlook remained at Microsoft sign-in,
+  so no message was sent and no credentials were entered.
 - Preserved SQLite as the deterministic local/test lane and added an opt-in
   MySQL persistence adapter for the lecturer-assigned schema.
 - Kept every credential in local environment configuration and hard-limited
@@ -230,3 +231,24 @@
 - Remaining gates are lecturer MySQL credentials and a live database run, final
   spoken video capture, exact archive review, and explicit Canvas submission
   approval.
+
+## 2026-08-11 - Versioned downstream JSON-RPC boundary
+
+- Preserved the browser-facing REST resource API and replaced the private
+  coordinator-to-dependency operation with JSON-RPC 2.0 at `POST /rpc`.
+- Added the versioned `relaylab.process.v1` method, UUID correlation IDs,
+  method-specific parameter/result validation, standard protocol errors, and
+  application error `-32001` for the simulated unavailable dependency.
+- Persisted the complete RPC result or error envelope so transport status,
+  method outcome, correlation evidence, and duration remain inspectable.
+- Updated the interface to show HTTP and RPC outcomes separately. This makes
+  an HTTP 200 carrying an RPC application error visibly different from a
+  timeout, invalid result, or unreachable process.
+- Added contract tests for method versioning, matched and mismatched IDs,
+  RPC errors, invalid parameters, malformed results, timeout, persistence, and
+  the real TCP service boundary. Current total: 27 passing automated tests.
+- Built-production browser QA passed at 1280 by 720 and 390 by 844. A healthy
+  call showed HTTP 200 plus RPC result; an unavailable call showed HTTP 200
+  plus RPC `-32001`, the correlated envelope, durable history, and zero console
+  warnings or errors.
+- This milestone is local only until a separately approved push and deployment.

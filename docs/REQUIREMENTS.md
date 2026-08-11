@@ -33,8 +33,8 @@ run it through a coordinator service, and inspect the durable outcome.
 
 1. Create an experiment with a name, downstream behavior, and JSON payload.
 2. List saved experiments and open one with its previous runs.
-3. Run an experiment through a separately running downstream service.
-4. Persist the observed status, HTTP code, duration, and response for every run.
+3. Run an experiment through a separately running JSON-RPC service.
+4. Persist the observed status, HTTP code, duration, and RPC envelope for every run.
 5. Distinguish healthy, downstream-error, timeout, malformed-response, and
    unreachable outcomes.
 6. Reject invalid experiment input and missing resources with controlled HTTP
@@ -56,7 +56,8 @@ Included:
 - separate browser client, coordinator API, and downstream-service processes;
 - relational persistence through SQLite locally or the lecturer-provided MySQL
   schema;
-- JSON request/response exchange;
+- REST/JSON between browser and coordinator, then JSON-RPC 2.0 between services;
+- a versioned RPC method and correlation-ID validation;
 - bounded timeout and response-shape validation;
 - controlled downstream failures;
 - automated API behavior tests;
@@ -77,7 +78,7 @@ Excluded:
 - A restart retains experiments and runs.
 - The downstream service can deterministically demonstrate success and failure.
 - Tests, type checking, and production builds pass.
-- Maxwell can trace one request across both HTTP boundaries and into SQLite.
+- Maxwell can trace one request across REST, JSON-RPC, and relational persistence.
 
 ## Lecturer database lane
 

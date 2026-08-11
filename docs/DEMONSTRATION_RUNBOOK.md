@@ -25,14 +25,14 @@ submission has already been completed.
 | --- | --- | --- | --- |
 | Introduction | Title card or brief spoken introduction | Name, student ID, course, Option A, and RelayLab purpose | Assessment identity and scope |
 | Startup | Clean terminal running `npm run dev` | Three independently running processes and their ports | System starts reproducibly |
-| Architecture | README diagram and live interface | Browser -> coordinator -> downstream; coordinator -> database | Communication boundaries |
-| Healthy exchange | Select Healthy and run invented JSON | Request crosses two HTTP boundaries and is persisted | HTTP 200, duration, response, timestamp |
+| Architecture | README diagram and live interface | Browser REST -> coordinator -> downstream JSON-RPC; coordinator -> database | Communication boundaries and protocol choice |
+| Healthy exchange | Select Healthy and run invented JSON | Coordinator sends `relaylab.process.v1` with a correlation ID | HTTP 200, RPC result, duration, envelope, timestamp |
 | Invalid input | Enter malformed JSON and run | Client validation prevents an invalid API write | Readable controlled error |
-| Failed request | Select Unavailable and run | Downstream returns 503; coordinator classifies and persists it | `downstream_error`, HTTP 503, run count change |
-| Contract/deadline | Run Malformed or Slow | Response-shape validation and bounded waiting are different failure modes | `invalid_response` or `timeout` |
+| Failed request | Select Unavailable and run | HTTP succeeds while the method returns RPC error `-32001` | `downstream_error`, HTTP 200, RPC `-32001`, run count change |
+| Contract/deadline | Run Malformed or Slow | RPC result validation and bounded waiting are different failure modes | `invalid_response` or `timeout` |
 | Durable state | Reopen Saved experiments; restart and reopen if practical | One experiment owns many run records | State survives restart |
 | Database implementation | Show only safe source excerpts | Related tables, parameterised SQL, optional MySQL adapter, hard pool cap 5 | Data-design evidence without credentials |
-| Test evidence | Run `npm run verify` | 21 tests plus type checks, builds, restart smoke, and dependency audit | Reproducible evidence |
+| Test evidence | Run `npm run verify` | 27 tests plus type checks, builds, restart smoke, and dependency audit | Reproducible evidence |
 | GitHub history | Repository **Commits** page | Point out meaningful July and August milestones and visible website timestamps | Development-process evidence |
 | Limitations | Report or README limitations | Simulator, single user, no retries; disclose MySQL live-test status exactly | Honest self-evaluation |
 
@@ -41,9 +41,9 @@ submission has already been completed.
 | Claim | Primary implementation | Automated evidence | Video evidence |
 | --- | --- | --- | --- |
 | Separate distributed processes | `client/`, `server/`, `downstream/` | Coordinator tests use a real TCP downstream boundary | Show the three dev processes and request path |
-| Validated JSON API | `server/src/app.ts`, `downstream/src/app.ts` | Coordinator and downstream suites | Healthy exchange plus invalid JSON |
+| REST plus JSON-RPC | `server/src/app.ts`, `server/src/downstream-rpc.ts`, `downstream/src/app.ts` | Correlation, method, parameter, result, and error tests | Expand the saved RPC envelope |
 | Relational one-to-many persistence | `server/src/database.ts` | API persistence tests and `npm run smoke` | Reopen history after a new run/restart |
-| Controlled failure handling | `server/src/app.ts` | 503, timeout, malformed, and unreachable tests | Show at least one failed request |
+| Controlled failure handling | `server/src/app.ts` | RPC error, timeout, malformed-result, and unreachable tests | Show at least one failed request |
 | Browser workflow | `client/src/App.tsx` | Three client tests | Create, run, inspect, and reopen |
 | Lecturer database constraint | `server/src/database.ts` | Database configuration tests | Show pool cap 5 without showing credentials |
 | Incremental development | GitHub repository | Commit history and development log | Show timestamps on GitHub website |
@@ -52,7 +52,7 @@ submission has already been completed.
 
 - [x] Official Option A project brief has been reviewed.
 - [x] Supplied Canvas submission instructions and full rubric have been reviewed.
-- [x] Current 21-test verification, type checks, builds, restart smoke, and
+- [x] Current 27-test verification, type checks, builds, restart smoke, and
       production dependency audit pass.
 - [x] Current source commits are visible on GitHub.
 - [ ] Lecturer MySQL credentials have been received and entered locally.

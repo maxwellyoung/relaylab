@@ -355,7 +355,7 @@ def add_architecture_diagram(document: Document) -> None:
         draw.text((label_x, label_y), label, fill="#2E74B5", font=small_font)
 
     arrow((390, 207), (640, 207), "JSON over HTTP")
-    arrow((960, 207), (1210, 207), "bounded HTTP")
+    arrow((960, 207), (1210, 207), "JSON-RPC 2.0")
     arrow((800, 290), (800, 405), "parameterised SQL")
 
     with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as handle:

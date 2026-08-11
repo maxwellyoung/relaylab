@@ -30,7 +30,7 @@ The reproducible source paths are
 | Client serialises a request and consumes JSON | React client calls the coordinator API | `client/src/api.ts`, `client/src/App.test.tsx` |
 | Handler validates before application logic | Zod validates experiment and downstream message shapes | `server/src/app.ts`, `downstream/src/app.ts` |
 | Explicit request/service boundaries | Browser -> coordinator -> downstream | Real TCP downstream tests and live request trace |
-| HTTP error differs from transport failure | 503 maps to `downstream_error`; refused connection maps to `unreachable` | Coordinator outcome tests |
+| RPC application error differs from transport failure | RPC `-32001` maps to `downstream_error`; refused connection maps to `unreachable` | Coordinator outcome tests |
 | Bounded waiting | Coordinator aborts after 400 ms | Timeout test and Slow demonstration |
 | Presentation does not access data directly | Client talks only to coordinator | Architecture and source structure |
 | Related relational entities | `experiments` has many `experiment_runs` | SQLite/MySQL schema plus persistence tests |

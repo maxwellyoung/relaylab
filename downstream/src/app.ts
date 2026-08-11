@@ -7,6 +7,32 @@ const processRequest = z.object({
   payload: z.record(z.string(), z.unknown()),
 });
 
+const rpcRequest = z.object({
+  jsonrpc: z.literal("2.0"),
+  id: z.union([z.string(), z.number()]),
+  method: z.string(),
+  params: z.unknown(),
+});
+
+const RPC_METHOD = "relaylab.process.v1";
+
+function rpcError(
+  id: string | number | null,
+  code: number,
+  message: string,
+  data?: Record<string, unknown>,
+) {
+  return {
+    jsonrpc: "2.0" as const,
+    id,
+    error: {
+      code,
+      message,
+      ...(data ? { data } : {}),
+    },
+  };
+}
+
 export function buildDownstreamService({
   slowDelayMs = 800,
 }: {
@@ -20,38 +46,63 @@ export function buildDownstreamService({
     response.json({ status: "ok", service: "relaylab-downstream" });
   });
 
-  app.post("/api/process", async (request, response) => {
-    const parsed = processRequest.safeParse(request.body);
+  app.post("/rpc", async (request, response) => {
+    const envelope = rpcRequest.safeParse(request.body);
+    if (!envelope.success) {
+      response.json(rpcError(null, -32600, "Invalid Request"));
+      return;
+    }
+
+    if (envelope.data.method !== RPC_METHOD) {
+      response.json(
+        rpcError(envelope.data.id, -32601, "Method not found", {
+          method: envelope.data.method,
+        }),
+      );
+      return;
+    }
+
+    const parsed = processRequest.safeParse(envelope.data.params);
     if (!parsed.success) {
-      response.status(400).json({ error: "Invalid downstream request" });
+      response.json(
+        rpcError(envelope.data.id, -32602, "Invalid params", {
+          fields: parsed.error.flatten().fieldErrors,
+        }),
+      );
       return;
     }
 
     if (parsed.data.behavior === "unavailable") {
-      response.status(503).json({
-        error: "Simulated downstream outage",
-        retryable: true,
-      });
+      response.json(
+        rpcError(envelope.data.id, -32001, "Dependency unavailable", {
+          retryable: true,
+        }),
+      );
       return;
     }
 
     if (parsed.data.behavior === "malformed") {
-      response.type("text/plain").send("upstream said maybe");
+      response.json({
+        jsonrpc: "2.0",
+        id: envelope.data.id,
+        result: "upstream said maybe",
+      });
       return;
     }
 
     if (parsed.data.behavior === "slow") {
       await new Promise((resolve) => setTimeout(resolve, slowDelayMs));
-    } else if (parsed.data.behavior !== "healthy") {
-      response.status(501).json({ error: "Behavior not implemented" });
-      return;
     }
 
     response.json({
-      accepted: true,
-      experimentId: parsed.data.experimentId,
-      echo: parsed.data.payload,
-      processedAt: new Date().toISOString(),
+      jsonrpc: "2.0",
+      id: envelope.data.id,
+      result: {
+        accepted: true,
+        experimentId: parsed.data.experimentId,
+        echo: parsed.data.payload,
+        processedAt: new Date().toISOString(),
+      },
     });
   });
 

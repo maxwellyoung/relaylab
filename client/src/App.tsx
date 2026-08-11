@@ -27,13 +27,13 @@ const behaviorCopy: Record<
   },
   unavailable: {
     label: "Unavailable",
-    signal: "503 response",
-    description: "The dependency is reachable but refuses the request.",
+    signal: "RPC error −32001",
+    description: "The transport succeeds, but the RPC method returns an application error.",
   },
   malformed: {
     label: "Malformed",
-    signal: "Invalid body",
-    description: "The dependency returns 200 with the wrong response shape.",
+    signal: "Invalid RPC result",
+    description: "The dependency returns a JSON-RPC result with the wrong method shape.",
   },
 };
 
@@ -43,12 +43,12 @@ const outcomeCopy: Record<
 > = {
   success: {
     label: "Request completed",
-    explanation: "The response crossed both HTTP boundaries and matched the contract.",
+    explanation: "The JSON-RPC result matched the method contract and correlation id.",
     tone: "good",
   },
   downstream_error: {
-    label: "Dependency refused",
-    explanation: "The coordinator reached the service and preserved its error response.",
+    label: "RPC method failed",
+    explanation: "HTTP transport succeeded; the dependency returned a correlated RPC error.",
     tone: "bad",
   },
   timeout: {
@@ -58,7 +58,7 @@ const outcomeCopy: Record<
   },
   invalid_response: {
     label: "Contract rejected",
-    explanation: "The service answered, but its body failed response-shape validation.",
+    explanation: "The service answered, but its RPC envelope or method result failed validation.",
     tone: "warn",
   },
   unreachable: {
@@ -87,6 +87,20 @@ function responseText(run: ExperimentRun) {
   return typeof run.response === "string"
     ? run.response
     : JSON.stringify(run.response, null, 2);
+}
+
+function rpcSignal(run: ExperimentRun) {
+  if (!run.response || typeof run.response !== "object") return "—";
+  const envelope = run.response as {
+    jsonrpc?: unknown;
+    result?: unknown;
+    error?: { code?: unknown };
+  };
+  if (envelope.jsonrpc !== "2.0") return "invalid";
+  if (typeof envelope.error?.code === "number") {
+    return String(envelope.error.code).replace("-", "−");
+  }
+  return "result" in envelope ? "result" : "invalid";
 }
 
 export default function App() {
@@ -287,7 +301,7 @@ export default function App() {
             <li className="route-node coordinator-node">
               <div>
                 <strong>Coordinator</strong>
-                <small>POST downstream · 400 ms deadline</small>
+                <small>JSON-RPC 2.0 · 400 ms deadline</small>
               </div>
             </li>
             <li className="route-line" aria-hidden="true">
@@ -317,6 +331,10 @@ export default function App() {
                     <div>
                       <dt>HTTP</dt>
                       <dd>{latestRun.httpStatus ?? "—"}</dd>
+                    </div>
+                    <div>
+                      <dt>RPC</dt>
+                      <dd>{rpcSignal(latestRun)}</dd>
                     </div>
                     <div>
                       <dt>Time</dt>

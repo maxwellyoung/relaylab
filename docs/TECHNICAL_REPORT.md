@@ -15,9 +15,9 @@
 RelayLab is a small distributed web application for observing what happens when
 one service depends on another. A user selects a deterministic dependency
 behaviour and supplies a JSON request payload. A coordinator service sends the
-request to a separately running downstream service, classifies the result, and
-stores the evidence. The saved evidence includes the outcome, optional HTTP
-status, elapsed time, response body, and timestamp.
+request to a separately running downstream service using JSON-RPC 2.0,
+classifies the result, and stores the evidence. The saved evidence includes the
+outcome, optional HTTP status, elapsed time, RPC envelope, and timestamp.
 
 The intended user is a student or developer who wants a repeatable way to
 compare a healthy exchange with a timeout, an unavailable dependency, a
@@ -41,7 +41,8 @@ React browser client
         v
 Express coordinator API
         |                         |
-        | bounded HTTP request    | parameterised SQL
+        | bounded JSON-RPC 2.0    | parameterised SQL
+        | request over HTTP       |
         v                         v
 Express downstream service   relational database
                               (SQLite or MySQL)
@@ -57,7 +58,7 @@ Supertest provide automated tests.
 The browser communicates only with the coordinator. It never accesses the
 database or downstream service directly. The coordinator owns validation,
 persistence, request timing, the 400 ms deadline, response-contract checking,
-and outcome classification. The downstream service exposes deterministic
+correlation-ID checking, and outcome classification. The downstream service exposes deterministic
 behaviours so both success and failure demonstrations remain repeatable without
 depending on a third-party network.
 
@@ -68,10 +69,10 @@ depending on a third-party network.
 | Create and validate a saved experiment | Completed and tested | API and client tests cover valid creation and invalid JSON/input |
 | List saved experiments | Completed and tested | API tests and client saved-history view |
 | Read one experiment and its runs | Completed and tested | API tests, client reopening test, and restart smoke |
-| Execute through the downstream service | Completed and tested | Healthy, 503, timeout, malformed, and unreachable tests |
+| Execute a versioned downstream RPC method | Completed and tested locally | Healthy result, RPC error, timeout, malformed result, and unreachable tests |
 | Persist experiments and one-to-many run history | Completed and tested | SQLite restart tests and production smoke |
 | Use lecturer MySQL with a five-connection maximum | Completed but not live-tested | Configuration and pool tests pass; private credentials are still pending |
-| Hosted visual demonstration | Completed and tested | Vercel client communicates with the Fly coordinator at desktop and mobile widths |
+| Hosted RPC demonstration | Pending redeployment | Current public deployment predates this local RPC milestone |
 
 The public coordinator API has four operations: `POST /api/experiments`,
 `GET /api/experiments`, `GET /api/experiments/:id`, and
@@ -80,16 +81,18 @@ record, including controlled failures.
 
 ## 4. Communication and Distributed-System Concepts
 
-RelayLab demonstrates request-response communication across two HTTP
-boundaries. The browser first exchanges JSON with the coordinator. The
-coordinator then creates a second request to the downstream process and waits
-only for the configured deadline. The system therefore makes the separation
-between presentation, coordination, dependency communication, and persistence
-visible.
+RelayLab uses two request-response styles. The browser exchanges REST-shaped
+JSON resources with the coordinator. The coordinator calls the private
+downstream endpoint with JSON-RPC 2.0 method `relaylab.process.v1`, a UUID
+correlation ID, and method parameters. It waits only for the configured
+deadline and accepts a response only when its ID and method-result schema
+match. This makes presentation, orchestration, service communication, and
+persistence separate and visible.
 
-The downstream service can return valid JSON with HTTP 200, structured JSON
-with HTTP 503, a deliberately late response, or plain text that violates the
-expected contract. The coordinator maps these observations to stable outcomes:
+The downstream can return a valid RPC result, application error `-32001`, a
+deliberately late result, or a result with the wrong schema. RPC application
+errors use HTTP 200, so the interface separates successful HTTP transport from
+method failure. The coordinator maps observations to stable outcomes:
 `success`, `downstream_error`, `timeout`, `invalid_response`, or `unreachable`.
 This distinguishes an application-level error response, a deadline failure, a
 contract failure, and a transport connection failure. The coordinator remains
@@ -106,7 +109,7 @@ non-configurable pool limit of five connections.
 The relational model contains `experiments` and `experiment_runs` in a
 one-to-many relationship. An experiment stores its name, selected behaviour,
 JSON payload, and creation time. A run stores the experiment foreign key,
-classified outcome, optional HTTP status, duration, response evidence, and
+classified outcome, optional HTTP status, duration, full RPC evidence, and
 creation time. Foreign-key enforcement prevents orphan run records, while
 `ON DELETE CASCADE` defines ownership even though deletion is not exposed by
 the current API.
@@ -120,19 +123,20 @@ appear in source, documentation, logs, screenshots, or submitted artifacts.
 ## 6. Testing and Evidence
 
 The complete verification command is `npm ci && npm run verify`. The current
-suite contains 21 automated tests: three client tests, thirteen coordinator and
-database-configuration tests, and five downstream-service tests. These cover
+suite contains 27 automated tests: three client tests, seventeen coordinator,
+RPC-contract, and database-configuration tests, and seven downstream-service
+tests. These cover
 the create/run/render workflow, invalid client JSON, saved-history reopening,
-all five run outcomes, relational persistence, missing records, MySQL
-configuration, and the fixed connection-pool limit.
+all five run outcomes, versioned methods, standard RPC errors, mismatched
+correlation IDs, relational persistence, missing records, MySQL configuration,
+and the fixed connection-pool limit.
 
 The verification gate also runs all TypeScript checks and production builds,
 starts the built application, creates and executes an experiment, restarts the
 services, and proves that the experiment and run survived. The production
-dependency audit reports zero known vulnerabilities. Browser checks at 1280 x
-720 and 390 x 844 showed no console warnings, errors, or horizontal overflow.
-A live 503 exchange was classified and persisted, and an older HTTP 200 run was
-reopened from saved history.
+dependency audit reports zero known vulnerabilities. The earlier REST build
+passed browser checks at 1280 x 720 and 390 x 844; the RPC milestone still
+requires a fresh browser recording after deployment and is not claimed as live.
 
 Relevant COMP713 lab references were also regenerated and tested on 11 August:
 the request-lifecycle reference passed 9 tests, and the web-client/API/

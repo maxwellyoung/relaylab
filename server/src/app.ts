@@ -7,18 +7,15 @@ import {
   openDatabase,
   type RelayLabDatabase,
 } from "./database.js";
+import {
+  buildDownstreamRpcRequest,
+  classifyDownstreamRpcResponse,
+} from "./downstream-rpc.js";
 
 const experimentInput = z.object({
   name: z.string().trim().min(1).max(80),
   behavior: z.enum(experimentBehaviors),
   payload: z.record(z.string(), z.unknown()),
-});
-
-const downstreamResponse = z.object({
-  accepted: z.literal(true),
-  experimentId: z.number().int().positive(),
-  echo: z.record(z.string(), z.unknown()),
-  processedAt: z.string(),
 });
 
 export type RelayLabApplication = {
@@ -87,14 +84,11 @@ export function buildApplication({
 
     const startedAt = performance.now();
     try {
-      const downstream = await fetch(`${downstreamUrl}/api/process`, {
+      const rpcRequest = buildDownstreamRpcRequest(experiment);
+      const downstream = await fetch(`${downstreamUrl}/rpc`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          experimentId,
-          behavior: experiment.behavior,
-          payload: experiment.payload,
-        }),
+        body: JSON.stringify(rpcRequest),
         signal: AbortSignal.timeout(timeoutMs),
       });
       const responseText = await downstream.text();
@@ -105,15 +99,11 @@ export function buildApplication({
         body = responseText;
       }
 
-      const validSuccess = downstreamResponse.safeParse(body);
+      const rpcOutcome = classifyDownstreamRpcResponse(body, rpcRequest.id);
       const run = await database.createRun({
         experimentId,
         outcome:
-          downstream.ok && validSuccess.success
-            ? "success"
-            : downstream.ok
-              ? "invalid_response"
-              : "downstream_error",
+          downstream.ok ? rpcOutcome : "downstream_error",
         httpStatus: downstream.status,
         durationMs: Math.max(1, Math.round(performance.now() - startedAt)),
         response: body,

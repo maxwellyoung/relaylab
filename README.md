@@ -14,7 +14,8 @@ React browser client (port 5173)
         v
 Coordinator API (port 3000)
         |                         |
-        | HTTP with 400 ms bound  | parameterised SQL
+        | JSON-RPC 2.0 over HTTP   | parameterised SQL
+        | with 400 ms bound        |
         v                         v
 Downstream simulator         SQLite database
 (port 3001)                  or lecturer MySQL schema
@@ -22,7 +23,7 @@ Downstream simulator         SQLite database
 
 The browser never accesses SQLite or the downstream simulator directly. The
 coordinator owns experiment validation, outbound request timing, response-shape
-validation, outcome classification, and persistence. The downstream process
+validation, correlation IDs, outcome classification, and persistence. The downstream process
 provides deterministic healthy and failure behaviours without relying on a
 third-party network.
 
@@ -49,10 +50,10 @@ implementation to the official Option A brief and supplied Canvas rubric.
 
 | Behaviour | Downstream action | Coordinator outcome |
 | --- | --- | --- |
-| `healthy` | Returns valid JSON with `200` | `success` |
+| `healthy` | Returns a correlated RPC result with HTTP `200` | `success` |
 | `slow` | Responds after the coordinator deadline | `timeout` |
-| `unavailable` | Returns structured JSON with `503` | `downstream_error` |
-| `malformed` | Returns unexpected plain text with `200` | `invalid_response` |
+| `unavailable` | Returns RPC error `-32001` with HTTP `200` | `downstream_error` |
+| `malformed` | Returns an invalid method result with HTTP `200` | `invalid_response` |
 
 If the downstream process is stopped, the coordinator records `unreachable`
 instead of crashing or losing the attempt.
@@ -119,11 +120,11 @@ npm run build
 npm run smoke
 ```
 
-The tests exercise public HTTP behaviour with isolated temporary SQLite
+The tests exercise public HTTP and internal JSON-RPC behaviour with isolated temporary SQLite
 databases and verify the lecturer MySQL configuration fails closed with a
 hard five-connection pool. Coordinator tests use a real TCP boundary for the
-downstream contract and cover healthy, `503`, malformed, timeout, and
-unreachable results. Client tests exercise the create/run/render workflow,
+downstream contract and cover correlated results, RPC application errors,
+malformed results, timeouts, and unreachable services. Client tests exercise the create/run/render workflow,
 input rejection, and reopening durable history. The downstream package
 independently proves each deterministic behaviour. `npm run smoke` starts the
 built production application, creates and runs an experiment, restarts both
@@ -176,6 +177,15 @@ Example experiment:
   }
 }
 ```
+
+## Downstream RPC
+
+The coordinator is the only caller of `POST /rpc`. It sends a JSON-RPC 2.0
+request using the versioned method `relaylab.process.v1` and a UUID correlation
+identifier. The downstream returns either a correlated `result` or `error`.
+The coordinator rejects mismatched IDs and invalid method results before
+persisting the full envelope as evidence. The frozen message contract and
+error codes are documented in [`docs/RPC_CONTRACT.md`](docs/RPC_CONTRACT.md).
 
 ## Known limitations
 

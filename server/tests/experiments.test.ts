@@ -1,10 +1,56 @@
-import { createServer, type Server } from "node:http";
+import {
+  createServer,
+  type IncomingMessage,
+  type Server,
+  type ServerResponse,
+} from "node:http";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import request from "supertest";
 import { afterEach, describe, expect, it } from "vitest";
 import { buildApplication } from "../src/app.js";
+
+type RpcRequestBody = {
+  jsonrpc: "2.0";
+  id: string;
+  method: string;
+  params: {
+    experimentId: number;
+    behavior: string;
+    payload: Record<string, unknown>;
+  };
+};
+
+async function readRpcRequest(incoming: IncomingMessage) {
+  const body = await new Promise<string>((resolve) => {
+    let value = "";
+    incoming.on("data", (chunk) => {
+      value += chunk.toString();
+    });
+    incoming.on("end", () => resolve(value));
+  });
+  return JSON.parse(body) as RpcRequestBody;
+}
+
+function writeRpcResult(
+  outgoing: ServerResponse,
+  requestBody: RpcRequestBody,
+) {
+  outgoing.writeHead(200, { "Content-Type": "application/json" });
+  outgoing.end(
+    JSON.stringify({
+      jsonrpc: "2.0",
+      id: requestBody.id,
+      result: {
+        accepted: true,
+        experimentId: requestBody.params.experimentId,
+        echo: requestBody.params.payload,
+        processedAt: "2026-07-28T01:00:00.000Z",
+      },
+    }),
+  );
+}
 
 describe("request experiments", () => {
   let application: ReturnType<typeof buildApplication> | undefined;
@@ -66,29 +112,20 @@ describe("request experiments", () => {
     expect(listed.body).toEqual([created.body]);
   });
 
-  it("runs a healthy experiment through HTTP and persists the evidence", async () => {
+  it("runs a healthy experiment through JSON-RPC and persists the envelope", async () => {
     downstreamServer = createServer(async (incoming, outgoing) => {
-      const body = await new Promise<string>((resolve) => {
-        let value = "";
-        incoming.on("data", (chunk) => {
-          value += chunk.toString();
-        });
-        incoming.on("end", () => resolve(value));
+      expect(incoming.url).toBe("/rpc");
+      const requestBody = await readRpcRequest(incoming);
+      expect(requestBody).toMatchObject({
+        jsonrpc: "2.0",
+        id: expect.any(String),
+        method: "relaylab.process.v1",
+        params: {
+          behavior: "healthy",
+          payload: { orderId: "ORDER-7" },
+        },
       });
-      const requestBody = JSON.parse(body) as {
-        experimentId: number;
-        payload: Record<string, unknown>;
-      };
-
-      outgoing.writeHead(200, { "Content-Type": "application/json" });
-      outgoing.end(
-        JSON.stringify({
-          accepted: true,
-          experimentId: requestBody.experimentId,
-          echo: requestBody.payload,
-          processedAt: "2026-07-28T01:00:00.000Z",
-        }),
-      );
+      writeRpcResult(outgoing, requestBody);
     });
     await new Promise<void>((resolve) => {
       downstreamServer?.listen(0, "127.0.0.1", resolve);
@@ -124,9 +161,13 @@ describe("request experiments", () => {
       httpStatus: 200,
       durationMs: expect.any(Number),
       response: {
-        accepted: true,
-        experimentId: experiment.body.id,
-        echo: { orderId: "ORDER-7" },
+        jsonrpc: "2.0",
+        id: expect.any(String),
+        result: {
+          accepted: true,
+          experimentId: experiment.body.id,
+          echo: { orderId: "ORDER-7" },
+        },
       },
     });
 
@@ -141,13 +182,19 @@ describe("request experiments", () => {
     });
   });
 
-  it("records a downstream 503 as durable failure evidence", async () => {
-    downstreamServer = createServer((_incoming, outgoing) => {
-      outgoing.writeHead(503, { "Content-Type": "application/json" });
+  it("records a correlated JSON-RPC application error as durable evidence", async () => {
+    downstreamServer = createServer(async (incoming, outgoing) => {
+      const requestBody = await readRpcRequest(incoming);
+      outgoing.writeHead(200, { "Content-Type": "application/json" });
       outgoing.end(
         JSON.stringify({
-          error: "Simulated downstream outage",
-          retryable: true,
+          jsonrpc: "2.0",
+          id: requestBody.id,
+          error: {
+            code: -32001,
+            message: "Dependency unavailable",
+            data: { retryable: true },
+          },
         }),
       );
     });
@@ -180,18 +227,30 @@ describe("request experiments", () => {
     expect(run.body).toMatchObject({
       experimentId: experiment.body.id,
       outcome: "downstream_error",
-      httpStatus: 503,
+      httpStatus: 200,
       response: {
-        error: "Simulated downstream outage",
-        retryable: true,
+        jsonrpc: "2.0",
+        id: expect.any(String),
+        error: {
+          code: -32001,
+          message: "Dependency unavailable",
+          data: { retryable: true },
+        },
       },
     });
   });
 
-  it("records a malformed success body as invalid response evidence", async () => {
-    downstreamServer = createServer((_incoming, outgoing) => {
-      outgoing.writeHead(200, { "Content-Type": "text/plain" });
-      outgoing.end("upstream said maybe");
+  it("records an invalid RPC method result as contract-failure evidence", async () => {
+    downstreamServer = createServer(async (incoming, outgoing) => {
+      const requestBody = await readRpcRequest(incoming);
+      outgoing.writeHead(200, { "Content-Type": "application/json" });
+      outgoing.end(
+        JSON.stringify({
+          jsonrpc: "2.0",
+          id: requestBody.id,
+          result: "upstream said maybe",
+        }),
+      );
     });
     await new Promise<void>((resolve) => {
       downstreamServer?.listen(0, "127.0.0.1", resolve);
@@ -222,22 +281,19 @@ describe("request experiments", () => {
     expect(run.body).toMatchObject({
       outcome: "invalid_response",
       httpStatus: 200,
-      response: "upstream said maybe",
+      response: {
+        jsonrpc: "2.0",
+        id: expect.any(String),
+        result: "upstream said maybe",
+      },
     });
   });
 
   it("aborts a slow dependency and persists a timeout outcome", async () => {
-    downstreamServer = createServer((_incoming, outgoing) => {
+    downstreamServer = createServer(async (incoming, outgoing) => {
+      const requestBody = await readRpcRequest(incoming);
       setTimeout(() => {
-        outgoing.writeHead(200, { "Content-Type": "application/json" });
-        outgoing.end(
-          JSON.stringify({
-            accepted: true,
-            experimentId: 1,
-            echo: {},
-            processedAt: "2026-07-28T01:00:00.000Z",
-          }),
-        );
+        writeRpcResult(outgoing, requestBody);
       }, 80);
     });
     await new Promise<void>((resolve) => {
@@ -342,26 +398,8 @@ describe("request experiments", () => {
 
   it("retains experiments and run evidence after an application restart", async () => {
     downstreamServer = createServer(async (incoming, outgoing) => {
-      const body = await new Promise<string>((resolve) => {
-        let value = "";
-        incoming.on("data", (chunk) => {
-          value += chunk.toString();
-        });
-        incoming.on("end", () => resolve(value));
-      });
-      const requestBody = JSON.parse(body) as {
-        experimentId: number;
-        payload: Record<string, unknown>;
-      };
-      outgoing.writeHead(200, { "Content-Type": "application/json" });
-      outgoing.end(
-        JSON.stringify({
-          accepted: true,
-          experimentId: requestBody.experimentId,
-          echo: requestBody.payload,
-          processedAt: "2026-07-28T01:00:00.000Z",
-        }),
-      );
+      const requestBody = await readRpcRequest(incoming);
+      writeRpcResult(outgoing, requestBody);
     });
     await new Promise<void>((resolve) => {
       downstreamServer?.listen(0, "127.0.0.1", resolve);

@@ -46,9 +46,13 @@ function run(overrides: Partial<ExperimentRun> = {}): ExperimentRun {
     id: 7,
     experimentId: 1,
     outcome: "downstream_error",
-    httpStatus: 503,
+    httpStatus: 200,
     durationMs: 31,
-    response: { error: "Dependency unavailable" },
+    response: {
+      jsonrpc: "2.0",
+      id: "trace-7",
+      error: { code: -32001, message: "Dependency unavailable" },
+    },
     createdAt,
     ...overrides,
   };
@@ -91,11 +95,11 @@ describe("RelayLab browser workflow", () => {
     await user.click(screen.getByRole("button", { name: "Run experiment" }));
 
     const result = await screen.findByRole("heading", {
-      name: "Dependency refused",
+      name: "RPC method failed",
     });
     const resultCard = result.closest("article");
     expect(resultCard).not.toBeNull();
-    expect(within(resultCard!).getByText("503")).toBeVisible();
+    expect(within(resultCard!).getByText("−32001")).toBeVisible();
     expect(within(resultCard!).getByText("31 ms")).toBeVisible();
     expect(screen.getByText("1 saved · 1 in selected")).toBeVisible();
 
@@ -143,7 +147,16 @@ describe("RelayLab browser workflow", () => {
       outcome: "success",
       httpStatus: 200,
       durationMs: 18,
-      response: { accepted: true },
+      response: {
+        jsonrpc: "2.0",
+        id: "trace-8",
+        result: {
+          accepted: true,
+          experimentId: 2,
+          echo: { orderId: "ORDER-42", quantity: 2 },
+          processedAt: createdAt,
+        },
+      },
     });
 
     mockedListExperiments.mockResolvedValue([savedExperiment]);
