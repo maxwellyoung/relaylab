@@ -1,31 +1,38 @@
-# RelayLab technical report - working draft
+# RelayLab technical report
 
-**Student:** Maxwell Young  
-**Student ID:** 23213801  
-**Course:** COMP713 Distributed and Mobile Systems  
+**Student:** Maxwell Young
+
+**Student ID:** 23213801
+
+**Course:** COMP713 Distributed and Mobile Systems
+
 **Assessment:** Assessment 2 - Individual Project, Option A
 
-This draft describes the verified implementation as of 11 August 2026. It must
-be reviewed against the final Canvas instructions before submission. The
-lecturer MySQL lane is implemented but cannot be claimed as live-tested until
-the private credentials arrive.
+**Implementation status date:** 11 August 2026
 
-## 1. Project purpose
+## 1. Project Introduction and Requirements
 
-RelayLab is a small distributed web/API application for observing how one
-request behaves when a dependency is healthy, slow, unavailable, malformed, or
-unreachable. A user chooses a deterministic dependency behaviour and supplies a
-JSON payload. The coordinator sends the request to a separately running service,
-classifies the result, and stores durable evidence including the outcome, HTTP
-status, elapsed time, and response body.
+RelayLab is a small distributed web application for observing what happens when
+one service depends on another. A user selects a deterministic dependency
+behaviour and supplies a JSON request payload. A coordinator service sends the
+request to a separately running downstream service, classifies the result, and
+stores the evidence. The saved evidence includes the outcome, optional HTTP
+status, elapsed time, response body, and timestamp.
 
-The project deliberately stays within the Option A size in the official brief.
-It has one client interface, four meaningful API operations, two related
-persistent entities, input validation, controlled errors, and clear run/test
-instructions. It avoids authentication, arbitrary external services, complex
-deployment, and a large schema.
+The intended user is a student or developer who wants a repeatable way to
+compare a healthy exchange with a timeout, an unavailable dependency, a
+malformed response, or an unreachable service. The selected assignment route is
+Option A. Its functional requirements are to provide one usable client, a
+server-side API, at least three meaningful operations, persistent related data,
+input validation, controlled errors, and reproducible run and test instructions.
 
-## 2. Architecture and communication flow
+RelayLab implements a create/read/execute workflow rather than edit and delete
+operations. A user can create an experiment, list saved experiments, read one
+experiment with its history, and execute it repeatedly. This keeps the scope
+small while still producing a complete workflow whose state changes can be
+demonstrated.
+
+## 2. Architecture and Technology Stack
 
 ```text
 React browser client
@@ -36,122 +43,121 @@ Express coordinator API
         |                         |
         | bounded HTTP request    | parameterised SQL
         v                         v
-Downstream simulator         relational database
-                             (SQLite or MySQL)
+Express downstream service   relational database
+                              (SQLite or MySQL)
 ```
+
+The client is React with TypeScript and Vite. The coordinator and downstream
+service are separate Node.js/Express processes written in TypeScript. Zod
+validates request and response data. The persistence adapter uses SQLite for
+credential-free development and automated testing, or the lecturer-provided
+MySQL schema when explicitly configured. Vitest, Testing Library, and
+Supertest provide automated tests.
 
 The browser communicates only with the coordinator. It never accesses the
-database or simulator directly. The coordinator validates experiment input,
-owns persistence, measures the downstream request, enforces a 400 ms deadline,
-validates the response shape, and maps the observation to a stable outcome.
+database or downstream service directly. The coordinator owns validation,
+persistence, request timing, the 400 ms deadline, response-contract checking,
+and outcome classification. The downstream service exposes deterministic
+behaviours so both success and failure demonstrations remain repeatable without
+depending on a third-party network.
 
-The downstream simulator is a separate Express process. Its deterministic
-behaviours make success and failure demonstrations repeatable without relying
-on a third-party network. This creates two visible HTTP boundaries: browser to
-coordinator and coordinator to downstream service.
+## 3. Implemented Functionality
 
-## 3. API operations and workflow
+| Significant function | Status | Evidence |
+| --- | --- | --- |
+| Create and validate a saved experiment | Completed and tested | API and client tests cover valid creation and invalid JSON/input |
+| List saved experiments | Completed and tested | API tests and client saved-history view |
+| Read one experiment and its runs | Completed and tested | API tests, client reopening test, and restart smoke |
+| Execute through the downstream service | Completed and tested | Healthy, 503, timeout, malformed, and unreachable tests |
+| Persist experiments and one-to-many run history | Completed and tested | SQLite restart tests and production smoke |
+| Use lecturer MySQL with a five-connection maximum | Completed but not live-tested | Configuration and pool tests pass; private credentials are still pending |
+| Hosted visual demonstration | Completed and tested | Vercel client communicates with the Fly coordinator at desktop and mobile widths |
 
-| Method and route | Responsibility |
-| --- | --- |
-| `POST /api/experiments` | Validate and save a request experiment |
-| `GET /api/experiments` | List saved experiments newest first |
-| `GET /api/experiments/:id` | Read one experiment with its run history |
-| `POST /api/experiments/:id/runs` | Execute, classify, and persist one distributed run |
+The public coordinator API has four operations: `POST /api/experiments`,
+`GET /api/experiments`, `GET /api/experiments/:id`, and
+`POST /api/experiments/:id/runs`. Every execution produces a new durable run
+record, including controlled failures.
 
-This is a meaningful create/read/execute workflow rather than full CRUD. The
-official brief allows basic CRUD **or another meaningful workflow**. A saved
-experiment is reusable, and every execution creates a new evidence record that
-can be reopened through the client.
+## 4. Communication and Distributed-System Concepts
 
-## 4. Persistence design
+RelayLab demonstrates request-response communication across two HTTP
+boundaries. The browser first exchanges JSON with the coordinator. The
+coordinator then creates a second request to the downstream process and waits
+only for the configured deadline. The system therefore makes the separation
+between presentation, coordination, dependency communication, and persistence
+visible.
 
-The data model contains two related entities:
+The downstream service can return valid JSON with HTTP 200, structured JSON
+with HTTP 503, a deliberately late response, or plain text that violates the
+expected contract. The coordinator maps these observations to stable outcomes:
+`success`, `downstream_error`, `timeout`, `invalid_response`, or `unreachable`.
+This distinguishes an application-level error response, a deadline failure, a
+contract failure, and a transport connection failure. The coordinator remains
+available and persists the attempt instead of crashing.
 
-```text
-experiments 1 ---- many experiment_runs
-```
+Zod schemas reject unsupported behaviours, blank or oversized names, and
+payloads that are not JSON objects. Missing experiment identifiers produce a
+controlled 404. Persistence exceptions produce a generic 503 without leaking
+database details. The MySQL path uses parameterised statements and a
+non-configurable pool limit of five connections.
 
-`experiments` stores the name, selected behaviour, JSON payload, and creation
-time. `experiment_runs` stores the foreign key, classified outcome, optional
-HTTP status, duration, response evidence, and creation time. Deleting an
-experiment would cascade to its runs at the schema level, although deletion is
-not exposed in the frozen API.
+## 5. Data Design or Message Design
 
-SQLite provides the deterministic offline and automated-test lane. The
-lecturer-server lane uses MySQL with the same relationship and parameterised
-queries. The MySQL pool has a non-configurable maximum of five connections.
-Credentials are read only from ignored local environment configuration.
+The relational model contains `experiments` and `experiment_runs` in a
+one-to-many relationship. An experiment stores its name, selected behaviour,
+JSON payload, and creation time. A run stores the experiment foreign key,
+classified outcome, optional HTTP status, duration, response evidence, and
+creation time. Foreign-key enforcement prevents orphan run records, while
+`ON DELETE CASCADE` defines ownership even though deletion is not exposed by
+the current API.
 
-## 5. Validation and failure handling
+SQLite and MySQL implement the same application-facing repository contract.
+SQLite makes local inspection and isolated tests deterministic. MySQL supports
+the lecturer-provided schema without changing the client or coordinator API.
+Credentials are read only from ignored environment configuration and never
+appear in source, documentation, logs, screenshots, or submitted artifacts.
 
-Zod schemas reject invalid experiment names, unsupported behaviours, and
-non-object payloads. Missing experiment identifiers return controlled 404
-responses. Persistence failures return a generic 503 response rather than
-leaking database or credential details.
+## 6. Testing and Evidence
 
-The coordinator distinguishes five downstream results:
+The complete verification command is `npm ci && npm run verify`. The current
+suite contains 21 automated tests: three client tests, thirteen coordinator and
+database-configuration tests, and five downstream-service tests. These cover
+the create/run/render workflow, invalid client JSON, saved-history reopening,
+all five run outcomes, relational persistence, missing records, MySQL
+configuration, and the fixed connection-pool limit.
 
-- `success`: valid JSON with HTTP 200;
-- `downstream_error`: a reachable dependency returns an error such as 503;
-- `timeout`: the response exceeds the 400 ms deadline;
-- `invalid_response`: the dependency returns HTTP 200 with the wrong body shape;
-- `unreachable`: the TCP connection fails.
+The verification gate also runs all TypeScript checks and production builds,
+starts the built application, creates and executes an experiment, restarts the
+services, and proves that the experiment and run survived. The production
+dependency audit reports zero known vulnerabilities. Browser checks at 1280 x
+720 and 390 x 844 showed no console warnings, errors, or horizontal overflow.
+A live 503 exchange was classified and persisted, and an older HTTP 200 run was
+reopened from saved history.
 
-Each attempted exchange is persisted, including controlled failures, so the
-evidence is not limited to successful requests.
+Relevant COMP713 lab references were also regenerated and tested on 11 August:
+the request-lifecycle reference passed 9 tests, and the web-client/API/
+relational-data reference passed 10. Appendix A maps those lab concepts to the
+project without claiming that the local references are Canvas lab submissions.
 
-## 6. Testing and operational evidence
+## 7. Limitations and Possible Improvements
 
-The reproducible verification command is:
+The downstream behaviours are simulations rather than measurements of
+arbitrary external services. The coordinator intentionally has no retries,
+circuit breaker, queue, authentication, edit/delete operations, or production
+monitoring. The hosted SQLite demonstration uses one instance and is not
+designed for concurrent production traffic. Most importantly, the lecturer
+MySQL adapter is implemented and configuration-tested but cannot be described
+as live-tested until the private credentials are received.
 
-```bash
-npm ci
-npm run verify
-```
+Future work could add configurable timeout policies, outcome aggregation, and
+carefully bounded retry or circuit-breaker experiments. These are extensions,
+not missing parts of the submitted workflow.
 
-The current suite contains 21 automated tests:
+## 8. Running Instructions
 
-- three client tests for create/run/render, invalid JSON rejection before an
-  API write, and reopening saved history;
-- thirteen coordinator/configuration tests covering public API behaviour,
-  persistence, all five outcomes, MySQL configuration, and the five-connection
-  limit;
-- five downstream tests proving each deterministic service response.
-
-`npm run verify` also runs every TypeScript check and production build, starts
-the built application, creates and runs an experiment, restarts the services,
-and proves that the saved experiment and run survived. Both full and
-production-only dependency audits currently report zero vulnerabilities.
-
-Rendered browser checks at desktop and 390 px widths showed no framework error
-overlay or console warnings/errors. A 503 exchange was persisted and increased
-the selected run count, while saved-history navigation reopened an older HTTP
-200 result.
-
-## 7. Limitations and possible improvements
-
-The downstream behaviours are simulations and do not measure arbitrary
-external services. The coordinator intentionally has no retries, queue,
-circuit breaker, or production monitoring. The system supports one local user
-and exposes no edit/delete operations. These boundaries keep the application
-small enough to explain and test completely.
-
-If the project were extended, useful next steps would be configurable timeout
-policies, aggregated outcome statistics, and carefully bounded retry or circuit
-breaker experiments. Those are not required to demonstrate the current
-distributed communication and persistence concepts.
-
-## 8. Running the system
-
-Install Node.js 24 or later, then run:
-
-```bash
-npm install
-npm run dev
-```
-
-The client is available at `http://localhost:5173`; the coordinator and
-downstream health endpoints use ports 3000 and 3001. The README documents the
-ignored MySQL environment variables. Real credentials must never appear in the
-repository, report, screenshots, terminal recording, or demonstration video.
+Install Node.js 24 or later. From the project root run `npm install`, then
+`npm run dev`, and open `http://localhost:5173`. Ports 5173, 3000, and 3001 host
+the client, coordinator, and downstream service. Run `npm run verify` for the
+test, type-check, build, restart-persistence, and audit gate. The README lists
+the optional ignored MySQL values; real credentials must never be committed or
+displayed.

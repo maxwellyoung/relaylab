@@ -41,9 +41,9 @@ lane.
 5. Reopen the experiment and review its run history.
 
 The frozen contract is in [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md).
-The working short report is in
+The technical report is in
 [`docs/TECHNICAL_REPORT.md`](docs/TECHNICAL_REPORT.md); it maps the verified
-implementation to the official 28 July 2026 Option A brief.
+implementation to the official Option A brief and supplied Canvas rubric.
 
 ## Deterministic behaviours
 
@@ -191,3 +191,5 @@ Example experiment:
 
 Development decisions and red-green milestones are recorded in
 [`docs/DEVELOPMENT_LOG.md`](docs/DEVELOPMENT_LOG.md).
+The supporting lab-to-project concept map is in
+[`docs/LAB_EVIDENCE.md`](docs/LAB_EVIDENCE.md).

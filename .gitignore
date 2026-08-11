@@ -4,6 +4,8 @@ coverage/
 .DS_Store
 *.log
 *.tsbuildinfo
+__pycache__/
+*.pyc
 
 # Local database and runtime files
 data/

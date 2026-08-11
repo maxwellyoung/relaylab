@@ -1,60 +1,67 @@
 # RelayLab demonstration and evidence runbook
 
-This is a recording checklist, not evidence that a video has already been
-recorded or submitted. It was reconciled on 11 August 2026 against the official
-three-page `Assessment_2_Individual_Project_2026.pdf` brief dated 28 July 2026.
-The Canvas assignment page and any separate marking rubric must still be
-rechecked after AUT authentication is restored.
+This is the recording plan and evidence checklist. It was reconciled on 11
+August 2026 against the supplied Canvas assignment instructions and official
+three-page Option A brief. It is not a claim that the final video or Canvas
+submission has already been completed.
 
 ## Before recording
 
-1. Put lecturer-issued values in the ignored `.env` file. Do not show the file,
-   terminal environment, password manager, or shell history in the recording.
-2. Confirm `RELAYLAB_DATABASE_DRIVER=mysql` for the assessed database run. The
-   deterministic offline test lane intentionally uses SQLite.
-3. Run `npm ci`, then `npm run verify`. Keep the concise passing summaries
-   available; do not expose unrelated terminal history.
-4. Start the three-process development system with `npm run dev` and open
+1. Put lecturer-issued values in the ignored `.env` file. Never show the file,
+   terminal environment, password manager, shell history, or credentials.
+2. Use invented request data only. If credentials have arrived, confirm the
+   assessed run uses `RELAYLAB_DATABASE_DRIVER=mysql`; otherwise label the
+   recording as a SQLite draft and do not claim live MySQL evidence.
+3. Run `npm ci` and `npm run verify`. Keep only the concise passing summary
+   visible.
+4. Start the three-process system with `npm run dev` and open
    `http://localhost:5173`.
-5. Use a clean browser window and a payload containing only invented data.
+5. Open the GitHub repository's **Commits** page so the website timestamps can
+   be shown directly, as required.
 
 ## Suggested recording route
 
 | Segment | Show | Explain | Evidence produced |
 | --- | --- | --- | --- |
-| Identity | Title slide or spoken introduction | Name, student ID, course, project name | Assessment identity |
-| Architecture | README diagram and three running processes | Browser to coordinator to downstream; only the coordinator owns persistence | Distributed boundaries |
-| Healthy exchange | Choose Healthy and run | JSON crosses two HTTP boundaries and the validated result is persisted | HTTP 200, duration, response |
-| Controlled failure | Choose Unavailable and run | The dependency returns 503; the coordinator classifies and stores the failure instead of crashing | `downstream_error`, HTTP 503 |
-| Timeout/contract | Run Slow or Malformed | Bounded waiting and response-shape validation are separate failure modes | `timeout` or `invalid_response` |
-| Durable history | Open Saved experiments, restart the app, reopen the same item | One experiment has many run records through a foreign key | Run history survives restart |
-| Database safety | Show only the relevant source lines | MySQL uses parameterised queries and a hard pool cap of five; credentials stay outside Git | Implementation evidence without secrets |
-| Testing | Run `npm run verify` | Client workflow, coordinator API, downstream contract, build, restart smoke, and production dependency audit | Reproducible test evidence |
-| Limitations | README limitations | Deterministic simulator, single user, no automatic retries or arbitrary external URLs | Honest evaluation |
+| Introduction | Title card or brief spoken introduction | Name, student ID, course, Option A, and RelayLab purpose | Assessment identity and scope |
+| Startup | Clean terminal running `npm run dev` | Three independently running processes and their ports | System starts reproducibly |
+| Architecture | README diagram and live interface | Browser -> coordinator -> downstream; coordinator -> database | Communication boundaries |
+| Healthy exchange | Select Healthy and run invented JSON | Request crosses two HTTP boundaries and is persisted | HTTP 200, duration, response, timestamp |
+| Invalid input | Enter malformed JSON and run | Client validation prevents an invalid API write | Readable controlled error |
+| Failed request | Select Unavailable and run | Downstream returns 503; coordinator classifies and persists it | `downstream_error`, HTTP 503, run count change |
+| Contract/deadline | Run Malformed or Slow | Response-shape validation and bounded waiting are different failure modes | `invalid_response` or `timeout` |
+| Durable state | Reopen Saved experiments; restart and reopen if practical | One experiment owns many run records | State survives restart |
+| Database implementation | Show only safe source excerpts | Related tables, parameterised SQL, optional MySQL adapter, hard pool cap 5 | Data-design evidence without credentials |
+| Test evidence | Run `npm run verify` | 21 tests plus type checks, builds, restart smoke, and dependency audit | Reproducible evidence |
+| GitHub history | Repository **Commits** page | Point out meaningful July and August milestones and visible website timestamps | Development-process evidence |
+| Limitations | Report or README limitations | Simulator, single user, no retries; disclose MySQL live-test status exactly | Honest self-evaluation |
 
 ## Report evidence matrix
 
 | Claim | Primary implementation | Automated evidence | Video evidence |
 | --- | --- | --- | --- |
-| Separate distributed processes | `client/`, `server/`, `downstream/` | Coordinator tests use a real TCP downstream boundary | Show three named dev processes and request path |
-| Validated JSON API | `server/src/app.ts`, `downstream/src/app.ts` | Coordinator and downstream suites | Healthy and malformed runs |
-| Relational one-to-many persistence | `server/src/database.ts` | API restart tests plus `npm run smoke` | Reopen saved history after restart |
-| Controlled failure handling | `server/src/app.ts` | 503, timeout, malformed, and unreachable tests | Show at least two distinct failure modes |
-| Browser workflow | `client/src/App.tsx` | `client/src/App.test.tsx` | Create, run, inspect, reopen |
-| Lecturer database constraint | `server/src/database.ts` | Database configuration tests | State pool cap five; never display credentials |
+| Separate distributed processes | `client/`, `server/`, `downstream/` | Coordinator tests use a real TCP downstream boundary | Show the three dev processes and request path |
+| Validated JSON API | `server/src/app.ts`, `downstream/src/app.ts` | Coordinator and downstream suites | Healthy exchange plus invalid JSON |
+| Relational one-to-many persistence | `server/src/database.ts` | API persistence tests and `npm run smoke` | Reopen history after a new run/restart |
+| Controlled failure handling | `server/src/app.ts` | 503, timeout, malformed, and unreachable tests | Show at least one failed request |
+| Browser workflow | `client/src/App.tsx` | Three client tests | Create, run, inspect, and reopen |
+| Lecturer database constraint | `server/src/database.ts` | Database configuration tests | Show pool cap 5 without showing credentials |
+| Incremental development | GitHub repository | Commit history and development log | Show timestamps on GitHub website |
 
 ## Final evidence gates
 
-- [x] Official 28 July Option A project brief has been reread locally.
-- [ ] Current Canvas assignment page and any separate rubric have been reread
-      after authentication.
+- [x] Official Option A project brief has been reviewed.
+- [x] Supplied Canvas submission instructions and full rubric have been reviewed.
+- [x] Current 21-test verification, type checks, builds, restart smoke, and
+      production dependency audit pass.
+- [x] Current source commits are visible on GitHub.
 - [ ] Lecturer MySQL credentials have been received and entered locally.
-- [ ] `npm run verify` passes from a clean install.
-- [ ] The demonstrated database is the lecturer server where required.
-- [ ] The video visibly proves operational behavior; README prose alone is not
-      treated as execution evidence.
-- [ ] Name and student ID are correct in every submitted artifact.
-- [ ] The uploaded repository/archive contains no `.env`, database password,
-      generated local database, or unrelated private material.
-- [ ] Canvas submission is completed only after Maxwell reviews the exact final
-      artifact and explicitly authorizes the upload.
+- [ ] The lecturer MySQL schema has passed a live create/run/read/restart check.
+- [ ] The final video visibly proves startup, main functions, communication,
+      state change, a failure/invalid-input case, limitations, and GitHub website
+      timestamps.
+- [ ] Name and student ID have been checked in every final artifact.
+- [ ] The final archive contains no `.env`, password, local database,
+      `node_modules`, build output, cache, or unrelated private material.
+- [ ] Canvas upload and submission occur only after Maxwell reviews the exact
+      final artifacts and explicitly authorizes that action.

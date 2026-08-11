@@ -208,3 +208,25 @@
   page, framework overlay, horizontal overflow, or console warnings/errors.
   A malformed response produced `invalid_response`, HTTP 200, and durable
   history through the remote coordinator.
+
+## 2026-08-11 - Rubric-aligned submission package
+
+- Reconciled the repository with the supplied full Canvas instructions: three
+  required artifacts, the 1,500-word report limit, exact report headings,
+  startup/failure/state-change video evidence, and GitHub website timestamps.
+- Restructured the technical report around those headings and added an honest
+  status table. The conservative source count is 1,140 words before the lab
+  appendix.
+- Added a lab-to-project concept map. Fresh runs of the generated Lifecycle
+  Lab+ and Data Client Lab+ references passed 9 and 10 tests respectively; the
+  document does not claim those references are Canvas submissions.
+- Added a deterministic report builder using the formal document style tokens,
+  fixed-width tables, a communication diagram, and repeatable metadata
+  scrubbing. The final DOCX and PDF passed visual inspection across all eight
+  rendered pages.
+- Pushed the existing six local milestones so the remote `main` branch now
+  matches commit `e5056bf`. The next source commit will preserve this report and
+  evidence work as its own meaningful milestone.
+- Remaining gates are lecturer MySQL credentials and a live database run, final
+  spoken video capture, exact archive review, and explicit Canvas submission
+  approval.
