@@ -1,8 +1,10 @@
 # RelayLab demonstration and evidence runbook
 
 This is a recording checklist, not evidence that a video has already been
-recorded or submitted. Reconcile it with the current Canvas brief and marking
-rubric after AUT authentication is restored.
+recorded or submitted. It was reconciled on 11 August 2026 against the official
+three-page `Assessment_2_Individual_Project_2026.pdf` brief dated 28 July 2026.
+The Canvas assignment page and any separate marking rubric must still be
+rechecked after AUT authentication is restored.
 
 ## Before recording
 
@@ -43,7 +45,9 @@ rubric after AUT authentication is restored.
 
 ## Final evidence gates
 
-- [ ] Current Canvas brief and rubric have been reread after authentication.
+- [x] Official 28 July Option A project brief has been reread locally.
+- [ ] Current Canvas assignment page and any separate rubric have been reread
+      after authentication.
 - [ ] Lecturer MySQL credentials have been received and entered locally.
 - [ ] `npm run verify` passes from a clean install.
 - [ ] The demonstrated database is the lecturer server where required.

@@ -41,6 +41,9 @@ lane.
 5. Reopen the experiment and review its run history.
 
 The frozen contract is in [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md).
+The working short report is in
+[`docs/TECHNICAL_REPORT.md`](docs/TECHNICAL_REPORT.md); it maps the verified
+implementation to the official 28 July 2026 Option A brief.
 
 ## Deterministic behaviours
 

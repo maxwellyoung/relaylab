@@ -1,5 +1,28 @@
 # RelayLab MVP requirements
 
+## Official brief alignment
+
+The 28 July 2026 COMP713 Assessment 2 brief defines Option A as a small,
+complete distributed web/API application. RelayLab maps to its indicative size
+without adding speculative scope:
+
+| Brief requirement | RelayLab evidence |
+| --- | --- |
+| One simple client | One React experiment screen |
+| Server-side API/service layer | Express coordinator API |
+| At least three meaningful API operations | Create, list, read details, and run |
+| Simple data persistence | SQLite locally/tests or lecturer MySQL |
+| At least two related entities | `experiments` and `experiment_runs` |
+| Relationship or meaningful workflow | One experiment produces many durable runs |
+| Validation and failed-request handling | Zod input checks plus classified downstream failures |
+| Clear run and test instructions | README plus `npm run verify` |
+
+The brief permits basic CRUD **or another meaningful workflow**. RelayLab uses
+the latter: create a request definition, execute it across a second service,
+classify the exchange, and read the durable evidence. Update/delete operations
+are therefore outside the frozen scope unless the lecturer explicitly requires
+them later.
+
 ## Scenario
 
 A developer wants to see what actually happens when an API dependency is
