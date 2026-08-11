@@ -1,4 +1,12 @@
-import Database from "better-sqlite3";
+import SqliteDatabase from "better-sqlite3";
+import {
+  createPool,
+  type PoolOptions,
+  type ResultSetHeader,
+  type RowDataPacket,
+} from "mysql2/promise";
+
+export const MAX_DATABASE_CONNECTIONS = 5;
 
 export const experimentBehaviors = [
   "healthy",
@@ -42,8 +50,8 @@ type ExperimentRow = {
   id: number;
   name: string;
   behavior: ExperimentBehavior;
-  payload_json: string;
-  created_at: string;
+  payload_json: string | Record<string, unknown>;
+  created_at: string | Date;
 };
 
 type ExperimentRunRow = {
@@ -52,17 +60,40 @@ type ExperimentRunRow = {
   outcome: RunOutcome;
   http_status: number | null;
   duration_ms: number;
-  response_json: string | null;
-  created_at: string;
+  response_json: string | Record<string, unknown> | null;
+  created_at: string | Date;
 };
+
+type MySqlExperimentRow = ExperimentRow & RowDataPacket;
+type MySqlExperimentRunRow = ExperimentRunRow & RowDataPacket;
+
+function parseJsonObject(value: string | Record<string, unknown>) {
+  return typeof value === "string"
+    ? (JSON.parse(value) as Record<string, unknown>)
+    : value;
+}
+
+function parseJsonResponse(
+  value: string | Record<string, unknown> | null,
+): Record<string, unknown> | string | null {
+  if (value === null) return null;
+  if (typeof value !== "string") return value;
+  return JSON.parse(value) as Record<string, unknown> | string;
+}
+
+function normalizeTimestamp(value: string | Date): string {
+  if (value instanceof Date) return value.toISOString();
+  if (value.includes("T")) return value;
+  return new Date(`${value.replace(" ", "T")}Z`).toISOString();
+}
 
 function toExperiment(row: ExperimentRow): Experiment {
   return {
     id: row.id,
     name: row.name,
     behavior: row.behavior,
-    payload: JSON.parse(row.payload_json) as Record<string, unknown>,
-    createdAt: row.created_at,
+    payload: parseJsonObject(row.payload_json),
+    createdAt: normalizeTimestamp(row.created_at),
   };
 }
 
@@ -73,18 +104,25 @@ function toExperimentRun(row: ExperimentRunRow): ExperimentRun {
     outcome: row.outcome,
     httpStatus: row.http_status,
     durationMs: row.duration_ms,
-    response:
-      row.response_json === null
-        ? null
-        : (JSON.parse(row.response_json) as
-            | Record<string, unknown>
-            | string),
-    createdAt: row.created_at,
+    response: parseJsonResponse(row.response_json),
+    createdAt: normalizeTimestamp(row.created_at),
   };
 }
 
-export function openDatabase(databasePath: string) {
-  const database = new Database(databasePath);
+export type RelayLabDatabase = {
+  createExperiment(
+    input: Omit<Experiment, "id" | "createdAt">,
+  ): Promise<Experiment>;
+  listExperiments(): Promise<Experiment[]>;
+  getExperiment(experimentId: number): Promise<ExperimentDetails | undefined>;
+  createRun(
+    input: Omit<ExperimentRun, "id" | "createdAt">,
+  ): Promise<ExperimentRun>;
+  close(): Promise<void>;
+};
+
+export function openDatabase(databasePath: string): RelayLabDatabase {
+  const database = new SqliteDatabase(databasePath);
   database.pragma("foreign_keys = ON");
   database.pragma("journal_mode = WAL");
   database.exec(`
@@ -176,9 +214,9 @@ export function openDatabase(databasePath: string) {
   `);
 
   return {
-    createExperiment(
+    async createExperiment(
       input: Omit<Experiment, "id" | "createdAt">,
-    ): Experiment {
+    ): Promise<Experiment> {
       const row = insertExperiment.get({
         name: input.name,
         behavior: input.behavior,
@@ -189,10 +227,12 @@ export function openDatabase(databasePath: string) {
       }
       return toExperiment(row);
     },
-    listExperiments(): Experiment[] {
+    async listExperiments(): Promise<Experiment[]> {
       return listExperiments.all().map(toExperiment);
     },
-    getExperiment(experimentId: number): ExperimentDetails | undefined {
+    async getExperiment(
+      experimentId: number,
+    ): Promise<ExperimentDetails | undefined> {
       const experiment = findExperiment.get(experimentId);
       if (!experiment) return undefined;
 
@@ -201,9 +241,9 @@ export function openDatabase(databasePath: string) {
         runs: listRuns.all(experimentId).map(toExperimentRun),
       };
     },
-    createRun(
+    async createRun(
       input: Omit<ExperimentRun, "id" | "createdAt">,
-    ): ExperimentRun {
+    ): Promise<ExperimentRun> {
       const row = insertRun.get({
         experimentId: input.experimentId,
         outcome: input.outcome,
@@ -217,10 +257,197 @@ export function openDatabase(databasePath: string) {
       }
       return toExperimentRun(row);
     },
-    close() {
+    async close() {
       database.close();
     },
   };
 }
 
-export type RelayLabDatabase = ReturnType<typeof openDatabase>;
+export type MySqlDatabaseConfig = {
+  host: string;
+  port: number;
+  database: string;
+  user: string;
+  password: string;
+  ssl?: PoolOptions["ssl"];
+};
+
+export function buildMySqlPoolOptions(
+  config: MySqlDatabaseConfig,
+): PoolOptions {
+  return {
+    host: config.host,
+    port: config.port,
+    database: config.database,
+    user: config.user,
+    password: config.password,
+    ssl: config.ssl,
+    waitForConnections: true,
+    connectionLimit: MAX_DATABASE_CONNECTIONS,
+    queueLimit: 0,
+    charset: "utf8mb4",
+    timezone: "Z",
+    dateStrings: true,
+  };
+}
+
+export function openMySqlDatabase(
+  config: MySqlDatabaseConfig,
+): RelayLabDatabase {
+  const pool = createPool(buildMySqlPoolOptions(config));
+  const initialized = pool.query(`
+    CREATE TABLE IF NOT EXISTS experiments (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      name VARCHAR(80) NOT NULL,
+      behavior VARCHAR(32) NOT NULL,
+      payload_json JSON NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB;
+  `).then(() => pool.query(`
+    CREATE TABLE IF NOT EXISTS experiment_runs (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      experiment_id BIGINT UNSIGNED NOT NULL,
+      outcome VARCHAR(32) NOT NULL,
+      http_status SMALLINT NULL,
+      duration_ms INT UNSIGNED NOT NULL,
+      response_json JSON NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT fk_experiment_runs_experiment
+        FOREIGN KEY (experiment_id)
+        REFERENCES experiments(id)
+        ON DELETE CASCADE
+    ) ENGINE=InnoDB;
+  `));
+  // Attach a rejection handler immediately so unavailable credentials or a
+  // sleeping server cannot become an unhandled startup rejection. Callers
+  // still await the original promise and receive the same failure.
+  void initialized.catch(() => undefined);
+
+  async function getExperiment(
+    experimentId: number,
+  ): Promise<ExperimentDetails | undefined> {
+    await initialized;
+    const [experimentRows] = await pool.execute<MySqlExperimentRow[]>(
+      "SELECT * FROM experiments WHERE id = ?",
+      [experimentId],
+    );
+    const experiment = experimentRows[0];
+    if (!experiment) return undefined;
+
+    const [runRows] = await pool.execute<MySqlExperimentRunRow[]>(
+      `SELECT * FROM experiment_runs
+       WHERE experiment_id = ?
+       ORDER BY id DESC`,
+      [experimentId],
+    );
+    return {
+      ...toExperiment(experiment),
+      runs: runRows.map(toExperimentRun),
+    };
+  }
+
+  return {
+    async createExperiment(input) {
+      await initialized;
+      const [result] = await pool.execute<ResultSetHeader>(
+        `INSERT INTO experiments (name, behavior, payload_json)
+         VALUES (?, ?, ?)`,
+        [input.name, input.behavior, JSON.stringify(input.payload)],
+      );
+      const experiment = await getExperiment(result.insertId);
+      if (!experiment) {
+        throw new Error("MySQL did not return the created experiment");
+      }
+      const { runs: _runs, ...created } = experiment;
+      return created;
+    },
+    async listExperiments() {
+      await initialized;
+      const [rows] = await pool.query<MySqlExperimentRow[]>(
+        "SELECT * FROM experiments ORDER BY id DESC",
+      );
+      return rows.map(toExperiment);
+    },
+    getExperiment,
+    async createRun(input) {
+      await initialized;
+      const [result] = await pool.execute<ResultSetHeader>(
+        `INSERT INTO experiment_runs (
+           experiment_id,
+           outcome,
+           http_status,
+           duration_ms,
+           response_json
+         ) VALUES (?, ?, ?, ?, ?)`,
+        [
+          input.experimentId,
+          input.outcome,
+          input.httpStatus,
+          input.durationMs,
+          input.response === null ? null : JSON.stringify(input.response),
+        ],
+      );
+      const [rows] = await pool.execute<MySqlExperimentRunRow[]>(
+        "SELECT * FROM experiment_runs WHERE id = ?",
+        [result.insertId],
+      );
+      const row = rows[0];
+      if (!row) {
+        throw new Error("MySQL did not return the created experiment run");
+      }
+      return toExperimentRun(row);
+    },
+    async close() {
+      await initialized.catch(() => undefined);
+      await pool.end();
+    },
+  };
+}
+
+type DatabaseEnvironment = Record<string, string | undefined>;
+
+function requiredEnvironmentValue(
+  environment: DatabaseEnvironment,
+  name: string,
+): string {
+  const value = environment[name]?.trim();
+  if (!value) {
+    throw new Error(`${name} is required when RELAYLAB_DATABASE_DRIVER=mysql`);
+  }
+  return value;
+}
+
+export function openDatabaseFromEnvironment({
+  sqlitePath,
+  environment = process.env,
+}: {
+  sqlitePath: string;
+  environment?: DatabaseEnvironment;
+}): RelayLabDatabase {
+  const driver = environment.RELAYLAB_DATABASE_DRIVER?.trim().toLowerCase()
+    ?? "sqlite";
+  if (driver === "sqlite") return openDatabase(sqlitePath);
+  if (driver !== "mysql") {
+    throw new Error(
+      `Unsupported RELAYLAB_DATABASE_DRIVER: ${driver}`,
+    );
+  }
+
+  const port = Number(environment.RELAYLAB_DB_PORT ?? 3306);
+  if (!Number.isInteger(port) || port < 1 || port > 65_535) {
+    throw new Error("RELAYLAB_DB_PORT must be a valid TCP port");
+  }
+
+  const ssl = environment.RELAYLAB_DB_SSL === "true"
+    ? { rejectUnauthorized: true }
+    : undefined;
+
+  return openMySqlDatabase({
+    host: requiredEnvironmentValue(environment, "RELAYLAB_DB_HOST"),
+    port,
+    database: requiredEnvironmentValue(environment, "RELAYLAB_DB_NAME"),
+    user: requiredEnvironmentValue(environment, "RELAYLAB_DB_USER"),
+    password: requiredEnvironmentValue(environment, "RELAYLAB_DB_PASSWORD"),
+    ssl,
+  });
+}

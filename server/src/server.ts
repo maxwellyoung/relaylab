@@ -2,6 +2,7 @@ import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildApplication } from "./app.js";
+import { openDatabaseFromEnvironment } from "./database.js";
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 const defaultDataDirectory = path.resolve(currentDirectory, "../../data");
@@ -14,8 +15,13 @@ const clientDirectory = process.env.CLIENT_DIST_DIR;
 
 mkdirSync(dataDirectory, { recursive: true });
 
+const database = openDatabaseFromEnvironment({
+  sqlitePath: path.join(dataDirectory, "relaylab.sqlite"),
+});
+
 const application = buildApplication({
   databasePath: path.join(dataDirectory, "relaylab.sqlite"),
+  database,
   downstreamUrl,
   timeoutMs,
   clientDirectory,
@@ -27,8 +33,7 @@ const server = application.app.listen(port, () => {
 
 function shutdown() {
   server.close(() => {
-    application.close();
-    process.exit(0);
+    void application.close().finally(() => process.exit(0));
   });
 }
 

@@ -142,3 +142,54 @@
   retaining boundary-level outcome evidence.
 - Verification: fifteen HTTP tests, all workspace type checks, and all
   production builds pass.
+
+## 2026-08-11 - Lecturer database readiness
+
+- Reconciled the project with the lecturer's database-server announcement and
+  requested Maxwell's private schema credentials by direct email.
+- Preserved SQLite as the deterministic local/test lane and added an opt-in
+  MySQL persistence adapter for the lecturer-assigned schema.
+- Kept every credential in local environment configuration and hard-limited
+  the MySQL pool to five connections with a non-configurable application
+  constant and regression test.
+- Kept the same `experiments` to `experiment_runs` relationship, parameterised
+  queries, API contract, and controlled persistence failure response across
+  both database lanes.
+- Updated the interface language so it describes the configured relational
+  database rather than claiming every run uses SQLite.
+- Verification: eighteen HTTP/configuration tests pass, all workspace type
+  checks and production builds pass, and the production dependency audit has
+  no findings. A built production smoke created, ran, and reread one healthy
+  experiment across both HTTP boundaries and persistent storage.
+- Browser verification: desktop and 390 px layouts rendered without console
+  warnings or errors; an unavailable dependency produced and persisted a `503`
+  outcome, and saved-history navigation reopened an older successful run.
+- Remaining gate: run the same database workflow against the lecturer MySQL
+  schema after the private credentials arrive. No credentials were stored, and
+  no push, deployment, or Canvas submission was performed.
+
+## 2026-08-11 - Reproducible submission evidence
+
+- Added three jsdom client tests for the complete create/run/render path, local
+  JSON rejection before persistence, and reopening a saved run after initial
+  load. The repository now has 21 automated tests across the client,
+  coordinator, and downstream service.
+- Added `npm run smoke`, which starts the built production services against a
+  temporary SQLite database, creates and runs an experiment, restarts the
+  application, and proves the saved experiment and run survive the restart.
+- Added `npm run verify` as the reproducible local gate: all tests, all
+  typechecks, all production builds, the restart smoke, and the production
+  dependency audit.
+- Added `docs/DEMONSTRATION_RUNBOOK.md` with a recording route and
+  claim-to-implementation/test/video evidence matrix. It is explicitly a
+  checklist, not a claim that a video was recorded or submitted.
+- The added test tooling initially exposed a high-severity development-only
+  `nanoid` advisory. The lockfile was updated and both full and production-only
+  dependency audits now report zero vulnerabilities.
+- Re-ran desktop browser QA at `http://localhost:5173`: page identity and DOM
+  were correct, the unavailable dependency produced and persisted HTTP 503,
+  the selected history count increased from one to two, a saved healthy run
+  reopened as HTTP 200, and the warning/error console remained empty.
+- A live read-only Canvas brief refresh redirected to AUT Login, so rubric
+  reconciliation remains an authentication gate. Lecturer MySQL credentials,
+  push, deployment, video recording, and Canvas submission remain unperformed.

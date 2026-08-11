@@ -2,7 +2,11 @@ import cors from "cors";
 import express from "express";
 import path from "node:path";
 import { z } from "zod";
-import { experimentBehaviors, openDatabase } from "./database.js";
+import {
+  experimentBehaviors,
+  openDatabase,
+  type RelayLabDatabase,
+} from "./database.js";
 
 const experimentInput = z.object({
   name: z.string().trim().min(1).max(80),
@@ -19,21 +23,23 @@ const downstreamResponse = z.object({
 
 export type RelayLabApplication = {
   app: express.Express;
-  close: () => void;
+  close: () => Promise<void>;
 };
 
 export function buildApplication({
   databasePath,
+  database: suppliedDatabase,
   downstreamUrl = "http://127.0.0.1:3001",
   timeoutMs = 400,
   clientDirectory,
 }: {
   databasePath: string;
+  database?: RelayLabDatabase;
   downstreamUrl?: string;
   timeoutMs?: number;
   clientDirectory?: string;
 }): RelayLabApplication {
-  const database = openDatabase(databasePath);
+  const database = suppliedDatabase ?? openDatabase(databasePath);
   const app = express();
 
   app.use(cors());
@@ -43,7 +49,7 @@ export function buildApplication({
     response.json({ status: "ok", service: "relaylab-coordinator" });
   });
 
-  app.post("/api/experiments", (request, response) => {
+  app.post("/api/experiments", async (request, response) => {
     const parsed = experimentInput.safeParse(request.body);
     if (!parsed.success) {
       response.status(400).json({
@@ -53,15 +59,17 @@ export function buildApplication({
       return;
     }
 
-    response.status(201).json(database.createExperiment(parsed.data));
+    response.status(201).json(await database.createExperiment(parsed.data));
   });
 
-  app.get("/api/experiments", (_request, response) => {
-    response.json(database.listExperiments());
+  app.get("/api/experiments", async (_request, response) => {
+    response.json(await database.listExperiments());
   });
 
-  app.get("/api/experiments/:experimentId", (request, response) => {
-    const experiment = database.getExperiment(Number(request.params.experimentId));
+  app.get("/api/experiments/:experimentId", async (request, response) => {
+    const experiment = await database.getExperiment(
+      Number(request.params.experimentId),
+    );
     if (!experiment) {
       response.status(404).json({ error: "Experiment not found" });
       return;
@@ -71,7 +79,7 @@ export function buildApplication({
 
   app.post("/api/experiments/:experimentId/runs", async (request, response) => {
     const experimentId = Number(request.params.experimentId);
-    const experiment = database.getExperiment(experimentId);
+    const experiment = await database.getExperiment(experimentId);
     if (!experiment) {
       response.status(404).json({ error: "Experiment not found" });
       return;
@@ -98,7 +106,7 @@ export function buildApplication({
       }
 
       const validSuccess = downstreamResponse.safeParse(body);
-      const run = database.createRun({
+      const run = await database.createRun({
         experimentId,
         outcome:
           downstream.ok && validSuccess.success
@@ -113,7 +121,7 @@ export function buildApplication({
 
       response.status(201).json(run);
     } catch (reason) {
-      const run = database.createRun({
+      const run = await database.createRun({
         experimentId,
         outcome:
           reason instanceof Error && reason.name === "TimeoutError"
@@ -138,8 +146,15 @@ export function buildApplication({
     });
   }
 
+  app.use((error: unknown, _request: express.Request, response: express.Response, _next: express.NextFunction) => {
+    console.error("RelayLab request failed", {
+      error: error instanceof Error ? error.name : "UnknownError",
+    });
+    response.status(503).json({ error: "Persistence temporarily unavailable" });
+  });
+
   return {
     app,
-    close: database.close,
+    close: () => database.close(),
   };
 }

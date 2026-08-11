@@ -12,7 +12,7 @@ describe("request experiments", () => {
   let temporaryDirectory: string | undefined;
 
   afterEach(async () => {
-    application?.close();
+    await application?.close();
     application = undefined;
     downstreamServer?.close();
     downstreamServer = undefined;
@@ -386,7 +386,7 @@ describe("request experiments", () => {
       `/api/experiments/${experiment.body.id}/runs`,
     );
 
-    application.close();
+    await application.close();
     application = buildApplication({ databasePath, downstreamUrl });
     const details = await request(application.app).get(
       `/api/experiments/${experiment.body.id}`,

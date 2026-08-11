@@ -206,7 +206,7 @@ export default function App() {
           <h1 id="lab-title">Run a dependency failure experiment</h1>
           <p>
             Send one request through an Express coordinator to a separate
-            service. The result is stored in SQLite.
+            service. The result is stored in the configured relational database.
           </p>
         </header>
 

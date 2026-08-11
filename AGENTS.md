@@ -19,7 +19,9 @@ RelayLab is Maxwell's fresh COMP713 individual-project workspace.
 - Use vertical red-green-refactor slices.
 - Test behavior through the public HTTP API.
 - Keep the architecture explicit: browser client -> coordinator API ->
-  downstream service, with experiment/run evidence persisted in SQLite.
+  downstream service, with experiment/run evidence persisted in the selected
+  relational store. SQLite is the credential-free local/test lane; the
+  lecturer MySQL lane must keep its connection pool capped at five.
 - Prefer the smallest reliable implementation over authentication, external
   APIs, deployment, or speculative analytics.
 - Run `npm test`, `npm run typecheck`, and `npm run build` before describing a

@@ -17,7 +17,7 @@ Coordinator API (port 3000)
         | HTTP with 400 ms bound  | parameterised SQL
         v                         v
 Downstream simulator         SQLite database
-(port 3001)                  (data/relaylab.sqlite)
+(port 3001)                  or lecturer MySQL schema
 ```
 
 The browser never accesses SQLite or the downstream simulator directly. The
@@ -28,7 +28,9 @@ third-party network.
 
 In production, one container starts the coordinator and downstream as separate
 Node processes. Only the coordinator port is public. It serves the built React
-client and mounts SQLite at `/data` on an encrypted Fly volume.
+client. The current hosted demonstration mounts SQLite at `/data`; the
+lecturer-provided MySQL schema is available as a credential-gated persistence
+lane.
 
 ## Public workflow
 
@@ -57,7 +59,8 @@ instead of crashing or losing the attempt.
 - Node.js 24 or later
 - npm 11 or later
 
-No account, API key, external database, or cloud service is required.
+No account, API key, external database, or cloud service is required for the
+local SQLite lane.
 
 ## Install and run
 
@@ -83,18 +86,49 @@ DOWNSTREAM_PORT=3001
 `VITE_API_BASE_URL` is only needed when a built client does not use Vite's local
 proxy.
 
+### Lecturer-provided MySQL server
+
+Copy `.env.example` to an ignored `.env` file and set the values supplied by
+the lecturer:
+
+```bash
+RELAYLAB_DATABASE_DRIVER=mysql
+RELAYLAB_DB_HOST=provided-host
+RELAYLAB_DB_PORT=3306
+RELAYLAB_DB_NAME=provided-schema
+RELAYLAB_DB_USER=provided-username
+RELAYLAB_DB_PASSWORD=provided-password
+RELAYLAB_DB_SSL=false
+```
+
+The coordinator creates the `experiments` and `experiment_runs` tables in the
+assigned schema and uses parameterised queries. The MySQL pool limit is a
+non-configurable application constant set to **5**, matching the course
+requirement. Never put real credentials in `.env.example`, Git, screenshots,
+logs, the report, or the demonstration video.
+
 ## Test and build
 
 ```bash
 npm test
 npm run typecheck
 npm run build
+npm run smoke
 ```
 
 The tests exercise public HTTP behaviour with isolated temporary SQLite
-databases. Coordinator tests use a real TCP boundary for the downstream
-contract and cover healthy, `503`, malformed, timeout, and unreachable results.
-The downstream package independently proves each deterministic behaviour.
+databases and verify the lecturer MySQL configuration fails closed with a
+hard five-connection pool. Coordinator tests use a real TCP boundary for the
+downstream contract and cover healthy, `503`, malformed, timeout, and
+unreachable results. Client tests exercise the create/run/render workflow,
+input rejection, and reopening durable history. The downstream package
+independently proves each deterministic behaviour. `npm run smoke` starts the
+built production application, creates and runs an experiment, restarts both
+services, and proves that the experiment and run remain available.
+
+Run the complete local verification ladder with `npm run verify`. The recording
+route and claim-to-evidence matrix are in
+[`docs/DEMONSTRATION_RUNBOOK.md`](docs/DEMONSTRATION_RUNBOOK.md).
 
 ## Production deployment
 

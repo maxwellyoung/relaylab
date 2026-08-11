@@ -31,7 +31,8 @@ request definition and the evidence produced by each distributed exchange.
 Included:
 
 - separate browser client, coordinator API, and downstream-service processes;
-- SQLite persistence;
+- relational persistence through SQLite locally or the lecturer-provided MySQL
+  schema;
 - JSON request/response exchange;
 - bounded timeout and response-shape validation;
 - controlled downstream failures;
@@ -54,3 +55,12 @@ Excluded:
 - The downstream service can deterministically demonstrate success and failure.
 - Tests, type checking, and production builds pass.
 - Maxwell can trace one request across both HTTP boundaries and into SQLite.
+
+## Lecturer database lane
+
+- MySQL is enabled only through local environment configuration.
+- The application creates and uses the same two related entities in the
+  lecturer-assigned schema.
+- The MySQL pool is hard-limited to five connections in application code.
+- No username, password, or schema credential belongs in Git history.
+- SQLite remains the deterministic offline and automated-test lane.
