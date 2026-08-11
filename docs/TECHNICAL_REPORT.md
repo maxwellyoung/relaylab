@@ -134,9 +134,12 @@ and the fixed connection-pool limit.
 The verification gate also runs all TypeScript checks and production builds,
 starts the built application, creates and executes an experiment, restarts the
 services, and proves that the experiment and run survived. The production
-dependency audit reports zero known vulnerabilities. The earlier REST build
-passed browser checks at 1280 x 720 and 390 x 844; the RPC milestone still
-requires a fresh browser recording after deployment and is not claimed as live.
+dependency audit reports zero known vulnerabilities. The RPC build passed local
+production-browser checks at 1280 x 720 and 390 x 844 with no application
+console errors, and a fresh narrated draft records the healthy result, RPC
+application error, invalid client JSON, malformed result, response evidence,
+and durable history. The hosted RPC milestone still requires backend
+redeployment after Fly CLI authentication and is not claimed as live.
 
 Relevant COMP713 lab references were also regenerated and tested on 11 August:
 the request-lifecycle reference passed 9 tests, and the web-client/API/

@@ -246,7 +246,7 @@
   timeout, invalid result, or unreachable process.
 - Added contract tests for method versioning, matched and mismatched IDs,
   RPC errors, invalid parameters, malformed results, timeout, persistence, and
-  the real TCP service boundary. Current total: 27 passing automated tests.
+  the real TCP service boundary. Current total: 28 passing automated tests.
 - Built-production browser QA passed at 1280 by 720 and 390 by 844. A healthy
   call showed HTTP 200 plus RPC result; an unavailable call showed HTTP 200
   plus RPC `-32001`, the correlated envelope, durable history, and zero console
@@ -255,4 +255,7 @@
   invalid method result was classified correctly but its RPC badge still read
   `result`. The badge now follows the persisted `invalid_response` outcome and
   a client regression test preserves that distinction.
-- This milestone is local only until a separately approved push and deployment.
+- Commits `b7f5236`, `83a5c09`, and `e3df3ab` were pushed to `origin/main` after
+  explicit approval. Local production-browser evidence and the narrated draft
+  were refreshed. The Fly backend redeployment remains gated by user-only CLI
+  authentication, so the public alias stays on the last compatible release.
