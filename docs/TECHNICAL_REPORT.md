@@ -123,7 +123,7 @@ appear in source, documentation, logs, screenshots, or submitted artifacts.
 ## 6. Testing and Evidence
 
 The complete verification command is `npm ci && npm run verify`. The current
-suite contains 27 automated tests: three client tests, seventeen coordinator,
+suite contains 28 automated tests: four client tests, seventeen coordinator,
 RPC-contract, and database-configuration tests, and seven downstream-service
 tests. These cover
 the create/run/render workflow, invalid client JSON, saved-history reopening,

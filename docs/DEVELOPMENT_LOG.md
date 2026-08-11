@@ -251,4 +251,8 @@
   call showed HTTP 200 plus RPC result; an unavailable call showed HTTP 200
   plus RPC `-32001`, the correlated envelope, durable history, and zero console
   warnings or errors.
+- The first video QA pass exposed a presentation-only mismatch: a deliberately
+  invalid method result was classified correctly but its RPC badge still read
+  `result`. The badge now follows the persisted `invalid_response` outcome and
+  a client regression test preserves that distinction.
 - This milestone is local only until a separately approved push and deployment.

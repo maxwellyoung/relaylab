@@ -32,7 +32,7 @@ submission has already been completed.
 | Contract/deadline | Run Malformed or Slow | RPC result validation and bounded waiting are different failure modes | `invalid_response` or `timeout` |
 | Durable state | Reopen Saved experiments; restart and reopen if practical | One experiment owns many run records | State survives restart |
 | Database implementation | Show only safe source excerpts | Related tables, parameterised SQL, optional MySQL adapter, hard pool cap 5 | Data-design evidence without credentials |
-| Test evidence | Run `npm run verify` | 27 tests plus type checks, builds, restart smoke, and dependency audit | Reproducible evidence |
+| Test evidence | Run `npm run verify` | 28 tests plus type checks, builds, restart smoke, and dependency audit | Reproducible evidence |
 | GitHub history | Repository **Commits** page | Point out meaningful July and August milestones and visible website timestamps | Development-process evidence |
 | Limitations | Report or README limitations | Simulator, single user, no retries; disclose MySQL live-test status exactly | Honest self-evaluation |
 
@@ -52,7 +52,7 @@ submission has already been completed.
 
 - [x] Official Option A project brief has been reviewed.
 - [x] Supplied Canvas submission instructions and full rubric have been reviewed.
-- [x] Current 27-test verification, type checks, builds, restart smoke, and
+- [x] Current 28-test verification, type checks, builds, restart smoke, and
       production dependency audit pass.
 - [x] Current source commits are visible on GitHub.
 - [ ] Lecturer MySQL credentials have been received and entered locally.

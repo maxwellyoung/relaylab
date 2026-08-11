@@ -174,4 +174,38 @@ describe("RelayLab browser workflow", () => {
     expect(screen.getByText("1 saved · 1 in selected")).toBeVisible();
     expect(mockedGetExperiment).toHaveBeenCalledWith(2);
   });
+
+  it("labels a rejected method result as invalid RPC evidence", async () => {
+    const savedExperiment = experiment({
+      id: 3,
+      name: "Malformed dependency",
+      behavior: "malformed",
+    });
+    const savedRun = run({
+      id: 9,
+      experimentId: 3,
+      outcome: "invalid_response",
+      httpStatus: 200,
+      response: {
+        jsonrpc: "2.0",
+        id: "trace-9",
+        result: "upstream said maybe",
+      },
+    });
+
+    mockedListExperiments.mockResolvedValue([savedExperiment]);
+    mockedGetExperiment.mockResolvedValue({
+      ...savedExperiment,
+      runs: [savedRun],
+    });
+
+    render(<App />);
+
+    const heading = await screen.findByRole("heading", {
+      name: "Contract rejected",
+    });
+    const resultCard = heading.closest("article");
+    expect(resultCard).not.toBeNull();
+    expect(within(resultCard!).getByText("invalid")).toBeVisible();
+  });
 });

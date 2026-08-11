@@ -90,6 +90,7 @@ function responseText(run: ExperimentRun) {
 }
 
 function rpcSignal(run: ExperimentRun) {
+  if (run.outcome === "invalid_response") return "invalid";
   if (!run.response || typeof run.response !== "object") return "—";
   const envelope = run.response as {
     jsonrpc?: unknown;
