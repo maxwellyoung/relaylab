@@ -193,3 +193,18 @@
 - A live read-only Canvas brief refresh redirected to AUT Login, so rubric
   reconciliation remains an authentication gate. Lecturer MySQL credentials,
   push, deployment, video recording, and Canvas submission remain unperformed.
+
+## 2026-08-11 - Vercel visual-QA preview
+
+- Added a Vercel configuration that installs from the lockfile with `npm ci`
+  and builds only the React client from the workspace root.
+- Kept the topology explicit: Vercel hosts the visual client while the existing
+  Fly deployment continues to run the coordinator, downstream service, and
+  relational persistence lane.
+- Stored the non-secret public coordinator URL as the Vercel project's preview
+  and production `VITE_API_BASE_URL`, so Git-connected rebuilds do not silently
+  fall back to same-origin API requests.
+- Verified the immutable preview at desktop and 390 by 844 viewports: no blank
+  page, framework overlay, horizontal overflow, or console warnings/errors.
+  A malformed response produced `invalid_response`, HTTP 200, and durable
+  history through the remote coordinator.

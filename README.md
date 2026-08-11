@@ -147,6 +147,14 @@ The Fly configuration uses one machine because SQLite is attached to a single
 persistent volume. Automatic stop/start keeps the small assessment deployment
 idle when it is unused. The coordinator health endpoint is `/health`.
 
+### Vercel visual preview
+
+[`vercel.json`](vercel.json) builds only the React client for fast visual QA.
+The Vercel project must define `VITE_API_BASE_URL` as the public coordinator URL
+for both preview and production builds. This does not move the coordinator,
+downstream service, or database to Vercel; the deployed client still exercises
+the distributed services hosted on Fly.
+
 ## Coordinator API
 
 | Method | Route | Behaviour |
