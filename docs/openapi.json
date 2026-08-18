@@ -1,0 +1,222 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "RelayLab Coordinator API",
+    "version": "1.0.0",
+    "description": "The browser-facing REST contract. Coordinator, JSON-RPC, repository, and database details remain private implementation concerns."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Local coordinator"
+    }
+  ],
+  "paths": {
+    "/api/experiments": {
+      "get": {
+        "operationId": "listExperiments",
+        "summary": "List saved experiments newest first",
+        "responses": {
+          "200": {
+            "description": "Saved experiments",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Experiment" }
+                }
+              }
+            }
+          },
+          "503": { "$ref": "#/components/responses/PersistenceUnavailable" }
+        }
+      },
+      "post": {
+        "operationId": "createExperiment",
+        "summary": "Validate and create an experiment",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ExperimentInput" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Experiment created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Experiment" }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid experiment input",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ValidationError" }
+              }
+            }
+          },
+          "503": { "$ref": "#/components/responses/PersistenceUnavailable" }
+        }
+      }
+    },
+    "/api/experiments/{experimentId}": {
+      "get": {
+        "operationId": "getExperiment",
+        "summary": "Get one experiment and its run history",
+        "parameters": [
+          { "$ref": "#/components/parameters/ExperimentId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Experiment with durable run history",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ExperimentDetails" }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/ExperimentNotFound" },
+          "503": { "$ref": "#/components/responses/PersistenceUnavailable" }
+        }
+      }
+    },
+    "/api/experiments/{experimentId}/runs": {
+      "post": {
+        "operationId": "runExperiment",
+        "summary": "Execute and persist one distributed run",
+        "parameters": [
+          { "$ref": "#/components/parameters/ExperimentId" }
+        ],
+        "responses": {
+          "201": {
+            "description": "Run persisted, including controlled dependency failures",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ExperimentRun" }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/ExperimentNotFound" },
+          "503": { "$ref": "#/components/responses/PersistenceUnavailable" }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "ExperimentId": {
+        "name": "experimentId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "responses": {
+      "ExperimentNotFound": {
+        "description": "Experiment does not exist",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" }
+          }
+        }
+      },
+      "PersistenceUnavailable": {
+        "description": "The configured relational store is temporarily unavailable",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "ExperimentBehavior": {
+        "type": "string",
+        "enum": ["healthy", "slow", "unavailable", "malformed"]
+      },
+      "ExperimentInput": {
+        "type": "object",
+        "required": ["name", "behavior", "payload"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1, "maxLength": 80 },
+          "behavior": { "$ref": "#/components/schemas/ExperimentBehavior" },
+          "payload": { "type": "object", "additionalProperties": true }
+        }
+      },
+      "Experiment": {
+        "type": "object",
+        "description": "V1 clients depend on these required fields and tolerate additional optional fields.",
+        "required": ["id", "name", "behavior", "payload", "createdAt"],
+        "additionalProperties": true,
+        "properties": {
+          "id": { "type": "integer", "minimum": 1 },
+          "name": { "type": "string" },
+          "behavior": { "$ref": "#/components/schemas/ExperimentBehavior" },
+          "payload": { "type": "object", "additionalProperties": true },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "RunOutcome": {
+        "type": "string",
+        "enum": ["success", "downstream_error", "timeout", "invalid_response", "unreachable"]
+      },
+      "ExperimentRun": {
+        "type": "object",
+        "required": ["id", "experimentId", "outcome", "httpStatus", "durationMs", "response", "createdAt"],
+        "additionalProperties": true,
+        "properties": {
+          "id": { "type": "integer", "minimum": 1 },
+          "experimentId": { "type": "integer", "minimum": 1 },
+          "outcome": { "$ref": "#/components/schemas/RunOutcome" },
+          "httpStatus": { "type": ["integer", "null"], "minimum": 100, "maximum": 599 },
+          "durationMs": { "type": "integer", "minimum": 1 },
+          "response": {
+            "description": "The preserved dependency envelope or null when no response arrived",
+            "type": ["object", "string", "null"]
+          },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "ExperimentDetails": {
+        "allOf": [
+          { "$ref": "#/components/schemas/Experiment" },
+          {
+            "type": "object",
+            "required": ["runs"],
+            "properties": {
+              "runs": {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/ExperimentRun" }
+              }
+            }
+          }
+        ]
+      },
+      "Error": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": { "type": "string" }
+        }
+      },
+      "ValidationError": {
+        "allOf": [
+          { "$ref": "#/components/schemas/Error" },
+          {
+            "type": "object",
+            "properties": {
+              "details": { "type": "object", "additionalProperties": true }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

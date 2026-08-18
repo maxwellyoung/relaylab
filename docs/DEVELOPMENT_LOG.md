@@ -259,3 +259,18 @@
   explicit approval. Local production-browser evidence and the narrated draft
   were refreshed. The Fly backend redeployment remains gated by user-only CLI
   authentication, so the public alias stays on the last compatible release.
+
+## 2026-08-18 - Browser-facing REST compatibility bench
+
+- Described the four frozen browser resource operations, request/response
+  schemas, status codes, and stable error shapes in OpenAPI 3.1 JSON.
+- Centralised the coordinator's experiment input and V1 response decoders so
+  tests exercise the same public field contract as runtime validation.
+- Added three explicit response fixtures: the V1 baseline, an additive optional
+  field, and a deliberately breaking rename of required `name`.
+- Added a focused contract command that proves the old decoder tolerates the
+  optional field, rejects the renamed required field, and checks OpenAPI's
+  operation/status surface.
+- Kept JSON-RPC, repository code, and relational tables outside the public
+  browser contract. The learner still owns the pre-run prediction and
+  post-run explanation in Project Studio.

@@ -1,22 +1,15 @@
 import cors from "cors";
 import express from "express";
 import path from "node:path";
-import { z } from "zod";
 import {
-  experimentBehaviors,
   openDatabase,
   type RelayLabDatabase,
 } from "./database.js";
+import { experimentInputSchema } from "./public-contract.js";
 import {
   buildDownstreamRpcRequest,
   classifyDownstreamRpcResponse,
 } from "./downstream-rpc.js";
-
-const experimentInput = z.object({
-  name: z.string().trim().min(1).max(80),
-  behavior: z.enum(experimentBehaviors),
-  payload: z.record(z.string(), z.unknown()),
-});
 
 export type RelayLabApplication = {
   app: express.Express;
@@ -47,7 +40,7 @@ export function buildApplication({
   });
 
   app.post("/api/experiments", async (request, response) => {
-    const parsed = experimentInput.safeParse(request.body);
+    const parsed = experimentInputSchema.safeParse(request.body);
     if (!parsed.success) {
       response.status(400).json({
         error: "Invalid experiment",

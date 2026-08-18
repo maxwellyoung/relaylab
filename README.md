@@ -42,6 +42,10 @@ lane.
 5. Reopen the experiment and review its run history.
 
 The frozen contract is in [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md).
+The machine-readable browser contract is in
+[`docs/openapi.json`](docs/openapi.json), with an executable additive-versus-
+breaking compatibility exercise in
+[`docs/CONTRACT_EXPERIMENT.md`](docs/CONTRACT_EXPERIMENT.md).
 The technical report is in
 [`docs/TECHNICAL_REPORT.md`](docs/TECHNICAL_REPORT.md); it maps the verified
 implementation to the official Option A brief and supplied Canvas rubric.
@@ -115,6 +119,7 @@ logs, the report, or the demonstration video.
 
 ```bash
 npm test
+npm run test:contract
 npm run typecheck
 npm run build
 npm run smoke
