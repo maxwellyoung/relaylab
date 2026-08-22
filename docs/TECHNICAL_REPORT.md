@@ -8,7 +8,7 @@
 
 **Assessment:** Assessment 2 - Individual Project, Option A
 
-**Implementation status date:** 11 August 2026
+**Implementation status date:** 22 August 2026
 
 ## 1. Project Introduction and Requirements
 
@@ -123,7 +123,7 @@ appear in source, documentation, logs, screenshots, or submitted artifacts.
 ## 6. Testing and Evidence
 
 The complete verification command is `npm ci && npm run verify`. The current
-suite contains 28 automated tests: four client tests, seventeen coordinator,
+suite contains 32 automated tests: four client tests, twenty-one coordinator,
 RPC-contract, and database-configuration tests, and seven downstream-service
 tests. These cover
 the create/run/render workflow, invalid client JSON, saved-history reopening,

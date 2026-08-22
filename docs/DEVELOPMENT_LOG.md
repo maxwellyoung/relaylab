@@ -274,3 +274,15 @@
 - Kept JSON-RPC, repository code, and relational tables outside the public
   browser contract. The learner still owns the pre-run prediction and
   post-run explanation in Project Studio.
+
+## 2026-08-22 - Report and recording evidence reconciliation
+
+- Added a request sequence diagram that traces experiment creation, one
+  downstream JSON-RPC run, controlled failure classification, persistence, and
+  reopening durable history across the three processes and relational store.
+- Re-ran `npm run verify`: 32 automated tests, all workspace type checks and
+  production builds, restart-persistence smoke, and the production dependency
+  audit passed.
+- Updated the report and demonstration runbook to use the verified test count.
+  The final narrated video, lecturer-MySQL live check, and Canvas submission
+  remain explicit student-owned gates.

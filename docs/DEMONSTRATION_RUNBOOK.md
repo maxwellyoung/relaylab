@@ -1,6 +1,6 @@
 # RelayLab demonstration and evidence runbook
 
-This is the recording plan and evidence checklist. It was reconciled on 11
+This is the recording plan and evidence checklist. It was reconciled on 22
 August 2026 against the supplied Canvas assignment instructions and official
 three-page Option A brief. It is not a claim that the final video or Canvas
 submission has already been completed.
@@ -25,14 +25,14 @@ submission has already been completed.
 | --- | --- | --- | --- |
 | Introduction | Title card or brief spoken introduction | Name, student ID, course, Option A, and RelayLab purpose | Assessment identity and scope |
 | Startup | Clean terminal running `npm run dev` | Three independently running processes and their ports | System starts reproducibly |
-| Architecture | README diagram and live interface | Browser REST -> coordinator -> downstream JSON-RPC; coordinator -> database | Communication boundaries and protocol choice |
+| Architecture | README diagram, `ARCHITECTURE_SEQUENCE.md`, and live interface | Browser REST -> coordinator -> downstream JSON-RPC; coordinator -> database | Communication boundaries and protocol choice |
 | Healthy exchange | Select Healthy and run invented JSON | Coordinator sends `relaylab.process.v1` with a correlation ID | HTTP 200, RPC result, duration, envelope, timestamp |
 | Invalid input | Enter malformed JSON and run | Client validation prevents an invalid API write | Readable controlled error |
 | Failed request | Select Unavailable and run | HTTP succeeds while the method returns RPC error `-32001` | `downstream_error`, HTTP 200, RPC `-32001`, run count change |
 | Contract/deadline | Run Malformed or Slow | RPC result validation and bounded waiting are different failure modes | `invalid_response` or `timeout` |
 | Durable state | Reopen Saved experiments; restart and reopen if practical | One experiment owns many run records | State survives restart |
 | Database implementation | Show only safe source excerpts | Related tables, parameterised SQL, optional MySQL adapter, hard pool cap 5 | Data-design evidence without credentials |
-| Test evidence | Run `npm run verify` | 28 tests plus type checks, builds, restart smoke, and dependency audit | Reproducible evidence |
+| Test evidence | Run `npm run verify` | 32 tests plus type checks, builds, restart smoke, and dependency audit | Reproducible evidence |
 | GitHub history | Repository **Commits** page | Point out meaningful July and August milestones and visible website timestamps | Development-process evidence |
 | Limitations | Report or README limitations | Simulator, single user, no retries; disclose MySQL live-test status exactly | Honest self-evaluation |
 
