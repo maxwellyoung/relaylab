@@ -540,7 +540,7 @@ def add_contents(document: Document) -> None:
     run = note.add_run(
         f"Main body word count (sections 1-8): {report_words:,} words. "
         "The title page, contents, references and appendix are excluded "
-        "from the 2,000-word limit."
+        "from the 1,500-word limit."
     )
     set_font(run, size=9.5, color=MUTED, italic=True)
     document.add_page_break()

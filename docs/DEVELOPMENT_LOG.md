@@ -326,3 +326,7 @@ Reinstalled from the lockfile and re-ran `npm run verify`: all 35 tests, type ch
 ## 17 September: report and demonstration finalisation
 
 Finalised the report for submission: 1,294 main-body words (sections 1-8), A4, name and student ID on the cover and every page header. Rebuilt the demonstration picture cut from the 15 September lecturer-MySQL recording with corrected on-screen claims and name and student ID throughout. The voiceover, final video review and personal Canvas submission remain.
+
+## 17 September: database atomicity and submission sweep
+
+MySQL inserts and their read-backs now share one transaction on one pooled connection and roll back together, so a 503 cannot hide a saved row. Sessions run in UTC and idle connections use TCP keep-alive. The schema moved to `database/schema.sqlite.sql` and `database/schema.mysql.sql`, with a SQLite index on run history. Malformed experiment identifiers return 404 before any query. A timing test that failed under machine load now allows a realistic margin. The lecturer server was confirmed as MySQL 8.4 on InnoDB, already in UTC, shared by the class with 60 connections in total. The transactional path was rechecked live against the assigned schema: create, two runs, coordinator restart and reopen. The report word-limit note was restored to 1,500 words, matching the captured Canvas instructions. All 45 tests, type checks, builds, restart smoke and the production audit pass.

@@ -71,7 +71,7 @@ depending on a third-party network.
 | Read one experiment and its runs | Completed and tested | API tests, client reopening test, and restart smoke |
 | Execute a versioned downstream RPC method | Completed and tested locally | Healthy result, RPC error, timeout, malformed result, and unreachable tests |
 | Persist experiments and one-to-many run history | Completed and tested | SQLite smoke and live lecturer-MySQL restart check |
-| Use lecturer MySQL with a five-connection maximum | Completed and live-tested for demonstrated workflows | Verified TLS, save/run/reopen and restart on the assigned lecturer schema |
+| Use lecturer MySQL with a five-connection maximum | Completed and live-tested for demonstrated workflows | Verified TLS, save/run/reopen and restart on the assigned lecturer schema; transactional writes rechecked 17 September |
 | Log each exchange with its correlation ID | Completed and tested | Coordinator and downstream logging tests; live logs in the video |
 | Run services independently and inspect stored rows | Completed and tested | Separate start scripts, `unreachable` after stopping only the downstream, `npm run db:inspect` on the lecturer schema |
 | Hosted deployment (optional) | Not completed | Fly configuration is included, but the current build was not redeployed; the brief does not require hosting |
@@ -101,10 +101,12 @@ contract failure, and a transport connection failure. The coordinator remains
 available and persists the attempt instead of crashing.
 
 Zod schemas reject unsupported behaviours, blank or oversized names, and
-payloads that are not JSON objects. Missing experiment identifiers produce a
+payloads that are not JSON objects. Missing or malformed experiment identifiers produce a
 controlled 404. Persistence exceptions produce a generic 503 without leaking
 database details. The MySQL path uses parameterised statements and a
-non-configurable pool limit of five connections.
+non-configurable pool limit of five connections. Each MySQL insert and its
+read-back share one transaction, so a failed write rolls back rather than
+leaving a row the client was told was not saved.
 
 ## 5. Data Design or Message Design
 
@@ -116,6 +118,10 @@ creation time. Foreign-key enforcement prevents orphan run records, while
 `ON DELETE CASCADE` defines ownership even though deletion is not exposed by
 the current API.
 
+The schema ships as `database/schema.sqlite.sql` and
+`database/schema.mysql.sql`, applied idempotently at startup; SQLite also
+indexes runs by experiment.
+
 SQLite and MySQL implement the same application-facing repository contract.
 SQLite makes local inspection and isolated tests deterministic. MySQL supports
 the lecturer-provided schema without changing the client or coordinator API.
@@ -125,8 +131,8 @@ appear in source, documentation, logs, screenshots, or submitted artifacts.
 ## 6. Testing and Evidence
 
 The complete verification command is `npm ci && npm run verify`. The current
-suite contains 38 automated tests: five client tests, twenty-five coordinator,
-RPC-contract, database-configuration, and logging tests, and eight downstream-service
+suite contains 45 automated tests: five client tests, thirty-two coordinator,
+RPC-contract, database, and logging tests, and eight downstream-service
 tests. These cover
 the create/run/render workflow, invalid client JSON, saved-history reopening,
 all five run outcomes, versioned methods, standard RPC errors, mismatched
@@ -137,11 +143,11 @@ an unreachable-downstream result.
 
 The verification gate also runs all TypeScript checks and production builds,
 starts the built application, creates and executes an experiment, restarts the
-services, and proves that the experiment and run survived. On 17 September a fresh clone of the GitHub repository passed `npm ci` and the full gate: all 38 tests, type checks, builds, restart-persistence smoke, and a production dependency audit with no known vulnerabilities. Earlier browser verification on the built local application separately checked the healthy workflow, an RPC application error, the deadline timeout, and invalid-JSON rejection. The accompanying video shows startup, a successful exchange, RPC-error and timeout failures on the lecturer MySQL schema, restart persistence, and commit dates on the GitHub website.
+services, and proves that the experiment and run survived. On 17 September a fresh clone of the GitHub repository passed `npm ci` and the full gate: all 45 tests, type checks, builds, restart-persistence smoke, and a production dependency audit with no known vulnerabilities. The accompanying video shows startup, a successful exchange, RPC-error and timeout failures on the lecturer MySQL schema, restart persistence, and commit dates on the GitHub website.
 
-A separate live MySQL check used verified TLS and confirmed four experiments and five related runs by direct SQL after restart, covering success, RPC error, timeout and malformed response. Additional browser captures reran the workflows. A discovered selection/loading race was fixed by disabling controls during requests, with a regression test preventing execution of the previous selection.
+A separate live MySQL check used verified TLS and confirmed four experiments and five related runs by direct SQL after restart, covering success, RPC error, timeout and malformed response. On 17 September the transactional write path was rechecked live: create, two runs, coordinator restart and reopen. A discovered selection/loading race was fixed by disabling controls during requests, with a regression test preventing execution of the previous selection.
 
-Relevant lab work was submitted on 10 September: Weeks 2–6 have personal Canvas receipts. Appendix A maps the lab concepts to this project and distinguishes those submissions from the prepared Week 7 exercise. Submission timestamps establish hand-in, not a history of weekly attendance or independent mastery.
+Relevant lab work was submitted on 10 September: Weeks 2–6 have personal Canvas receipts. Appendix A maps the lab concepts to this project and distinguishes those submissions from the prepared Week 7 exercise.
 
 ## 7. Limitations and Possible Improvements
 

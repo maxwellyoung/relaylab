@@ -132,10 +132,15 @@ npm run start:coordinator   # terminal 2, port 3000, also serves the built clien
 
 Open <http://localhost:3000>. Stopping only the downstream terminal makes the next run record `unreachable` while the coordinator keeps serving; stopping and restarting the coordinator shows that saved experiments and runs persist.
 
-The coordinator creates the `experiments` and `experiment_runs` tables in the
-assigned schema and uses parameterised queries. The MySQL pool limit is a
-non-configurable application constant set to **5**, matching the course
-requirement. Never put real credentials in `.env.example`, Git, screenshots,
+The schema scripts are `database/schema.sqlite.sql` and
+`database/schema.mysql.sql`. The coordinator applies the matching script on
+startup; every statement is idempotent, so restarting against an existing schema
+is safe. All queries are parameterised. On MySQL, each insert and its read-back
+share one transaction on one pooled connection, so a failed write rolls back
+instead of leaving a row the client was told was not saved, and every session
+runs in UTC. The MySQL pool limit is a non-configurable application constant set
+to **5**, matching the course requirement. The lecturer server is shared by the
+class, so stop RelayLab processes you are not using. Never put real credentials in `.env.example`, Git, screenshots,
 logs, the report, or the demonstration video.
 
 ## Test and build
@@ -150,7 +155,9 @@ npm run smoke
 
 The tests exercise public HTTP and internal JSON-RPC behaviour with isolated temporary SQLite
 databases and verify the lecturer MySQL configuration fails closed with a
-hard five-connection pool. Coordinator tests use a real TCP boundary for the
+hard five-connection pool. MySQL write tests use a stub connection to prove
+commit, rollback and connection release; the schema scripts are tested for
+idempotence, foreign-key enforcement and the run-history index. Coordinator tests use a real TCP boundary for the
 downstream contract and cover correlated results, RPC application errors,
 malformed results, timeouts, and unreachable services. Client tests exercise the create/run/render workflow,
 input rejection, and reopening durable history. The downstream package
