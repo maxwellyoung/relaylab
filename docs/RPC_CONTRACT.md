@@ -44,7 +44,7 @@ matches the request and its result matches the method-specific schema.
 
 | Code | Meaning | Coordinator classification |
 | --- | --- | --- |
-| `-32600` | Invalid JSON-RPC request envelope | `downstream_error` |
+| `-32600` | Invalid JSON-RPC request envelope | `invalid_response` |
 | `-32601` | Method not found | `downstream_error` |
 | `-32602` | Invalid method parameters | `downstream_error` |
 | `-32001` | Simulated dependency unavailable | `downstream_error` |

@@ -28,10 +28,11 @@ provides deterministic healthy and failure behaviours without relying on a
 third-party network.
 
 In production, one container starts the coordinator and downstream as separate
-Node processes. Only the coordinator port is public. It serves the built React
-client. The current hosted demonstration mounts SQLite at `/data`; the
-lecturer-provided MySQL schema is available as a credential-gated persistence
-lane.
+Node processes. Only the coordinator port is public, and it serves the built
+React client. That container mounts SQLite at `/data`; the lecturer-provided
+MySQL schema is a credential-gated alternative. No hosted deployment forms part
+of this submission: the Fly and Vercel configuration is included but the current
+build was not redeployed.
 
 ## Public workflow
 
@@ -68,7 +69,9 @@ instead of crashing or losing the attempt.
 - npm 11 or later
 
 No account, API key, external database, or cloud service is required for the
-local SQLite lane.
+local SQLite lane. `better-sqlite3` installs a prebuilt binary on common
+platforms; elsewhere `npm ci` compiles it, which needs Python 3, `make` and a
+C++ compiler.
 
 ## Install and run
 
@@ -137,8 +140,8 @@ The schema scripts are `database/schema.sqlite.sql` and
 startup; every statement is idempotent, so restarting against an existing schema
 is safe. All queries are parameterised. On MySQL, each insert and its read-back
 share one transaction on one pooled connection, so a failed write rolls back
-instead of leaving a row the client was told was not saved, and every session
-runs in UTC. The MySQL pool limit is a non-configurable application constant set
+instead of leaving a row the client was told was not saved. Each pooled session
+is also set to UTC, which matters only if the server's own default is not. The MySQL pool limit is a non-configurable application constant set
 to **5**, matching the course requirement. The lecturer server is shared by the
 class, so stop RelayLab processes you are not using. Never put real credentials in `.env.example`, Git, screenshots,
 logs, the report, or the demonstration video.
@@ -156,8 +159,10 @@ npm run smoke
 The tests exercise public HTTP and internal JSON-RPC behaviour with isolated temporary SQLite
 databases and verify the lecturer MySQL configuration fails closed with a
 hard five-connection pool. MySQL write tests use a stub connection to prove
-commit, rollback and connection release; the schema scripts are tested for
-idempotence, foreign-key enforcement and the run-history index. Coordinator tests use a real TCP boundary for the
+commit, rollback and connection release. The SQLite schema script is tested for
+idempotence, foreign-key enforcement and the run-history index; the MySQL script
+is checked statement by statement against a stub and verified by hand on the
+lecturer server. Coordinator tests use a real TCP boundary for the
 downstream contract and cover correlated results, RPC application errors,
 malformed results, timeouts, and unreachable services. Client tests exercise the create/run/render workflow,
 input rejection, and reopening durable history. The downstream package
@@ -179,17 +184,16 @@ gates before it can be released.
 flyctl deploy
 ```
 
-The Fly configuration uses one machine because SQLite is attached to a single
-persistent volume. Automatic stop/start keeps the small assessment deployment
+No deployment was made for this submission. The Fly configuration uses one
+machine because SQLite is attached to a single persistent volume. Automatic stop/start keeps the small assessment deployment
 idle when it is unused. The coordinator health endpoint is `/health`.
 
 ### Vercel visual preview
 
 [`vercel.json`](vercel.json) builds only the React client for fast visual QA.
-The Vercel project must define `VITE_API_BASE_URL` as the public coordinator URL
-for both preview and production builds. This does not move the coordinator,
-downstream service, or database to Vercel; the deployed client still exercises
-the distributed services hosted on Fly.
+A Vercel project would need `VITE_API_BASE_URL` set to a public coordinator URL.
+This never moves the coordinator, downstream service, or database to Vercel, and
+no preview is deployed as part of this submission.
 
 ## Coordinator API
 
@@ -229,8 +233,8 @@ error codes are documented in [`docs/RPC_CONTRACT.md`](docs/RPC_CONTRACT.md).
 - The coordinator intentionally performs no retry or circuit-breaking.
 - Experiments and runs cannot yet be edited or deleted.
 - One local user only; authentication is outside the assignment scope.
-- The hosted demonstration is intentionally single-machine and is not designed
-  for concurrent production traffic.
+- The container image is intentionally single-machine and is not designed for
+  concurrent production traffic. Nothing is hosted for this submission.
 
 ## Project evidence
 

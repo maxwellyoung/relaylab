@@ -8,7 +8,7 @@
 
 **Assessment:** Assessment 2 - Individual Project, Option A
 
-**Implementation status date:** 17 September 2026
+**Implementation status date:** 18 September 2026
 
 ## 1. Project Introduction and Requirements
 
@@ -19,18 +19,17 @@ request to a separately running downstream service using JSON-RPC 2.0,
 classifies the result, and stores the evidence. The saved evidence includes the
 outcome, optional HTTP status, elapsed time, RPC envelope, and timestamp.
 
-The intended user is a student or developer who wants a repeatable way to
-compare a healthy exchange with a timeout, an unavailable dependency, a
-malformed response, or an unreachable service. The selected assignment route is
+The intended user wants a repeatable way to compare a healthy exchange with a
+timeout, an unavailable dependency, a malformed response, or an unreachable
+service. The selected assignment route is
 Option A. Its functional requirements are to provide one usable client, a
 server-side API, at least three meaningful operations, persistent related data,
 input validation, controlled errors, and reproducible run and test instructions.
 
 RelayLab implements a create/read/execute workflow rather than edit and delete
 operations. A user can create an experiment, list saved experiments, read one
-experiment with its history, and execute it repeatedly. This keeps the scope
-small while still producing a complete workflow whose state changes can be
-demonstrated.
+experiment with its history, and execute it repeatedly. This keeps the scope small while still producing a complete,
+demonstrable workflow.
 
 ## 2. Architecture and Technology Stack
 
@@ -52,13 +51,12 @@ The client is React with TypeScript and Vite. The coordinator and downstream
 service are separate Node.js/Express processes written in TypeScript. Zod
 validates request and response data. The persistence adapter uses SQLite for
 credential-free development and automated testing, or the lecturer-provided
-MySQL schema when explicitly configured. Vitest, Testing Library, and
-Supertest provide automated tests.
+MySQL schema when explicitly configured.
 
 The browser communicates only with the coordinator. It never accesses the
 database or downstream service directly. The coordinator owns validation,
-persistence, request timing, the 400 ms deadline, response-contract checking,
-correlation-ID checking, and outcome classification. Both services write one log line per exchange tagged with a shortened correlation ID, so a single request can be followed across the two processes. The downstream service exposes deterministic
+persistence, request timing, the request deadline (400 ms by default), response-contract checking,
+correlation-ID checking, and outcome classification. Both services log each exchange, and the outbound request and its reply carry a shortened correlation ID, so one request can be followed across the two processes. The downstream service exposes deterministic
 behaviours so both success and failure demonstrations remain repeatable without
 depending on a third-party network.
 
@@ -71,12 +69,12 @@ depending on a third-party network.
 | Read one experiment and its runs | Completed and tested | API tests, client reopening test, and restart smoke |
 | Execute a versioned downstream RPC method | Completed and tested locally | Healthy result, RPC error, timeout, malformed result, and unreachable tests |
 | Persist experiments and one-to-many run history | Completed and tested | SQLite smoke and live lecturer-MySQL restart check |
-| Use lecturer MySQL with a five-connection maximum | Completed and live-tested for demonstrated workflows | Verified TLS, save/run/reopen and restart on the assigned lecturer schema; transactional writes rechecked 17 September |
+| Use lecturer MySQL with a five-connection maximum | Completed; live-checked manually, not in the automated suite | Verified TLS, save/run/reopen/restart on the assigned schema (15 September); transactional writes rechecked 17 September. Automated tests use a stub connection |
 | Log each exchange with its correlation ID | Completed and tested | Coordinator and downstream logging tests; live logs in the video |
-| Run services independently and inspect stored rows | Completed and tested | Separate start scripts, `unreachable` after stopping only the downstream, `npm run db:inspect` on the lecturer schema |
+| Run services independently and inspect stored rows | Completed; verified manually | Separate start scripts and `npm run db:inspect`; a test proves `unreachable` against an unused port, and stopping the live process was checked by hand |
 | Hosted deployment (optional) | Not completed | Fly configuration is included, but the current build was not redeployed; the brief does not require hosting |
 
-The public coordinator API has four operations: `POST /api/experiments`,
+The public coordinator API has four resource operations, plus `GET /health`: `POST /api/experiments`,
 `GET /api/experiments`, `GET /api/experiments/:id`, and
 `POST /api/experiments/:id/runs`. Every execution produces a new durable run
 record, including controlled failures.
@@ -143,11 +141,11 @@ an unreachable-downstream result.
 
 The verification gate also runs all TypeScript checks and production builds,
 starts the built application, creates and executes an experiment, restarts the
-services, and proves that the experiment and run survived. On 17 September a fresh clone of the GitHub repository passed `npm ci` and the full gate: all 45 tests, type checks, builds, restart-persistence smoke, and a production dependency audit with no known vulnerabilities. The accompanying video shows startup, a successful exchange, RPC-error and timeout failures on the lecturer MySQL schema, restart persistence, and commit dates on the GitHub website.
+services, and proves that the experiment and run survived. On 18 September a fresh clone of the GitHub repository passed `npm ci` and the full gate: all 45 tests, type checks, builds, restart-persistence smoke, and a production dependency audit with no known vulnerabilities. The video shows a successful exchange, an RPC application error and a deadline timeout on the lecturer MySQL schema (15 September), plus startup, invalid-JSON rejection and restart persistence on SQLite (10 September), and GitHub commit dates captured 10 September, which excludes later commits.
 
-A separate live MySQL check used verified TLS and confirmed four experiments and five related runs by direct SQL after restart, covering success, RPC error, timeout and malformed response. On 17 September the transactional write path was rechecked live: create, two runs, coordinator restart and reopen. A discovered selection/loading race was fixed by disabling controls during requests, with a regression test preventing execution of the previous selection.
+Live MySQL checks used verified TLS. `npm run db:inspect` prints the stored rows with their join; on 18 September the schema held 8 experiments and 17 runs covering success, downstream_error and timeout. On 17 September the transactional write path was rechecked live: create, two runs, restart, reopen. A discovered selection/loading race was fixed by disabling controls during requests, with a regression test preventing execution of the previous selection.
 
-Relevant lab work was submitted on 10 September: Weeks 2–6 have personal Canvas receipts. Appendix A maps the lab concepts to this project and distinguishes those submissions from the prepared Week 7 exercise.
+Relevant lab work was submitted on 10 September: Weeks 2–6 have Canvas receipts. Appendix A, built from `docs/LAB_EVIDENCE.md`, maps those lab concepts to this project and distinguishes them from the prepared Week 7 exercise.
 
 ## 7. Limitations and Possible Improvements
 
