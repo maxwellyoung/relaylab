@@ -109,16 +109,28 @@ RELAYLAB_DB_PASSWORD=provided-password
 RELAYLAB_DB_SSL=true
 ```
 
-The root `.env` is not automatically loaded by the npm scripts. For the lecturer AWS RDS connection, download the public CA bundle and explicitly load the private environment when starting the built application:
+`npm run start:coordinator` loads the ignored `.env` when it exists. For the lecturer AWS RDS connection, download the public CA bundle once and point `RELAYLAB_DB_SSL_CA` at it:
 
 ```bash
 mkdir -p output/certs
 curl --fail --silent --show-error https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem -o output/certs/rds-global-bundle.pem
-npm run build
-NODE_EXTRA_CA_CERTS="$PWD/output/certs/rds-global-bundle.pem" PORT=8081 DOWNSTREAM_PORT=3002 RELAYLAB_DATA_DIR="$PWD/data" node --env-file=.env scripts/start-production.mjs
+# in .env
+RELAYLAB_DB_SSL=true
+RELAYLAB_DB_SSL_CA=output/certs/rds-global-bundle.pem
 ```
 
-Open `http://localhost:8081`. These local ports must be unused. Keep `RELAYLAB_DB_SSL=true`; do not disable certificate verification. The CA bundle is public; the private `.env` must remain excluded from submissions. [AWS RDS certificate documentation](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.SSL.html).
+Keep `RELAYLAB_DB_SSL=true`; certificate verification stays on. The CA bundle is public; the private `.env` must remain excluded from submissions. [AWS RDS certificate documentation](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.SSL.html).
+
+### Run each process separately
+
+After `npm run build`, start the two services in separate terminals. Each logs every exchange with the same short `rpc=` correlation ID, so one request can be followed across both processes:
+
+```bash
+npm run start:downstream    # terminal 1, port 3001
+npm run start:coordinator   # terminal 2, port 3000, also serves the built client
+```
+
+Open <http://localhost:3000>. Stopping only the downstream terminal makes the next run record `unreachable` while the coordinator keeps serving; stopping and restarting the coordinator shows that saved experiments and runs persist.
 
 The coordinator creates the `experiments` and `experiment_runs` tables in the
 assigned schema and uses parameterised queries. The MySQL pool limit is a

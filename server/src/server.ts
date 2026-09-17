@@ -1,4 +1,4 @@
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildApplication } from "./app.js";
@@ -11,7 +11,9 @@ const port = Number(process.env.PORT ?? 3000);
 const downstreamUrl =
   process.env.DOWNSTREAM_URL ?? "http://127.0.0.1:3001";
 const timeoutMs = Number(process.env.DOWNSTREAM_TIMEOUT_MS ?? 400);
-const clientDirectory = process.env.CLIENT_DIST_DIR;
+const builtClientDirectory = path.resolve(currentDirectory, "../../client/dist");
+const clientDirectory = process.env.CLIENT_DIST_DIR
+  ?? (existsSync(builtClientDirectory) ? builtClientDirectory : undefined);
 
 mkdirSync(dataDirectory, { recursive: true });
 

@@ -1,4 +1,5 @@
 import SqliteDatabase from "better-sqlite3";
+import { readFileSync } from "node:fs";
 import {
   createPool,
   type PoolOptions,
@@ -417,6 +418,16 @@ function requiredEnvironmentValue(
   return value;
 }
 
+export function mySqlSslFromEnvironment(
+  environment: DatabaseEnvironment,
+): MySqlDatabaseConfig["ssl"] {
+  if (environment.RELAYLAB_DB_SSL !== "true") return undefined;
+  const caPath = environment.RELAYLAB_DB_SSL_CA?.trim();
+  return caPath
+    ? { rejectUnauthorized: true, ca: readFileSync(caPath, "utf8") }
+    : { rejectUnauthorized: true };
+}
+
 export function openDatabaseFromEnvironment({
   sqlitePath,
   environment = process.env,
@@ -438,16 +449,12 @@ export function openDatabaseFromEnvironment({
     throw new Error("RELAYLAB_DB_PORT must be a valid TCP port");
   }
 
-  const ssl = environment.RELAYLAB_DB_SSL === "true"
-    ? { rejectUnauthorized: true }
-    : undefined;
-
   return openMySqlDatabase({
     host: requiredEnvironmentValue(environment, "RELAYLAB_DB_HOST"),
     port,
     database: requiredEnvironmentValue(environment, "RELAYLAB_DB_NAME"),
     user: requiredEnvironmentValue(environment, "RELAYLAB_DB_USER"),
     password: requiredEnvironmentValue(environment, "RELAYLAB_DB_PASSWORD"),
-    ssl,
+    ssl: mySqlSslFromEnvironment(environment),
   });
 }
