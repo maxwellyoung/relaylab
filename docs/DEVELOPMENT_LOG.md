@@ -286,3 +286,35 @@
 - Updated the report and demonstration runbook to use the verified test count.
   The final narrated video, lecturer-MySQL live check, and Canvas submission
   remain explicit student-owned gates.
+
+## 2026-09-09 - Input and persistence failure classification
+
+- Reproduced malformed HTTP JSON incorrectly returning 503; a public API
+  regression failed before the fix and now verifies a controlled 400 response
+  with no accidental experiment creation.
+- Reproduced a transient run-write failure being retried as invented
+  `unreachable` evidence. Moved persistence outside the downstream error catch;
+  the regression now proves one write attempt, 503, and no fabricated run.
+- Restored dependencies using the existing lockfile. All 34 tests, workspace
+  type checks, production builds, and restart-persistence smoke pass locally.
+- No deployment, submission, personal lab-credit claim, or live MySQL check
+  was made in this verification.
+
+## 2026-09-10 - Submission preparation and dependency verification
+
+- Updated transitive qs from 6.15.3 to 6.16.0. All 34 tests, type checks, builds and restart smoke pass; production audit reports zero known vulnerabilities.
+- Verified healthy, RPC-error, timeout and invalid-JSON paths in the built local app. Created a clearly labelled screenshot walkthrough with synthetic narration. It is preparation material, not the final continuous demonstration.
+- Updated the report below the 1500-word limit and reconciled lab evidence with verified Canvas receipts.
+- Verified historical commits on the GitHub website. September changes remain local; existing remote checks are not represented as passing. Lecturer MySQL and final video remain open.
+
+- Recorded real startup, healthy RPC, correlated RPC error, and reopening persisted records after stopping/restarting the services. Prepared a 3:09 review video with disclosed synthetic narration and a live GitHub website capture. Full file decoding passed; every section was visually sampled. No submission or remote publication performed.
+
+
+## 15 September 2026 departure preparation
+
+Re-ran `npm run verify`: all 34 tests, type checks, production builds, restart-persistence smoke and production dependency audit passed. Fixed the report builder to derive its cover status date from the report source instead of a hard-coded August date. Rebuilt DOCX privately from current report and lab appendix; layout remains unverified because the bundled LibreOffice executable is missing. Narration, final video review, repository publication and personal Canvas submission remain separate gates.
+
+
+## 15 September: lecturer database verification and selection race
+
+Configured the assigned lecturer MySQL database privately. Verified TLS with the official AWS RDS CA bundle, request outcomes and restart persistence through API and direct SQL. Browser recording exposed a race where Run could use the previous experiment during a pending selection request. Controls now stay disabled during loading/running, with a deferred-response regression test. Final video narration and Canvas submission remain separate gates.

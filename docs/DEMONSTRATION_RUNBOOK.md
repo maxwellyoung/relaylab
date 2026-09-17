@@ -1,17 +1,17 @@
 # RelayLab demonstration and evidence runbook
 
-This is the recording plan and evidence checklist. It was reconciled on 22
-August 2026 against the supplied Canvas assignment instructions and official
+This is the recording plan and evidence checklist. It was reconciled on 10
+September 2026 against the supplied Canvas assignment instructions and official
 three-page Option A brief. It is not a claim that the final video or Canvas
 submission has already been completed.
 
 ## Before recording
 
-1. Put lecturer-issued values in the ignored `.env` file. Never show the file,
+1. Keep any credentials in the ignored `.env` file. Never show that file,
    terminal environment, password manager, shell history, or credentials.
-2. Use invented request data only. If credentials have arrived, confirm the
-   assessed run uses `RELAYLAB_DATABASE_DRIVER=mysql`; otherwise label the
-   recording as a SQLite draft and do not claim live MySQL evidence.
+2. Use invented request data and identify the database actually used. SQLite
+   persistence is verified. If demonstrating MySQL, verify that run separately;
+   do not imply the lecturer server was tested.
 3. Run `npm ci` and `npm run verify`. Keep only the concise passing summary
    visible.
 4. Start the three-process system with `npm run dev` and open
@@ -32,7 +32,7 @@ submission has already been completed.
 | Contract/deadline | Run Malformed or Slow | RPC result validation and bounded waiting are different failure modes | `invalid_response` or `timeout` |
 | Durable state | Reopen Saved experiments; restart and reopen if practical | One experiment owns many run records | State survives restart |
 | Database implementation | Show only safe source excerpts | Related tables, parameterised SQL, optional MySQL adapter, hard pool cap 5 | Data-design evidence without credentials |
-| Test evidence | Run `npm run verify` | 32 tests plus type checks, builds, restart smoke, and dependency audit | Reproducible evidence |
+| Test evidence | Run `npm run verify` | 34 tests plus type checks, builds, restart smoke, and dependency audit | Reproducible evidence |
 | GitHub history | Repository **Commits** page | Point out meaningful July and August milestones and visible website timestamps | Development-process evidence |
 | Limitations | Report or README limitations | Simulator, single user, no retries; disclose MySQL live-test status exactly | Honest self-evaluation |
 
@@ -44,19 +44,18 @@ submission has already been completed.
 | REST plus JSON-RPC | `server/src/app.ts`, `server/src/downstream-rpc.ts`, `downstream/src/app.ts` | Correlation, method, parameter, result, and error tests | Expand the saved RPC envelope |
 | Relational one-to-many persistence | `server/src/database.ts` | API persistence tests and `npm run smoke` | Reopen history after a new run/restart |
 | Controlled failure handling | `server/src/app.ts` | RPC error, timeout, malformed-result, and unreachable tests | Show at least one failed request |
-| Browser workflow | `client/src/App.tsx` | Three client tests | Create, run, inspect, and reopen |
-| Lecturer database constraint | `server/src/database.ts` | Database configuration tests | Show pool cap 5 without showing credentials |
+| Browser workflow | `client/src/App.tsx` | Four client tests | Create, run, inspect, and reopen |
+| Optional MySQL pool limit | `server/src/database.ts` | Database configuration tests | Show pool cap 5 without showing credentials |
 | Incremental development | GitHub repository | Commit history and development log | Show timestamps on GitHub website |
 
 ## Final evidence gates
 
 - [x] Official Option A project brief has been reviewed.
 - [x] Supplied Canvas submission instructions and full rubric have been reviewed.
-- [x] Current 28-test verification, type checks, builds, restart smoke, and
-      production dependency audit pass.
-- [x] Current source commits are visible on GitHub.
-- [ ] Lecturer MySQL credentials have been received and entered locally.
-- [ ] The lecturer MySQL schema has passed a live create/run/read/restart check.
+- [x] 10 September: 34 tests, type checks, builds, and restart smoke pass.
+- [x] 10 September: production dependency audit reports zero known vulnerabilities after qs 6.16.0; full verification passes.
+- [x] July/August history and timestamps verified on the GitHub website on 10 September. September working-tree fixes are not yet committed or pushed.
+- [ ] Confirm whether any separate lecturer instruction requires hosted MySQL. The current Option A brief does not explicitly require it. The adapter remains unverified against the lecturer server.
 - [ ] The final video visibly proves startup, main functions, communication,
       state change, a failure/invalid-input case, limitations, and GitHub website
       timestamps.
@@ -65,3 +64,8 @@ submission has already been completed.
       `node_modules`, build output, cache, or unrelated private material.
 - [ ] Canvas upload and submission occur only after Maxwell reviews the exact
       final artifacts and explicitly authorizes that action.
+
+
+## Current recording
+
+Use `outputs/relaylab-film-v2/RelayLab-picture-cut-v2.mp4`. This 1:55 silent cut awaits six real voiceover takes through `record.html`. Assemble those takes with `finish_voiceover.py` and inspect the completed audio and video before submission. Previous review cuts are superseded; their history remains in DEVELOPMENT_LOG.md.

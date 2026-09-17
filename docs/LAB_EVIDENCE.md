@@ -1,8 +1,6 @@
 # COMP713 lab evidence map
 
-This appendix connects verified local lab work to RelayLab without presenting
-the generated references as Canvas submissions or student-authored reflection
-answers. It records reproducible evidence available on 11 August 2026.
+This appendix connects the lab work to RelayLab. It separates the earlier local exercises from the lab submissions verified on 10 September 2026. Submission receipts establish hand-in; they do not establish marks or an in-person explanation.
 
 ## Verified lab references
 
@@ -38,16 +36,13 @@ The reproducible source paths are
 | Managed, bounded connection use | MySQL pool limit is fixed at 5 | `MAX_DATABASE_CONNECTIONS` and pool-options test |
 | Controlled persistence failure | Generic 503 avoids credential/database leakage | Coordinator error middleware |
 
-## Honest remaining lab gates
+## Remaining checks
 
 - The local references are explicitly learning material, not proof of a Canvas
   submission.
-- The Jakarta EE/Payara/MySQL common checkpoint and any required own-word
-  reflections remain separate course tasks unless the lecturer confirms the
-  approved-equivalent route.
-- A live lecturer-MySQL project run is pending private credentials.
-- Any Canvas upload, quiz attempt, declaration, or submission remains a
-  student-only action requiring Maxwell's explicit review and approval.
+- The supplied Week 3 Java project passed ten local MySQL/Payara runtime checks. Lecturer-hosted database access remains unverified.
+- RelayLab lecturer-MySQL save/run/reopen and restart checks passed on 15 September over verified TLS. This does not establish a lecturer-hosted run of the separate Week 3 Java exercise.
+- The final project submission is still separate from the lab receipts below.
 
 ## Reproduction commands
 
@@ -67,3 +62,16 @@ npm run verify
 
 These commands reproduce the lab checks and the project verification without
 requiring private database credentials.
+
+## Current submission and verification update: 10 September 2026
+
+Revised Canvas Attempt 2 receipts confirm Week 3 at 10:59, Week 4 at 11:00, Week 5 at 11:01, Week 6 at 11:02 and Week 2 at 11:09 NZST on 10 September. These versions use concise references. Earlier attempts remain in Canvas history. Week 2 is a text entry containing the implementation and evidence; Weeks 3–6 are source/evidence archives.
+
+- Week 2: nine tests and six real-browser paths, including a stopped-server failure.
+- Week 3: ten local MySQL/Payara runtime checks; lecturer AWS MySQL remains unverified.
+- Week 4: four supplied tests, vector-clock reasoning and a conserved snapshot total.
+- Week 5: six tests plus live gRPC success and failure checks.
+- Week 6: five tests plus eleven real HTTP checks, including no orphan enrolment after downstream failure.
+- Week 7: two-host mutual exclusion plus four independent-JVM consensus cases; packaged, with no separate Canvas upload slot identified.
+
+The current project rubric awards 15/100 for lab work and progress. It does not explicitly impose a separate in-person sign-off. Lecturer feedback is still useful. These recent submissions must not be described as proof of steady weekly progress across earlier dates.

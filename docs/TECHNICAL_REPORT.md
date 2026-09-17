@@ -8,7 +8,7 @@
 
 **Assessment:** Assessment 2 - Individual Project, Option A
 
-**Implementation status date:** 22 August 2026
+**Implementation status date:** 15 September 2026
 
 ## 1. Project Introduction and Requirements
 
@@ -70,9 +70,9 @@ depending on a third-party network.
 | List saved experiments | Completed and tested | API tests and client saved-history view |
 | Read one experiment and its runs | Completed and tested | API tests, client reopening test, and restart smoke |
 | Execute a versioned downstream RPC method | Completed and tested locally | Healthy result, RPC error, timeout, malformed result, and unreachable tests |
-| Persist experiments and one-to-many run history | Completed and tested | SQLite restart tests and production smoke |
-| Use lecturer MySQL with a five-connection maximum | Completed but not live-tested | Configuration and pool tests pass; private credentials are still pending |
-| Hosted RPC demonstration | Pending redeployment | Current public deployment predates this local RPC milestone |
+| Persist experiments and one-to-many run history | Completed and tested | SQLite smoke and live lecturer-MySQL restart check |
+| Use lecturer MySQL with a five-connection maximum | Completed and live-tested for demonstrated workflows | Verified TLS, save/run/reopen and restart on the assigned lecturer schema |
+| Hosted RPC demonstration | Pending redeployment | Not reverified in this check; local build is the assessed preparation lane |
 
 The public coordinator API has four operations: `POST /api/experiments`,
 `GET /api/experiments`, `GET /api/experiments/:id`, and
@@ -123,28 +123,23 @@ appear in source, documentation, logs, screenshots, or submitted artifacts.
 ## 6. Testing and Evidence
 
 The complete verification command is `npm ci && npm run verify`. The current
-suite contains 32 automated tests: four client tests, twenty-one coordinator,
+suite contains 35 automated tests: five client tests, twenty-three coordinator,
 RPC-contract, and database-configuration tests, and seven downstream-service
 tests. These cover
 the create/run/render workflow, invalid client JSON, saved-history reopening,
 all five run outcomes, versioned methods, standard RPC errors, mismatched
 correlation IDs, relational persistence, missing records, MySQL configuration,
-and the fixed connection-pool limit.
+and the fixed connection-pool limit. The 9 September checks also prove that
+malformed HTTP JSON returns 400 and that a failed database write cannot invent
+an unreachable-downstream result.
 
 The verification gate also runs all TypeScript checks and production builds,
 starts the built application, creates and executes an experiment, restarts the
-services, and proves that the experiment and run survived. The production
-dependency audit reports zero known vulnerabilities. The RPC build passed local
-production-browser checks at 1280 x 720 and 390 x 844 with no application
-console errors, and a fresh narrated draft records the healthy result, RPC
-application error, invalid client JSON, malformed result, response evidence,
-and durable history. The hosted RPC milestone still requires backend
-redeployment after Fly CLI authentication and is not claimed as live.
+services, and proves that the experiment and run survived. On 15 September all 35 tests, type checks, builds, restart-persistence smoke and the production dependency audit passed again, with no known production vulnerabilities reported. Earlier browser verification on the built local application separately checked the healthy workflow, an RPC application error, the deadline timeout, and invalid-JSON rejection. The video preparation includes startup, success, the RPC error envelope, restart persistence and GitHub website dates. New lecturer-MySQL footage shows the operational workflows; its replacement narration is pending. September changes remain local. Hosted deployment was not reverified and is not required for the local Option A workflow.
 
-Relevant COMP713 lab references were also regenerated and tested on 11 August:
-the request-lifecycle reference passed 9 tests, and the web-client/API/
-relational-data reference passed 10. Appendix A maps those lab concepts to the
-project without claiming that the local references are Canvas lab submissions.
+A separate live MySQL check used verified TLS and confirmed four experiments and five related runs by direct SQL after restart, covering success, RPC error, timeout and malformed response. Additional browser captures reran the workflows. A discovered selection/loading race was fixed by disabling controls during requests, with a regression test preventing execution of the previous selection.
+
+Relevant lab work was submitted on 10 September: Weeks 2–6 have personal Canvas receipts. Appendix A maps the lab concepts to this project and distinguishes those submissions from the prepared Week 7 exercise. Submission timestamps establish hand-in, not a history of weekly attendance or independent mastery.
 
 ## 7. Limitations and Possible Improvements
 
@@ -152,9 +147,7 @@ The downstream behaviours are simulations rather than measurements of
 arbitrary external services. The coordinator intentionally has no retries,
 circuit breaker, queue, authentication, edit/delete operations, or production
 monitoring. The hosted SQLite demonstration uses one instance and is not
-designed for concurrent production traffic. Most importantly, the lecturer
-MySQL adapter is implemented and configuration-tested but cannot be described
-as live-tested until the private credentials are received.
+designed for concurrent production traffic. The lecturer MySQL adapter passed the demonstrated workflows and restart checks; concurrent-load testing remains outside the verification scope.
 
 Future work could add configurable timeout policies, outcome aggregation, and
 carefully bounded retry or circuit-breaker experiments. These are extensions,
@@ -162,9 +155,16 @@ not missing parts of the submitted workflow.
 
 ## 8. Running Instructions
 
-Install Node.js 24 or later. From the project root run `npm install`, then
+Install Node.js 24 or later. From the project root run `npm ci`, then
 `npm run dev`, and open `http://localhost:5173`. Ports 5173, 3000, and 3001 host
 the client, coordinator, and downstream service. Run `npm run verify` for the
 test, type-check, build, restart-persistence, and audit gate. The README lists
-the optional ignored MySQL values; real credentials must never be committed or
-displayed.
+the ignored MySQL values and verified-TLS startup command; real credentials must never be committed or displayed.
+
+## Sources
+
+Course requirements: COMP713 Individual Project, checked live on 15 September 2026. https://canvas.aut.ac.nz/courses/23558/assignments/193419
+
+Implementation, explanations and verification material include AI-generated content (OpenAI, 2026).
+
+OpenAI. (2026). Codex [AI coding assistant]. https://openai.com/codex/

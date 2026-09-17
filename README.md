@@ -106,8 +106,19 @@ RELAYLAB_DB_PORT=3306
 RELAYLAB_DB_NAME=provided-schema
 RELAYLAB_DB_USER=provided-username
 RELAYLAB_DB_PASSWORD=provided-password
-RELAYLAB_DB_SSL=false
+RELAYLAB_DB_SSL=true
 ```
+
+The root `.env` is not automatically loaded by the npm scripts. For the lecturer AWS RDS connection, download the public CA bundle and explicitly load the private environment when starting the built application:
+
+```bash
+mkdir -p output/certs
+curl --fail --silent --show-error https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem -o output/certs/rds-global-bundle.pem
+npm run build
+NODE_EXTRA_CA_CERTS="$PWD/output/certs/rds-global-bundle.pem" PORT=8081 DOWNSTREAM_PORT=3002 RELAYLAB_DATA_DIR="$PWD/data" node --env-file=.env scripts/start-production.mjs
+```
+
+Open `http://localhost:8081`. These local ports must be unused. Keep `RELAYLAB_DB_SSL=true`; do not disable certificate verification. The CA bundle is public; the private `.env` must remain excluded from submissions. [AWS RDS certificate documentation](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.SSL.html).
 
 The coordinator creates the `experiments` and `experiment_runs` tables in the
 assigned schema and uses parameterised queries. The MySQL pool limit is a
