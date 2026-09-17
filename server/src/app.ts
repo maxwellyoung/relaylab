@@ -11,6 +11,10 @@ import {
   classifyDownstreamRpcResponse,
 } from "./downstream-rpc.js";
 
+function parseExperimentId(value: string): number | undefined {
+  return /^[1-9][0-9]{0,14}$/.test(value) ? Number(value) : undefined;
+}
+
 export type RelayLabApplication = {
   app: express.Express;
   close: () => Promise<void>;
@@ -62,9 +66,10 @@ export function buildApplication({
   });
 
   app.get("/api/experiments/:experimentId", async (request, response) => {
-    const experiment = await database.getExperiment(
-      Number(request.params.experimentId),
-    );
+    const experimentId = parseExperimentId(request.params.experimentId);
+    const experiment = experimentId === undefined
+      ? undefined
+      : await database.getExperiment(experimentId);
     if (!experiment) {
       response.status(404).json({ error: "Experiment not found" });
       return;
@@ -73,9 +78,11 @@ export function buildApplication({
   });
 
   app.post("/api/experiments/:experimentId/runs", async (request, response) => {
-    const experimentId = Number(request.params.experimentId);
-    const experiment = await database.getExperiment(experimentId);
-    if (!experiment) {
+    const experimentId = parseExperimentId(request.params.experimentId);
+    const experiment = experimentId === undefined
+      ? undefined
+      : await database.getExperiment(experimentId);
+    if (experimentId === undefined || !experiment) {
       response.status(404).json({ error: "Experiment not found" });
       return;
     }

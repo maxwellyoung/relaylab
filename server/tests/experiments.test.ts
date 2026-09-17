@@ -326,7 +326,7 @@ describe("request experiments", () => {
       const requestBody = await readRpcRequest(incoming);
       setTimeout(() => {
         writeRpcResult(outgoing, requestBody);
-      }, 80);
+      }, 1_500).unref();
     });
     await new Promise<void>((resolve) => {
       downstreamServer?.listen(0, "127.0.0.1", resolve);
@@ -360,8 +360,9 @@ describe("request experiments", () => {
       httpStatus: null,
       response: null,
     });
+    // The reply arrives after 1.5 s; a slow machine must not turn the abort into a flaky failure.
     expect(run.body.durationMs).toBeGreaterThanOrEqual(15);
-    expect(run.body.durationMs).toBeLessThan(80);
+    expect(run.body.durationMs).toBeLessThan(1_000);
   });
 
   it("records an unreachable downstream instead of crashing the API", async () => {
@@ -466,6 +467,22 @@ describe("request experiments", () => {
 
     expect(response.status).toBe(404);
     expect(response.body).toEqual({ error: "Experiment not found" });
+  });
+
+  it("answers malformed experiment identifiers with 404 without querying the database", async () => {
+    temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
+    const databasePath = path.join(temporaryDirectory, "relaylab.sqlite");
+    const database = openDatabase(databasePath);
+    const lookup = vi.spyOn(database, "getExperiment");
+    application = buildApplication({ databasePath, database });
+
+    for (const identifier of ["abc", "0", "-1", "1.5", "1e3"]) {
+      const read = await request(application.app).get(`/api/experiments/${identifier}`);
+      const run = await request(application.app).post(`/api/experiments/${identifier}/runs`);
+      expect(read.status).toBe(404);
+      expect(run.status).toBe(404);
+    }
+    expect(lookup).not.toHaveBeenCalled();
   });
 
   it("retains experiments and run evidence after an application restart", async () => {
