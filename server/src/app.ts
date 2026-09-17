@@ -22,12 +22,14 @@ export function buildApplication({
   downstreamUrl = "http://127.0.0.1:3001",
   timeoutMs = 400,
   clientDirectory,
+  log = () => {},
 }: {
   databasePath: string;
   database?: RelayLabDatabase;
   downstreamUrl?: string;
   timeoutMs?: number;
   clientDirectory?: string;
+  log?: (line: string) => void;
 }): RelayLabApplication {
   const database = suppliedDatabase ?? openDatabase(databasePath);
   const app = express();
@@ -42,6 +44,7 @@ export function buildApplication({
   app.post("/api/experiments", async (request, response) => {
     const parsed = experimentInputSchema.safeParse(request.body);
     if (!parsed.success) {
+      log("rejected experiment: invalid input (400)");
       response.status(400).json({
         error: "Invalid experiment",
         details: parsed.error.flatten().fieldErrors,
@@ -49,7 +52,9 @@ export function buildApplication({
       return;
     }
 
-    response.status(201).json(await database.createExperiment(parsed.data));
+    const experiment = await database.createExperiment(parsed.data);
+    log(`created experiment=${experiment.id} behavior=${experiment.behavior}`);
+    response.status(201).json(experiment);
   });
 
   app.get("/api/experiments", async (_request, response) => {
@@ -75,10 +80,12 @@ export function buildApplication({
       return;
     }
 
+    const rpcRequest = buildDownstreamRpcRequest(experiment);
+    const rpc = rpcRequest.id.slice(0, 8);
+    log(`run experiment=${experimentId} behavior=${experiment.behavior} -> ${rpcRequest.method} rpc=${rpc}`);
     const startedAt = performance.now();
     let runInput: Parameters<RelayLabDatabase["createRun"]>[0];
     try {
-      const rpcRequest = buildDownstreamRpcRequest(experiment);
       const downstream = await fetch(`${downstreamUrl}/rpc`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -114,8 +121,10 @@ export function buildApplication({
         response: null,
       };
     }
+    log(`reply rpc=${rpc} outcome=${runInput.outcome} http=${runInput.httpStatus ?? "-"} ${runInput.durationMs}ms`);
     // Storage failures must not be reclassified as downstream network failures.
     const run = await database.createRun(runInput);
+    log(`saved run=${run.id} experiment=${experimentId} outcome=${run.outcome}`);
     response.status(201).json(run);
   });
 

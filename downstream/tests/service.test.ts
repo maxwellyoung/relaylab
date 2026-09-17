@@ -14,6 +14,20 @@ const rpcRequest = (
 });
 
 describe("downstream JSON-RPC service", () => {
+  it("logs each received call and its reply against the caller's correlation ID", async () => {
+    const lines: string[] = [];
+    const service = buildDownstreamService({ log: (line) => lines.push(line) });
+
+    await request(service)
+      .post("/rpc")
+      .send(rpcRequest({ experimentId: 7, behavior: "unavailable", payload: {} }));
+
+    expect(lines).toEqual([
+      "received relaylab.process.v1 rpc=trace-7 experiment=7 behavior=unavailable",
+      "replied rpc=trace-7 error=-32001",
+    ]);
+  });
+
   it("reports downstream health independently", async () => {
     const service = buildDownstreamService();
 

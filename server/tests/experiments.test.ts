@@ -70,6 +70,37 @@ describe("request experiments", () => {
     }
   });
 
+  it("logs each distributed exchange with a correlation ID a reader can match", async () => {
+    downstreamServer = createServer(async (incoming, outgoing) => {
+      writeRpcResult(outgoing, await readRpcRequest(incoming));
+    });
+    await new Promise<void>((resolve) => downstreamServer?.listen(0, "127.0.0.1", resolve));
+    const address = downstreamServer.address();
+    if (!address || typeof address === "string") throw new Error("No test port");
+    temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
+    const lines: string[] = [];
+    application = buildApplication({
+      databasePath: path.join(temporaryDirectory, "relaylab.sqlite"),
+      downstreamUrl: `http://127.0.0.1:${address.port}`,
+      log: (line) => lines.push(line),
+    });
+
+    const experiment = await request(application.app).post("/api/experiments").send({
+      name: "Logged exchange", behavior: "healthy", payload: {},
+    });
+    const run = await request(application.app).post(`/api/experiments/${experiment.body.id}/runs`);
+    await request(application.app).post("/api/experiments").send({ name: "", behavior: "explode" });
+
+    const rpc = String(run.body.response.id).slice(0, 8);
+    expect(lines).toEqual([
+      `created experiment=${experiment.body.id} behavior=healthy`,
+      `run experiment=${experiment.body.id} behavior=healthy -> relaylab.process.v1 rpc=${rpc}`,
+      expect.stringMatching(new RegExp(`^reply rpc=${rpc} outcome=success http=200 \\d+ms$`)),
+      `saved run=${run.body.id} experiment=${experiment.body.id} outcome=success`,
+      "rejected experiment: invalid input (400)",
+    ]);
+  });
+
   it("reports coordinator health without touching the database workflow", async () => {
     temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
     application = buildApplication({

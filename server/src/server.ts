@@ -25,6 +25,7 @@ const application = buildApplication({
   downstreamUrl,
   timeoutMs,
   clientDirectory,
+  log: (line) => console.log(`[coordinator ${new Date().toTimeString().slice(0, 8)}] ${line}`),
 });
 
 const server = application.app.listen(port, () => {

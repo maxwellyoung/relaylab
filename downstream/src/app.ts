@@ -35,8 +35,10 @@ function rpcError(
 
 export function buildDownstreamService({
   slowDelayMs = 800,
+  log = () => {},
 }: {
   slowDelayMs?: number;
+  log?: (line: string) => void;
 } = {}) {
   const app = express();
 
@@ -62,6 +64,7 @@ export function buildDownstreamService({
       return;
     }
 
+    const rpc = String(envelope.data.id).slice(0, 8);
     const parsed = processRequest.safeParse(envelope.data.params);
     if (!parsed.success) {
       response.json(
@@ -72,7 +75,10 @@ export function buildDownstreamService({
       return;
     }
 
+    log(`received ${RPC_METHOD} rpc=${rpc} experiment=${parsed.data.experimentId} behavior=${parsed.data.behavior}`);
+
     if (parsed.data.behavior === "unavailable") {
+      log(`replied rpc=${rpc} error=-32001`);
       response.json(
         rpcError(envelope.data.id, -32001, "Dependency unavailable", {
           retryable: true,
@@ -82,6 +88,7 @@ export function buildDownstreamService({
     }
 
     if (parsed.data.behavior === "malformed") {
+      log(`replied rpc=${rpc} result=malformed`);
       response.json({
         jsonrpc: "2.0",
         id: envelope.data.id,
@@ -94,6 +101,7 @@ export function buildDownstreamService({
       await new Promise((resolve) => setTimeout(resolve, slowDelayMs));
     }
 
+    log(`replied rpc=${rpc} result=accepted`);
     response.json({
       jsonrpc: "2.0",
       id: envelope.data.id,
