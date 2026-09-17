@@ -64,7 +64,21 @@ One continuous screen recording with spoken explanation, then light editing.
 
 ## Current recording
 
-The demonstration is a live screen recording following the route above, edited
-only to remove mistakes and dead time, add a title card with name and student
-ID, and enlarge the relevant screen region. The earlier composited cuts (v2 to
-v7) are superseded.
+The submitted demonstration is `outputs/relaylab-film-v7/RelayLab-demo-23213801-Maxwell-Young.mp4`
+(1:58, 1920x1080). It is an edited film, not one continuous take: Maxwell's own
+narration, recorded on 17 September, runs over real browser and console
+recordings, and every section states on screen which recording it shows and
+when it was made. Sections: title card with name and student ID; startup of the
+coordinator and downstream as separate processes; a healthy request on the
+lecturer MySQL schema; an RPC application error and a deadline timeout on the
+same schema; invalid JSON rejected, then services stopped, restarted and the
+saved history reopened; the GitHub commits page; and a closing card covering
+communication, failure handling, transactional persistence, the fresh-clone
+verification and the limitations.
+
+Two limits of the current cut, both visible rather than hidden: the startup and
+restart footage is the 10 September SQLite run, and the GitHub capture is from
+10 September, so commits after 22 August are not on screen. Re-record the
+commits page and rebuild with `build.py --github CLIP` to show the September
+dates. The fuller live route in the table above was not recorded; cuts v2 to v6
+are superseded.
