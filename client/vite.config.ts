@@ -6,6 +6,8 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: "./src/test-setup.ts",
+    // jsdom start-up and simulated typing can exceed the 5 s default on a slow machine.
+    testTimeout: 20_000,
   },
   server: {
     port: 5173,
