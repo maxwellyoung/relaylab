@@ -40,6 +40,9 @@ function startApplication({ dataDirectory, publicPort, downstreamPort }) {
       DOWNSTREAM_PORT: String(downstreamPort),
       RELAYLAB_DATA_DIR: dataDirectory,
       RELAYLAB_DATABASE_DRIVER: "sqlite",
+      // The smoke proves build output and restart persistence, not the 400 ms
+      // demonstration deadline, so a busy machine must not fail it.
+      DOWNSTREAM_TIMEOUT_MS: "5000",
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -65,15 +68,15 @@ async function stopApplication(child) {
   }
 }
 
-async function waitForHealth(baseUrl, application) {
-  const deadline = Date.now() + 10_000;
+async function waitForHealth(baseUrls, application) {
+  const deadline = Date.now() + 20_000;
   while (Date.now() < deadline) {
     if (application.child.exitCode !== null) {
       throw new Error(`Production process exited early:\n${application.output.join("")}`);
     }
     try {
-      const response = await fetch(`${baseUrl}/health`);
-      if (response.ok) return;
+      const responses = await Promise.all(baseUrls.map((url) => fetch(`${url}/health`)));
+      if (responses.every((response) => response.ok)) return;
     } catch {
       // The process may still be binding its ports.
     }
@@ -99,11 +102,12 @@ const dataDirectory = await mkdtemp(path.join(os.tmpdir(), "relaylab-smoke-"));
 const publicPort = await availablePort();
 const downstreamPort = await availablePort();
 const baseUrl = `http://127.0.0.1:${publicPort}`;
+const downstreamUrl = `http://127.0.0.1:${downstreamPort}`;
 let application;
 
 try {
   application = startApplication({ dataDirectory, publicPort, downstreamPort });
-  await waitForHealth(baseUrl, application);
+  await waitForHealth([baseUrl, downstreamUrl], application);
 
   const experiment = await jsonRequest(baseUrl, "/api/experiments", {
     method: "POST",
@@ -125,7 +129,7 @@ try {
 
   await stopApplication(application.child);
   application = startApplication({ dataDirectory, publicPort, downstreamPort });
-  await waitForHealth(baseUrl, application);
+  await waitForHealth([baseUrl, downstreamUrl], application);
 
   const persisted = await jsonRequest(
     baseUrl,
