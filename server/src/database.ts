@@ -2,12 +2,28 @@ import SqliteDatabase from "better-sqlite3";
 import { readFileSync } from "node:fs";
 import {
   createPool,
+  type Pool,
+  type PoolConnection,
   type PoolOptions,
   type ResultSetHeader,
   type RowDataPacket,
 } from "mysql2/promise";
 
 export const MAX_DATABASE_CONNECTIONS = 5;
+
+const schemaDirectory = new URL("../../database/", import.meta.url);
+
+export function readSchema(fileName: "schema.sqlite.sql" | "schema.mysql.sql"): string {
+  return readFileSync(new URL(fileName, schemaDirectory), "utf8");
+}
+
+export function schemaStatements(sql: string): string[] {
+  return sql
+    .replace(/^\s*--.*$/gm, "")
+    .split(";")
+    .map((statement) => statement.trim())
+    .filter(Boolean);
+}
 
 export const experimentBehaviors = [
   "healthy",
@@ -126,28 +142,7 @@ export function openDatabase(databasePath: string): RelayLabDatabase {
   const database = new SqliteDatabase(databasePath);
   database.pragma("foreign_keys = ON");
   database.pragma("journal_mode = WAL");
-  database.exec(`
-    CREATE TABLE IF NOT EXISTS experiments (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      behavior TEXT NOT NULL,
-      payload_json TEXT NOT NULL,
-      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE IF NOT EXISTS experiment_runs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      experiment_id INTEGER NOT NULL,
-      outcome TEXT NOT NULL,
-      http_status INTEGER,
-      duration_ms INTEGER NOT NULL,
-      response_json TEXT,
-      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (experiment_id)
-        REFERENCES experiments(id)
-        ON DELETE CASCADE
-    );
-  `);
+  database.exec(readSchema("schema.sqlite.sql"));
 
   const insertExperiment = database.prepare<
     {
@@ -286,6 +281,8 @@ export function buildMySqlPoolOptions(
     waitForConnections: true,
     connectionLimit: MAX_DATABASE_CONNECTIONS,
     queueLimit: 0,
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 10_000,
     charset: "utf8mb4",
     timezone: "Z",
     dateStrings: true,
@@ -296,33 +293,49 @@ export function openMySqlDatabase(
   config: MySqlDatabaseConfig,
 ): RelayLabDatabase {
   const pool = createPool(buildMySqlPoolOptions(config));
-  const initialized = pool.query(`
-    CREATE TABLE IF NOT EXISTS experiments (
-      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-      name VARCHAR(80) NOT NULL,
-      behavior VARCHAR(32) NOT NULL,
-      payload_json JSON NOT NULL,
-      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB;
-  `).then(() => pool.query(`
-    CREATE TABLE IF NOT EXISTS experiment_runs (
-      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-      experiment_id BIGINT UNSIGNED NOT NULL,
-      outcome VARCHAR(32) NOT NULL,
-      http_status SMALLINT NULL,
-      duration_ms INT UNSIGNED NOT NULL,
-      response_json JSON NULL,
-      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      CONSTRAINT fk_experiment_runs_experiment
-        FOREIGN KEY (experiment_id)
-        REFERENCES experiments(id)
-        ON DELETE CASCADE
-    ) ENGINE=InnoDB;
-  `));
+  useUtcSessions(pool);
+  return createMySqlDatabase(pool);
+}
+
+// TIMESTAMP values are read back as strings and treated as UTC, so every pooled
+// session must use UTC whatever the server's default time zone is.
+export function useUtcSessions(pool: Pool): void {
+  pool.pool.on("connection", (connection) => {
+    connection.query("SET time_zone = '+00:00'", () => undefined);
+  });
+}
+
+export function createMySqlDatabase(pool: Pool): RelayLabDatabase {
+  const initialized = (async () => {
+    for (const statement of schemaStatements(readSchema("schema.mysql.sql"))) {
+      await pool.query(statement);
+    }
+  })();
   // Attach a rejection handler immediately so unavailable credentials or a
   // sleeping server cannot become an unhandled startup rejection. Callers
   // still await the original promise and receive the same failure.
   void initialized.catch(() => undefined);
+
+  // MySQL cannot return an inserted row from the INSERT itself. The insert and
+  // its read-back share one transaction on one connection, so a failed
+  // read-back rolls the insert back and a 503 never hides a saved row.
+  async function inTransaction<T>(
+    work: (connection: PoolConnection) => Promise<T>,
+  ): Promise<T> {
+    await initialized;
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      const result = await work(connection);
+      await connection.commit();
+      return result;
+    } catch (error) {
+      await connection.rollback().catch(() => undefined);
+      throw error;
+    } finally {
+      connection.release();
+    }
+  }
 
   async function getExperiment(
     experimentId: number,
@@ -348,19 +361,23 @@ export function openMySqlDatabase(
   }
 
   return {
-    async createExperiment(input) {
-      await initialized;
-      const [result] = await pool.execute<ResultSetHeader>(
-        `INSERT INTO experiments (name, behavior, payload_json)
-         VALUES (?, ?, ?)`,
-        [input.name, input.behavior, JSON.stringify(input.payload)],
-      );
-      const experiment = await getExperiment(result.insertId);
-      if (!experiment) {
-        throw new Error("MySQL did not return the created experiment");
-      }
-      const { runs: _runs, ...created } = experiment;
-      return created;
+    createExperiment(input) {
+      return inTransaction(async (connection) => {
+        const [result] = await connection.execute<ResultSetHeader>(
+          `INSERT INTO experiments (name, behavior, payload_json)
+           VALUES (?, ?, ?)`,
+          [input.name, input.behavior, JSON.stringify(input.payload)],
+        );
+        const [rows] = await connection.execute<MySqlExperimentRow[]>(
+          "SELECT * FROM experiments WHERE id = ?",
+          [result.insertId],
+        );
+        const row = rows[0];
+        if (!row) {
+          throw new Error("MySQL did not return the created experiment");
+        }
+        return toExperiment(row);
+      });
     },
     async listExperiments() {
       await initialized;
@@ -370,33 +387,34 @@ export function openMySqlDatabase(
       return rows.map(toExperiment);
     },
     getExperiment,
-    async createRun(input) {
-      await initialized;
-      const [result] = await pool.execute<ResultSetHeader>(
-        `INSERT INTO experiment_runs (
-           experiment_id,
-           outcome,
-           http_status,
-           duration_ms,
-           response_json
-         ) VALUES (?, ?, ?, ?, ?)`,
-        [
-          input.experimentId,
-          input.outcome,
-          input.httpStatus,
-          input.durationMs,
-          input.response === null ? null : JSON.stringify(input.response),
-        ],
-      );
-      const [rows] = await pool.execute<MySqlExperimentRunRow[]>(
-        "SELECT * FROM experiment_runs WHERE id = ?",
-        [result.insertId],
-      );
-      const row = rows[0];
-      if (!row) {
-        throw new Error("MySQL did not return the created experiment run");
-      }
-      return toExperimentRun(row);
+    createRun(input) {
+      return inTransaction(async (connection) => {
+        const [result] = await connection.execute<ResultSetHeader>(
+          `INSERT INTO experiment_runs (
+             experiment_id,
+             outcome,
+             http_status,
+             duration_ms,
+             response_json
+           ) VALUES (?, ?, ?, ?, ?)`,
+          [
+            input.experimentId,
+            input.outcome,
+            input.httpStatus,
+            input.durationMs,
+            input.response === null ? null : JSON.stringify(input.response),
+          ],
+        );
+        const [rows] = await connection.execute<MySqlExperimentRunRow[]>(
+          "SELECT * FROM experiment_runs WHERE id = ?",
+          [result.insertId],
+        );
+        const row = rows[0];
+        if (!row) {
+          throw new Error("MySQL did not return the created experiment run");
+        }
+        return toExperimentRun(row);
+      });
     },
     async close() {
       await initialized.catch(() => undefined);

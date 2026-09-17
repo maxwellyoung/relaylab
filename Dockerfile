@@ -35,6 +35,7 @@ COPY --from=build /app/downstream/package.json ./downstream/package.json
 COPY --from=build /app/downstream/dist ./downstream/dist
 COPY --from=build /app/server/package.json ./server/package.json
 COPY --from=build /app/server/dist ./server/dist
+COPY --from=build /app/database ./database
 COPY --from=build /app/scripts/start-production.mjs ./scripts/start-production.mjs
 
 RUN mkdir -p /data
