@@ -8,7 +8,7 @@
 
 **Assessment:** Assessment 2 - Individual Project, Option A
 
-**Implementation status date:** 15 September 2026
+**Implementation status date:** 17 September 2026
 
 ## 1. Project Introduction and Requirements
 
@@ -72,7 +72,7 @@ depending on a third-party network.
 | Execute a versioned downstream RPC method | Completed and tested locally | Healthy result, RPC error, timeout, malformed result, and unreachable tests |
 | Persist experiments and one-to-many run history | Completed and tested | SQLite smoke and live lecturer-MySQL restart check |
 | Use lecturer MySQL with a five-connection maximum | Completed and live-tested for demonstrated workflows | Verified TLS, save/run/reopen and restart on the assigned lecturer schema |
-| Hosted RPC demonstration | Pending redeployment | Not reverified in this check; local build is the assessed preparation lane |
+| Hosted deployment (optional) | Not completed | Fly configuration is included, but the current build was not redeployed; the brief does not require hosting |
 
 The public coordinator API has four operations: `POST /api/experiments`,
 `GET /api/experiments`, `GET /api/experiments/:id`, and
@@ -135,7 +135,7 @@ an unreachable-downstream result.
 
 The verification gate also runs all TypeScript checks and production builds,
 starts the built application, creates and executes an experiment, restarts the
-services, and proves that the experiment and run survived. On 15 September all 35 tests, type checks, builds, restart-persistence smoke and the production dependency audit passed again, with no known production vulnerabilities reported. Earlier browser verification on the built local application separately checked the healthy workflow, an RPC application error, the deadline timeout, and invalid-JSON rejection. The video preparation includes startup, success, the RPC error envelope, restart persistence and GitHub website dates. New lecturer-MySQL footage shows the operational workflows; its replacement narration is pending. September changes were committed and pushed on 17 September. Hosted deployment was not reverified and is not required for the local Option A workflow.
+services, and proves that the experiment and run survived. On 17 September a fresh clone of the GitHub repository passed `npm ci` and the full gate: all 35 tests, type checks, builds, restart-persistence smoke, and a production dependency audit with no known vulnerabilities. Earlier browser verification on the built local application separately checked the healthy workflow, an RPC application error, the deadline timeout, and invalid-JSON rejection. The accompanying video shows startup, a successful exchange, RPC-error and timeout failures on the lecturer MySQL schema, restart persistence, and commit dates on the GitHub website.
 
 A separate live MySQL check used verified TLS and confirmed four experiments and five related runs by direct SQL after restart, covering success, RPC error, timeout and malformed response. Additional browser captures reran the workflows. A discovered selection/loading race was fixed by disabling controls during requests, with a regression test preventing execution of the previous selection.
 
@@ -146,7 +146,7 @@ Relevant lab work was submitted on 10 September: Weeks 2–6 have personal Canva
 The downstream behaviours are simulations rather than measurements of
 arbitrary external services. The coordinator intentionally has no retries,
 circuit breaker, queue, authentication, edit/delete operations, or production
-monitoring. The hosted SQLite demonstration uses one instance and is not
+monitoring. The Fly deployment configuration uses a single SQLite instance and is not
 designed for concurrent production traffic. The lecturer MySQL adapter passed the demonstrated workflows and restart checks; concurrent-load testing remains outside the verification scope.
 
 Future work could add configurable timeout policies, outcome aggregation, and
@@ -161,9 +161,9 @@ the client, coordinator, and downstream service. Run `npm run verify` for the
 test, type-check, build, restart-persistence, and audit gate. The README lists
 the ignored MySQL values and verified-TLS startup command; real credentials must never be committed or displayed.
 
-## Sources
+## References
 
-Course requirements: COMP713 Individual Project, checked live on 15 September 2026. https://canvas.aut.ac.nz/courses/23558/assignments/193419
+Auckland University of Technology. (2026). *COMP713 Individual Project* [Canvas assignment]. https://canvas.aut.ac.nz/courses/23558/assignments/193419
 
 Implementation, explanations and verification material include AI-generated content (OpenAI, 2026; Anthropic, 2026).
 

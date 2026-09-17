@@ -28,7 +28,7 @@ NAVY = "203748"
 MUTED = "59636E"
 LIGHT_FILL = "F2F4F7"
 BORDER = "B7C1CC"
-CONTENT_WIDTH_DXA = 9360
+CONTENT_WIDTH_DXA = 9029
 TABLE_INDENT_DXA = 120
 
 
@@ -86,7 +86,7 @@ def set_table_borders(table) -> None:
 
 def set_table_geometry(table, widths_dxa: list[int]) -> None:
     if sum(widths_dxa) != CONTENT_WIDTH_DXA:
-        raise ValueError("Table columns must total 9360 DXA")
+        raise ValueError(f"Table columns must total {CONTENT_WIDTH_DXA} DXA")
     table.autofit = False
     table.alignment = WD_TABLE_ALIGNMENT.LEFT
     tbl_pr = table._tbl.tblPr
@@ -212,8 +212,8 @@ def configure_styles(document: Document) -> None:
 
 def configure_sections(document: Document) -> None:
     for section in document.sections:
-        section.page_width = Inches(8.5)
-        section.page_height = Inches(11)
+        section.page_width = Inches(8.27)
+        section.page_height = Inches(11.69)
         section.top_margin = Inches(1)
         section.right_margin = Inches(1)
         section.bottom_margin = Inches(1)
@@ -224,7 +224,7 @@ def configure_sections(document: Document) -> None:
         header = section.header.paragraphs[0]
         header.alignment = WD_ALIGN_PARAGRAPH.LEFT
         header.paragraph_format.space_after = Pt(0)
-        run = header.add_run("RELAYLAB  |  COMP713 ASSESSMENT 2")
+        run = header.add_run("RELAYLAB  |  COMP713 ASSESSMENT 2  |  MAXWELL YOUNG  |  23213801")
         set_font(run, size=8.5, color=MUTED, bold=True)
 
         footer = section.footer.paragraphs[0]
@@ -233,16 +233,19 @@ def configure_sections(document: Document) -> None:
 
 def add_inline(paragraph, text: str) -> None:
     text = re.sub(r"\[([^\]]+)\]\([^\)]+\)", r"\1", text)
-    parts = re.split(r"(`[^`]+`|\*\*[^*]+\*\*)", text)
+    parts = re.split(r"(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*)", text)
     for part in parts:
         if not part:
             continue
         if part.startswith("`") and part.endswith("`"):
             run = paragraph.add_run(part[1:-1])
-            set_font(run, name="Aptos Mono", size=9.5, color=NAVY)
+            set_font(run, name="Menlo", size=8.5, color=NAVY)
         elif part.startswith("**") and part.endswith("**"):
             run = paragraph.add_run(part[2:-2])
             set_font(run, bold=True)
+        elif part.startswith("*") and part.endswith("*") and len(part) > 2:
+            run = paragraph.add_run(part[1:-1])
+            set_font(run, italic=True)
         else:
             run = paragraph.add_run(part)
             set_font(run)
@@ -254,7 +257,9 @@ def table_widths(column_count: int) -> list[int]:
         3: [3000, 2520, 3840],
         4: [1900, 2500, 2460, 2500],
     }
-    return patterns.get(column_count, [CONTENT_WIDTH_DXA // column_count] * column_count)
+    if column_count in patterns:
+        return [width * CONTENT_WIDTH_DXA // 9360 for width in patterns[column_count]]
+    return [CONTENT_WIDTH_DXA // column_count] * column_count
 
 
 def add_table(document: Document, rows: list[list[str]]) -> None:
@@ -293,7 +298,7 @@ def add_code_block(document: Document, lines: list[str]) -> None:
     shd.set(qn("w:fill"), "F6F8FA")
     p_pr.append(shd)
     run = paragraph.add_run("\n".join(lines))
-    set_font(run, name="Aptos Mono", size=8.8, color=NAVY)
+    set_font(run, name="Menlo", size=8.2, color=NAVY)
 
 
 def load_diagram_font(size: int, bold: bool = False):
@@ -517,6 +522,7 @@ def add_contents(document: Document) -> None:
         "6. Testing and Evidence",
         "7. Limitations and Possible Improvements",
         "8. Running Instructions",
+        "References",
         "Appendix A - Detailed lab evidence",
     ):
         paragraph = document.add_paragraph(style="List Number")
@@ -529,10 +535,12 @@ def add_contents(document: Document) -> None:
     note.paragraph_format.space_before = Pt(18)
     note.paragraph_format.space_after = Pt(0)
     report_text = REPORT.read_text(encoding="utf-8")
-    report_words = len(re.findall(r"\b[\w'-]+\b", report_text))
+    body = report_text.split("\n## 1.", 1)[1].split("\n## References", 1)[0]
+    report_words = len(re.findall(r"\b[\w'-]+\b", body))
     run = note.add_run(
-        f"Conservative report count: {report_words:,} words. "
-        "Title and contents are excluded by the assignment limit."
+        f"Main body word count (sections 1-8): {report_words:,} words. "
+        "The title page, contents, references and appendix are excluded "
+        "from the 1,500-word limit."
     )
     set_font(run, size=9.5, color=MUTED, italic=True)
     document.add_page_break()
