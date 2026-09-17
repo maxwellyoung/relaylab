@@ -77,9 +77,12 @@ saved history reopened; the GitHub commits page; and a closing card covering
 communication, failure handling, transactional persistence, the fresh-clone
 verification and the limitations.
 
-Two limits of the current cut, both visible rather than hidden: the startup and
-restart footage is the 10 September SQLite run, and the GitHub capture is from
+Two limits of the current cut, both visible rather than hidden: the startup
+footage is the 10 September SQLite run, and the GitHub capture is from
 10 September, so commits after 22 August are not on screen. Re-record the
 commits page and rebuild with `build.py --github CLIP` to show the September
-dates. The fuller live route in the table above was not recorded; cuts v2 to v6
-are superseded.
+dates. Invalid input, the outage and restart persistence were re-recorded on the
+lecturer MySQL schema on 18 September by `scripts/record-mysql-restart.mjs`,
+which drives the real browser while it stops and restarts both services.
+The fuller live route in the table above was not recorded; cuts v2 to v6 are
+superseded.

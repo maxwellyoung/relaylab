@@ -334,3 +334,7 @@ MySQL inserts and their read-backs now share one transaction on one pooled conne
 ## 18 September: demonstration assembled
 
 Assembled the submitted demonstration from six voice takes Maxwell recorded on 17 September over the v7 picture cut. Two stale spoken claims were cut from the audio rather than left in: a test count that the new database work had made wrong, and a reference to September commits that the 10 September GitHub capture does not show. Footage timing was matched to each take so the picture keeps moving and no section runs silent. Final file: 1:58, 1920x1080, H.264 and AAC, mean level -17.9 dB, peak -1.4 dB, no silence over two seconds, decodes without errors. The report PDF could not be rebuilt on the Mac mini: every LibreOffice launch hangs in the dynamic loader, so the current DOCX stands and the PDF must be exported elsewhere.
+
+## 18 September: restart evidence re-recorded on the lecturer schema
+
+Replaced the demonstration's invalid-input and restart segment with a single continuous browser recording made against the assigned lecturer MySQL schema, driven by a Playwright script that stops and restarts both services mid-session. The recording shows invalid JSON rejected in the browser, the running page reporting the outage while both processes are down, and the saved experiments and run history returning from MySQL after restart. Only the startup segment now comes from the earlier SQLite run. Report and runbook updated to match.
