@@ -64,6 +64,35 @@ beforeEach(() => {
 });
 
 describe("RelayLab browser workflow", () => {
+  it("cannot run the previous experiment while a new selection is loading", async () => {
+    const user = userEvent.setup();
+    const first = experiment({ id: 1, name: "First experiment" });
+    const second = experiment({ id: 2, name: "Second experiment", behavior: "healthy" });
+    let resolveSelection!: (value: ExperimentDetails) => void;
+    const pending = new Promise<ExperimentDetails>((resolve) => { resolveSelection = resolve; });
+    mockedListExperiments.mockResolvedValue([first, second]);
+    mockedGetExperiment
+      .mockResolvedValueOnce({ ...first, runs: [run()] })
+      .mockReturnValueOnce(pending)
+      .mockResolvedValue({ ...second, runs: [run({ experimentId: 2, outcome: "success" })] });
+    mockedRunExperiment.mockResolvedValue(run({ experimentId: 2, outcome: "success" }));
+    render(<App />);
+    await screen.findByRole("heading", { name: "RPC method failed" });
+    await user.click(screen.getByText("Saved experiments"));
+    await user.click(screen.getByRole("button", { name: /Second experiment/ }));
+    const loading = screen.getByRole("button", { name: "Loading…" });
+    expect(loading).toBeDisabled();
+    expect(screen.getByLabelText("Dependency behavior")).toBeDisabled();
+    expect(screen.getByRole("button", { name: /First experiment/ })).toBeDisabled();
+    await user.click(loading);
+    expect(mockedRunExperiment).not.toHaveBeenCalled();
+    resolveSelection({ ...second, runs: [] });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Run again" })).toBeEnabled());
+    await user.click(screen.getByRole("button", { name: "Run again" }));
+    await waitFor(() => expect(mockedRunExperiment).toHaveBeenCalledWith(2));
+    expect(mockedRunExperiment).toHaveBeenCalledTimes(1);
+  });
+
   it("creates, runs, and renders durable failure evidence", async () => {
     const user = userEvent.setup();
     const savedExperiment = experiment();

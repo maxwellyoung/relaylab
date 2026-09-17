@@ -111,6 +111,8 @@ export default function App() {
   const [selected, setSelected] = useState<ExperimentDetails | null>(null);
   const [latestRun, setLatestRun] = useState<ExperimentRun | null>(null);
   const [isRunning, setIsRunning] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const isBusy = isRunning || isLoading;
   const [error, setError] = useState("");
 
   const currentOutcome = latestRun ? outcomeCopy[latestRun.outcome] : null;
@@ -135,6 +137,8 @@ export default function App() {
       setError(
         reason instanceof Error ? reason.message : "Unable to load experiments",
       );
+    } finally {
+      setIsLoading(false);
     }
   }
 
@@ -153,6 +157,8 @@ export default function App() {
   }
 
   async function openExperiment(experimentId: number) {
+    if (isBusy) return;
+    setIsLoading(true);
     setError("");
     try {
       selectDetails(await getExperiment(experimentId));
@@ -160,10 +166,13 @@ export default function App() {
       setError(
         reason instanceof Error ? reason.message : "Unable to load experiment",
       );
+    } finally {
+      setIsLoading(false);
     }
   }
 
   async function execute() {
+    if (isBusy) return;
     setError("");
 
     let payload: Record<string, unknown>;
@@ -236,6 +245,7 @@ export default function App() {
           <label className="behavior-control">
             <span>Dependency behavior</span>
             <select
+              disabled={isBusy}
               value={behavior}
               onChange={(event) =>
                 chooseBehavior(event.target.value as ExperimentBehavior)
@@ -257,6 +267,7 @@ export default function App() {
             <label>
               <span className="sr-only">JSON request payload</span>
               <textarea
+                disabled={isBusy}
                 aria-label="JSON request payload"
                 value={payloadText}
                 onChange={(event) => {
@@ -272,11 +283,11 @@ export default function App() {
 
           <button
             className="run-button"
-            disabled={isRunning}
+            disabled={isBusy}
             onClick={() => void execute()}
             type="button"
           >
-            {isRunning ? "Running…" : selected ? "Run again" : "Run experiment"}
+            {isLoading ? "Loading…" : isRunning ? "Running…" : selected ? "Run again" : "Run experiment"}
           </button>
         </div>
 
@@ -317,7 +328,9 @@ export default function App() {
           </ol>
 
           <div className="result-slot" aria-live="polite">
-            {isRunning ? (
+            {isLoading ? (
+              <div className="pending-result"><p>Loading saved experiment…</p></div>
+            ) : isRunning ? (
               <div className="pending-result">
                 <p>Waiting at the coordinator boundary…</p>
               </div>
@@ -376,6 +389,7 @@ export default function App() {
             <div className="experiment-list">
               {experiments.map((experiment) => (
                 <button
+                  disabled={isBusy}
                   aria-pressed={selected?.id === experiment.id}
                   className={selected?.id === experiment.id ? "selected" : ""}
                   key={experiment.id}
