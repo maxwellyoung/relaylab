@@ -12,6 +12,7 @@
     "start": "node scripts/start-production.mjs",
     "start:downstream": "node downstream/dist/server.js",
     "start:coordinator": "node --env-file-if-exists=.env server/dist/server.js",
+    "db:inspect": "node --env-file-if-exists=.env scripts/inspect-database.mjs",
     "test": "npm run test --workspaces --if-present",
     "test:contract": "npm run test -w server -- public-contract.test.ts",
     "typecheck": "npm run typecheck --workspaces --if-present",
