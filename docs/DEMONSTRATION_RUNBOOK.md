@@ -52,9 +52,10 @@ One continuous screen recording with spoken explanation, then light editing.
 - [x] 10 September: production dependency audit reports zero known vulnerabilities after qs 6.16.0; full verification passes.
 - [x] July/August history and timestamps verified on the GitHub website on 10 September. September fixes were committed and pushed on 17 September.
 - [x] 15 September: lecturer MySQL schema passed a live verified-TLS create/run/read/restart check (see DEVELOPMENT_LOG.md). Hosted deployment is not required by the Option A brief and was not reverified.
-- [ ] The final video visibly proves startup, main functions, communication,
-      state change, a failure/invalid-input case, limitations, and GitHub website
-      timestamps.
+- [x] 18 September: the final video shows startup of both services, a healthy
+      request, an RPC application error, a deadline timeout, invalid JSON
+      rejected, restart persistence, GitHub website commit dates (captured
+      10 September, so nothing after 22 August), and a limitations card.
 - [x] 17 September: name and student ID (Maxwell Young, 23213801) checked on the report cover, every report page header, and the demonstration title card.
 - [x] 17 September: `npm run package` builds the archive from `git archive`; it contains no `.env`, password, local database,
       `node_modules`, build output, cache, or unrelated private material.
