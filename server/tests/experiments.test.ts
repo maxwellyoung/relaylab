@@ -8,8 +8,9 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import request from "supertest";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildApplication } from "../src/app.js";
+import { openDatabase } from "../src/database.js";
 
 type RpcRequestBody = {
   jsonrpc: "2.0";
@@ -380,6 +381,46 @@ describe("request experiments", () => {
         behavior: expect.any(Array),
       },
     });
+  });
+
+  it("rejects malformed JSON as client input and keeps the API usable", async () => {
+    temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
+    application = buildApplication({
+      databasePath: path.join(temporaryDirectory, "relaylab.sqlite"),
+    });
+
+    const response = await request(application.app)
+      .post("/api/experiments")
+      .set("Content-Type", "application/json")
+      .send('{"name":');
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ error: "Invalid JSON body" });
+    const listed = await request(application.app).get("/api/experiments");
+    expect(listed.status).toBe(200);
+    expect(listed.body).toEqual([]);
+  });
+
+  it("does not turn a failed run write into invented unreachable evidence", async () => {
+    downstreamServer = createServer(async (incoming, outgoing) => {
+      writeRpcResult(outgoing, await readRpcRequest(incoming));
+    });
+    await new Promise<void>((resolve) => downstreamServer?.listen(0, "127.0.0.1", resolve));
+    const address = downstreamServer.address();
+    if (!address || typeof address === "string") throw new Error("No test port");
+    temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
+    const databasePath = path.join(temporaryDirectory, "relaylab.sqlite");
+    const database = openDatabase(databasePath);
+    const write = vi.spyOn(database, "createRun").mockRejectedValueOnce(new Error("Temporary write failure"));
+    application = buildApplication({ databasePath, database, downstreamUrl: `http://127.0.0.1:${address.port}` });
+    const experiment = await request(application.app).post("/api/experiments").send({
+      name: "Healthy service, failed storage", behavior: "healthy", payload: {},
+    });
+    const run = await request(application.app).post(`/api/experiments/${experiment.body.id}/runs`);
+    expect(run.status).toBe(503);
+    expect(write).toHaveBeenCalledTimes(1);
+    const details = await request(application.app).get(`/api/experiments/${experiment.body.id}`);
+    expect(details.body.runs).toEqual([]);
   });
 
   it("returns a controlled error when a missing experiment is run", async () => {

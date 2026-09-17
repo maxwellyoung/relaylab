@@ -76,6 +76,7 @@ export function buildApplication({
     }
 
     const startedAt = performance.now();
+    let runInput: Parameters<RelayLabDatabase["createRun"]>[0];
     try {
       const rpcRequest = buildDownstreamRpcRequest(experiment);
       const downstream = await fetch(`${downstreamUrl}/rpc`, {
@@ -93,18 +94,16 @@ export function buildApplication({
       }
 
       const rpcOutcome = classifyDownstreamRpcResponse(body, rpcRequest.id);
-      const run = await database.createRun({
+      runInput = {
         experimentId,
         outcome:
           downstream.ok ? rpcOutcome : "downstream_error",
         httpStatus: downstream.status,
         durationMs: Math.max(1, Math.round(performance.now() - startedAt)),
         response: body,
-      });
-
-      response.status(201).json(run);
+      };
     } catch (reason) {
-      const run = await database.createRun({
+      runInput = {
         experimentId,
         outcome:
           reason instanceof Error && reason.name === "TimeoutError"
@@ -113,9 +112,11 @@ export function buildApplication({
         httpStatus: null,
         durationMs: Math.max(1, Math.round(performance.now() - startedAt)),
         response: null,
-      });
-      response.status(201).json(run);
+      };
     }
+    // Storage failures must not be reclassified as downstream network failures.
+    const run = await database.createRun(runInput);
+    response.status(201).json(run);
   });
 
   if (clientDirectory) {
@@ -130,6 +131,11 @@ export function buildApplication({
   }
 
   app.use((error: unknown, _request: express.Request, response: express.Response, _next: express.NextFunction) => {
+    // The JSON parser runs before our handlers; its failures are input errors.
+    if (error instanceof SyntaxError && "type" in error && error.type === "entity.parse.failed") {
+      response.status(400).json({ error: "Invalid JSON body" });
+      return;
+    }
     console.error("RelayLab request failed", {
       error: error instanceof Error ? error.name : "UnknownError",
     });
