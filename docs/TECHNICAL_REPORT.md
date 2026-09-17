@@ -58,7 +58,7 @@ Supertest provide automated tests.
 The browser communicates only with the coordinator. It never accesses the
 database or downstream service directly. The coordinator owns validation,
 persistence, request timing, the 400 ms deadline, response-contract checking,
-correlation-ID checking, and outcome classification. The downstream service exposes deterministic
+correlation-ID checking, and outcome classification. Both services write one log line per exchange tagged with a shortened correlation ID, so a single request can be followed across the two processes. The downstream service exposes deterministic
 behaviours so both success and failure demonstrations remain repeatable without
 depending on a third-party network.
 
@@ -72,6 +72,8 @@ depending on a third-party network.
 | Execute a versioned downstream RPC method | Completed and tested locally | Healthy result, RPC error, timeout, malformed result, and unreachable tests |
 | Persist experiments and one-to-many run history | Completed and tested | SQLite smoke and live lecturer-MySQL restart check |
 | Use lecturer MySQL with a five-connection maximum | Completed and live-tested for demonstrated workflows | Verified TLS, save/run/reopen and restart on the assigned lecturer schema |
+| Log each exchange with its correlation ID | Completed and tested | Coordinator and downstream logging tests; live logs in the video |
+| Run services independently and inspect stored rows | Completed and tested | Separate start scripts, `unreachable` after stopping only the downstream, `npm run db:inspect` on the lecturer schema |
 | Hosted deployment (optional) | Not completed | Fly configuration is included, but the current build was not redeployed; the brief does not require hosting |
 
 The public coordinator API has four operations: `POST /api/experiments`,
@@ -123,8 +125,8 @@ appear in source, documentation, logs, screenshots, or submitted artifacts.
 ## 6. Testing and Evidence
 
 The complete verification command is `npm ci && npm run verify`. The current
-suite contains 35 automated tests: five client tests, twenty-three coordinator,
-RPC-contract, and database-configuration tests, and seven downstream-service
+suite contains 38 automated tests: five client tests, twenty-five coordinator,
+RPC-contract, database-configuration, and logging tests, and eight downstream-service
 tests. These cover
 the create/run/render workflow, invalid client JSON, saved-history reopening,
 all five run outcomes, versioned methods, standard RPC errors, mismatched
@@ -135,7 +137,7 @@ an unreachable-downstream result.
 
 The verification gate also runs all TypeScript checks and production builds,
 starts the built application, creates and executes an experiment, restarts the
-services, and proves that the experiment and run survived. On 17 September a fresh clone of the GitHub repository passed `npm ci` and the full gate: all 35 tests, type checks, builds, restart-persistence smoke, and a production dependency audit with no known vulnerabilities. Earlier browser verification on the built local application separately checked the healthy workflow, an RPC application error, the deadline timeout, and invalid-JSON rejection. The accompanying video shows startup, a successful exchange, RPC-error and timeout failures on the lecturer MySQL schema, restart persistence, and commit dates on the GitHub website.
+services, and proves that the experiment and run survived. On 17 September a fresh clone of the GitHub repository passed `npm ci` and the full gate: all 38 tests, type checks, builds, restart-persistence smoke, and a production dependency audit with no known vulnerabilities. Earlier browser verification on the built local application separately checked the healthy workflow, an RPC application error, the deadline timeout, and invalid-JSON rejection. The accompanying video shows startup, a successful exchange, RPC-error and timeout failures on the lecturer MySQL schema, restart persistence, and commit dates on the GitHub website.
 
 A separate live MySQL check used verified TLS and confirmed four experiments and five related runs by direct SQL after restart, covering success, RPC error, timeout and malformed response. Additional browser captures reran the workflows. A discovered selection/loading race was fixed by disabling controls during requests, with a regression test preventing execution of the previous selection.
 
@@ -157,7 +159,7 @@ not missing parts of the submitted workflow.
 
 Install Node.js 24 or later. From the project root run `npm ci`, then
 `npm run dev`, and open `http://localhost:5173`. Ports 5173, 3000, and 3001 host
-the client, coordinator, and downstream service. Run `npm run verify` for the
+the client, coordinator, and downstream service. `npm run start:downstream` and `npm run start:coordinator` start the two services as separate processes after `npm run build`, and `npm run db:inspect` prints the stored rows. Run `npm run verify` for the
 test, type-check, build, restart-persistence, and audit gate. The README lists
 the ignored MySQL values and verified-TLS startup command; real credentials must never be committed or displayed.
 

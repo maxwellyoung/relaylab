@@ -7,35 +7,30 @@ submission has already been completed.
 
 ## Before recording
 
-1. Keep any credentials in the ignored `.env` file. Never show that file,
-   terminal environment, password manager, shell history, or credentials.
-2. Use invented request data and identify the database actually used. SQLite
-   persistence is verified, and the lecturer MySQL schema passed a live
-   verified-TLS save/run/reopen/restart check on 15 September. State which
-   database the recording uses.
-3. Run `npm ci` and `npm run verify`. Keep only the concise passing summary
-   visible.
-4. Start the three-process system with `npm run dev` and open
-   `http://localhost:5173`.
-5. Open the GitHub repository's **Commits** page so the website timestamps can
-   be shown directly, as required.
+1. Keep credentials in the ignored `.env` file. Never show that file, the
+   terminal environment, a password manager, or shell history.
+2. Run `npm run build`. The lecturer MySQL lane needs `RELAYLAB_DB_SSL_CA`
+   pointing at the public RDS CA bundle (see README).
+3. Arrange three terminals in the project root and a browser with the GitHub
+   **Commits** page open, so website timestamps can be shown directly.
 
-## Suggested recording route
+## Recording route
 
-| Segment | Show | Explain | Evidence produced |
-| --- | --- | --- | --- |
-| Introduction | Title card or brief spoken introduction | Name, student ID, course, Option A, and RelayLab purpose | Assessment identity and scope |
-| Startup | Clean terminal running `npm run dev` | Three independently running processes and their ports | System starts reproducibly |
-| Architecture | README diagram, `ARCHITECTURE_SEQUENCE.md`, and live interface | Browser REST -> coordinator -> downstream JSON-RPC; coordinator -> database | Communication boundaries and protocol choice |
-| Healthy exchange | Select Healthy and run invented JSON | Coordinator sends `relaylab.process.v1` with a correlation ID | HTTP 200, RPC result, duration, envelope, timestamp |
-| Invalid input | Enter malformed JSON and run | Client validation prevents an invalid API write | Readable controlled error |
-| Failed request | Select Unavailable and run | HTTP succeeds while the method returns RPC error `-32001` | `downstream_error`, HTTP 200, RPC `-32001`, run count change |
-| Contract/deadline | Run Malformed or Slow | RPC result validation and bounded waiting are different failure modes | `invalid_response` or `timeout` |
-| Durable state | Reopen Saved experiments; restart and reopen if practical | One experiment owns many run records | State survives restart |
-| Database implementation | Show only safe source excerpts | Related tables, parameterised SQL, optional MySQL adapter, hard pool cap 5 | Data-design evidence without credentials |
-| Test evidence | Run `npm run verify` | 35 tests plus type checks, builds, restart smoke, and dependency audit | Reproducible evidence |
-| GitHub history | Repository **Commits** page | Point out meaningful July and August milestones and visible website timestamps | Development-process evidence |
-| Limitations | Report or README limitations | Simulator, single user, no retries; disclose MySQL live-test status exactly | Honest self-evaluation |
+One continuous screen recording with spoken explanation, then light editing.
+
+| Segment | Show | Evidence produced |
+| --- | --- | --- |
+| Introduction | Name, student ID, course, Option A, one-line architecture | Assessment identity and scope |
+| Startup | `npm run start:downstream` and `npm run start:coordinator` in separate terminals; open the coordinator URL | Two independently running services, MySQL over verified TLS |
+| Healthy exchange | Run Healthy; expand response evidence; point at both logs | HTTP 200, correlated JSON-RPC result, same `rpc=` ID in both processes, saved run |
+| Invalid input | Break the payload JSON and run | Client-side rejection, no request sent |
+| Failure kinds | Run Unavailable, Slow, Malformed | `downstream_error` over HTTP 200, `timeout` with the late downstream reply in its log, `invalid_response` |
+| Unreachable dependency | Stop only the downstream; run; restart it; run again | `unreachable` recorded while the coordinator keeps serving, then recovery |
+| Data design | `npm run db:inspect`; server-side validation with `curl` | Two related tables with a foreign key; 400 with field errors |
+| Durable state | Restart the coordinator; reload; reopen saved experiments | History survives restart |
+| Test evidence | `npm test` | 38 passing tests |
+| GitHub history | Scroll the repository **Commits** page | Commit dates on the GitHub website |
+| Limitations | Spoken | Simulated failures, single user, no authentication or retries, no hosted deployment in this submission |
 
 ## Report evidence matrix
 
@@ -60,7 +55,7 @@ submission has already been completed.
 - [ ] The final video visibly proves startup, main functions, communication,
       state change, a failure/invalid-input case, limitations, and GitHub website
       timestamps.
-- [x] 17 September: name and student ID (Maxwell Young, 23213801) checked on the report cover, every report page header, and every section of the v7 video cut.
+- [x] 17 September: name and student ID (Maxwell Young, 23213801) checked on the report cover, every report page header, and the demonstration title card.
 - [x] 17 September: `npm run package` builds the archive from `git archive`; it contains no `.env`, password, local database,
       `node_modules`, build output, cache, or unrelated private material.
 - [ ] Canvas upload and submission occur only after Maxwell reviews the exact
@@ -69,4 +64,7 @@ submission has already been completed.
 
 ## Current recording
 
-Use `outputs/relaylab-film-v7/RelayLab-picture-cut-v7.mp4`, a 1:38 silent cut built by that folder's `build.py`: an intro card with name and student ID, startup, a healthy request and two failure kinds on the lecturer MySQL schema, invalid input and restart persistence, GitHub website history, and a verification and limits card. Record six takes through `record.html`, then run `finish_voiceover.py` to produce `RelayLab-demo-23213801-Maxwell-Young.mp4`. Passing `--github` to `build.py` swaps the 10 September commits still for a fresh recording of the commits page. Cuts v2 to v6 are superseded; their on-screen status claims predate the 15 September MySQL check.
+The demonstration is a live screen recording following the route above, edited
+only to remove mistakes and dead time, add a title card with name and student
+ID, and enlarge the relevant screen region. The earlier composited cuts (v2 to
+v7) are superseded.
