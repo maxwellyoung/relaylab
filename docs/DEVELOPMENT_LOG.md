@@ -322,3 +322,7 @@ Configured the assigned lecturer MySQL database privately. Verified TLS with the
 ## 17 September: publication and packaging
 
 Reinstalled from the lockfile and re-ran `npm run verify`: all 35 tests, type checks, builds, restart-persistence smoke and production audit passed. Committed the 9, 10 and 15 September work as separate logical commits on 17 September, with each message stating when the work was done, and pushed to GitHub. Added `npm run package`, which builds the submission zip from `git archive` so dependencies, `.env`, databases and build output cannot be bundled. Final narration, video review and personal Canvas submission remain separate gates.
+
+## 17 September: report and demonstration finalisation
+
+Finalised the report for submission: 1,294 main-body words (sections 1-8), A4, name and student ID on the cover and every page header. Rebuilt the demonstration picture cut from the 15 September lecturer-MySQL recording with corrected on-screen claims and name and student ID throughout. The voiceover, final video review and personal Canvas submission remain.

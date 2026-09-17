@@ -69,4 +69,4 @@ submission has already been completed.
 
 ## Current recording
 
-Use `outputs/relaylab-film-v2/RelayLab-picture-cut-v2.mp4`. This 1:55 silent cut awaits six real voiceover takes through `record.html`. Assemble those takes with `finish_voiceover.py` and inspect the completed audio and video before submission. Previous review cuts are superseded; their history remains in DEVELOPMENT_LOG.md.
+Use `outputs/relaylab-film-v7/RelayLab-picture-cut-v7.mp4`, a 1:38 silent cut built by that folder's `build.py`: an intro card with name and student ID, startup, a healthy request and two failure kinds on the lecturer MySQL schema, invalid input and restart persistence, GitHub website history, and a verification and limits card. Record six takes through `record.html`, then run `finish_voiceover.py` to produce `RelayLab-demo-23213801-Maxwell-Young.mp4`. Passing `--github` to `build.py` swaps the 10 September commits still for a fresh recording of the commits page. Cuts v2 to v6 are superseded; their on-screen status claims predate the 15 September MySQL check.
