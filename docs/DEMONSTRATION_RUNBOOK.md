@@ -10,8 +10,9 @@ submission has already been completed.
 1. Keep any credentials in the ignored `.env` file. Never show that file,
    terminal environment, password manager, shell history, or credentials.
 2. Use invented request data and identify the database actually used. SQLite
-   persistence is verified. If demonstrating MySQL, verify that run separately;
-   do not imply the lecturer server was tested.
+   persistence is verified, and the lecturer MySQL schema passed a live
+   verified-TLS save/run/reopen/restart check on 15 September. State which
+   database the recording uses.
 3. Run `npm ci` and `npm run verify`. Keep only the concise passing summary
    visible.
 4. Start the three-process system with `npm run dev` and open
@@ -55,7 +56,7 @@ submission has already been completed.
 - [x] 10 September: 34 tests, type checks, builds, and restart smoke pass.
 - [x] 10 September: production dependency audit reports zero known vulnerabilities after qs 6.16.0; full verification passes.
 - [x] July/August history and timestamps verified on the GitHub website on 10 September. September fixes were committed and pushed on 17 September.
-- [ ] Confirm whether any separate lecturer instruction requires hosted MySQL. The current Option A brief does not explicitly require it. The adapter remains unverified against the lecturer server.
+- [x] 15 September: lecturer MySQL schema passed a live verified-TLS create/run/read/restart check (see DEVELOPMENT_LOG.md). Hosted deployment is not required by the Option A brief and was not reverified.
 - [ ] The final video visibly proves startup, main functions, communication,
       state change, a failure/invalid-input case, limitations, and GitHub website
       timestamps.
