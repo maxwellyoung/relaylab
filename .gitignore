@@ -18,3 +18,8 @@ data/
 .env.*
 !.env.example
 .vercel/
+
+# Local demo renders, captures, and submission preparation
+output/
+outputs/
+.playwright-cli/

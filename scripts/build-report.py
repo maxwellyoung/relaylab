@@ -493,7 +493,7 @@ def add_cover(document: Document) -> None:
     for label, value in (
         ("Student", "Maxwell Young"),
         ("Student ID", "23213801"),
-        ("Status date", "11 August 2026"),
+        ("Status date", re.search(r"\*\*Implementation status date:\*\* (.+)", REPORT.read_text(encoding="utf-8")).group(1)),
     ):
         paragraph = document.add_paragraph()
         paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
