@@ -60,8 +60,8 @@ submission has already been completed.
 - [ ] The final video visibly proves startup, main functions, communication,
       state change, a failure/invalid-input case, limitations, and GitHub website
       timestamps.
-- [ ] Name and student ID have been checked in every final artifact.
-- [ ] The final archive contains no `.env`, password, local database,
+- [x] 17 September: name and student ID (Maxwell Young, 23213801) checked on the report cover, every report page header, and every section of the v7 video cut.
+- [x] 17 September: `npm run package` builds the archive from `git archive`; it contains no `.env`, password, local database,
       `node_modules`, build output, cache, or unrelated private material.
 - [ ] Canvas upload and submission occur only after Maxwell reviews the exact
       final artifacts and explicitly authorizes that action.
