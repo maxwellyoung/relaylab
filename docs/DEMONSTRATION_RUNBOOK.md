@@ -32,7 +32,7 @@ submission has already been completed.
 | Contract/deadline | Run Malformed or Slow | RPC result validation and bounded waiting are different failure modes | `invalid_response` or `timeout` |
 | Durable state | Reopen Saved experiments; restart and reopen if practical | One experiment owns many run records | State survives restart |
 | Database implementation | Show only safe source excerpts | Related tables, parameterised SQL, optional MySQL adapter, hard pool cap 5 | Data-design evidence without credentials |
-| Test evidence | Run `npm run verify` | 34 tests plus type checks, builds, restart smoke, and dependency audit | Reproducible evidence |
+| Test evidence | Run `npm run verify` | 35 tests plus type checks, builds, restart smoke, and dependency audit | Reproducible evidence |
 | GitHub history | Repository **Commits** page | Point out meaningful July and August milestones and visible website timestamps | Development-process evidence |
 | Limitations | Report or README limitations | Simulator, single user, no retries; disclose MySQL live-test status exactly | Honest self-evaluation |
 
@@ -44,7 +44,7 @@ submission has already been completed.
 | REST plus JSON-RPC | `server/src/app.ts`, `server/src/downstream-rpc.ts`, `downstream/src/app.ts` | Correlation, method, parameter, result, and error tests | Expand the saved RPC envelope |
 | Relational one-to-many persistence | `server/src/database.ts` | API persistence tests and `npm run smoke` | Reopen history after a new run/restart |
 | Controlled failure handling | `server/src/app.ts` | RPC error, timeout, malformed-result, and unreachable tests | Show at least one failed request |
-| Browser workflow | `client/src/App.tsx` | Four client tests | Create, run, inspect, and reopen |
+| Browser workflow | `client/src/App.tsx` | Five client tests | Create, run, inspect, and reopen |
 | Optional MySQL pool limit | `server/src/database.ts` | Database configuration tests | Show pool cap 5 without showing credentials |
 | Incremental development | GitHub repository | Commit history and development log | Show timestamps on GitHub website |
 
@@ -54,7 +54,7 @@ submission has already been completed.
 - [x] Supplied Canvas submission instructions and full rubric have been reviewed.
 - [x] 10 September: 34 tests, type checks, builds, and restart smoke pass.
 - [x] 10 September: production dependency audit reports zero known vulnerabilities after qs 6.16.0; full verification passes.
-- [x] July/August history and timestamps verified on the GitHub website on 10 September. September working-tree fixes are not yet committed or pushed.
+- [x] July/August history and timestamps verified on the GitHub website on 10 September. September fixes were committed and pushed on 17 September.
 - [ ] Confirm whether any separate lecturer instruction requires hosted MySQL. The current Option A brief does not explicitly require it. The adapter remains unverified against the lecturer server.
 - [ ] The final video visibly proves startup, main functions, communication,
       state change, a failure/invalid-input case, limitations, and GitHub website

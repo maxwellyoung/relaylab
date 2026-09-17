@@ -318,3 +318,7 @@ Re-ran `npm run verify`: all 34 tests, type checks, production builds, restart-p
 ## 15 September: lecturer database verification and selection race
 
 Configured the assigned lecturer MySQL database privately. Verified TLS with the official AWS RDS CA bundle, request outcomes and restart persistence through API and direct SQL. Browser recording exposed a race where Run could use the previous experiment during a pending selection request. Controls now stay disabled during loading/running, with a deferred-response regression test. Final video narration and Canvas submission remain separate gates.
+
+## 17 September: publication and packaging
+
+Reinstalled from the lockfile and re-ran `npm run verify`: all 35 tests, type checks, builds, restart-persistence smoke and production audit passed. Committed the 9, 10 and 15 September work as separate logical commits on 17 September, with each message stating when the work was done, and pushed to GitHub. Added `npm run package`, which builds the submission zip from `git archive` so dependencies, `.env`, databases and build output cannot be bundled. Final narration, video review and personal Canvas submission remain separate gates.

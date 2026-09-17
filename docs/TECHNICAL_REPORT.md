@@ -135,7 +135,7 @@ an unreachable-downstream result.
 
 The verification gate also runs all TypeScript checks and production builds,
 starts the built application, creates and executes an experiment, restarts the
-services, and proves that the experiment and run survived. On 15 September all 35 tests, type checks, builds, restart-persistence smoke and the production dependency audit passed again, with no known production vulnerabilities reported. Earlier browser verification on the built local application separately checked the healthy workflow, an RPC application error, the deadline timeout, and invalid-JSON rejection. The video preparation includes startup, success, the RPC error envelope, restart persistence and GitHub website dates. New lecturer-MySQL footage shows the operational workflows; its replacement narration is pending. September changes remain local. Hosted deployment was not reverified and is not required for the local Option A workflow.
+services, and proves that the experiment and run survived. On 15 September all 35 tests, type checks, builds, restart-persistence smoke and the production dependency audit passed again, with no known production vulnerabilities reported. Earlier browser verification on the built local application separately checked the healthy workflow, an RPC application error, the deadline timeout, and invalid-JSON rejection. The video preparation includes startup, success, the RPC error envelope, restart persistence and GitHub website dates. New lecturer-MySQL footage shows the operational workflows; its replacement narration is pending. September changes were committed and pushed on 17 September. Hosted deployment was not reverified and is not required for the local Option A workflow.
 
 A separate live MySQL check used verified TLS and confirmed four experiments and five related runs by direct SQL after restart, covering success, RPC error, timeout and malformed response. Additional browser captures reran the workflows. A discovered selection/loading race was fixed by disabling controls during requests, with a regression test preventing execution of the previous selection.
 
@@ -165,6 +165,8 @@ the ignored MySQL values and verified-TLS startup command; real credentials must
 
 Course requirements: COMP713 Individual Project, checked live on 15 September 2026. https://canvas.aut.ac.nz/courses/23558/assignments/193419
 
-Implementation, explanations and verification material include AI-generated content (OpenAI, 2026).
+Implementation, explanations and verification material include AI-generated content (OpenAI, 2026; Anthropic, 2026).
 
 OpenAI. (2026). Codex [AI coding assistant]. https://openai.com/codex/
+
+Anthropic. (2026). Claude Code [AI coding assistant]. https://claude.com/claude-code

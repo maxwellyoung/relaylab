@@ -15,6 +15,7 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
     "smoke": "node scripts/smoke-production.mjs",
+    "package": "git archive --format=zip --prefix=relaylab/ -o relaylab-submission.zip HEAD && unzip -l relaylab-submission.zip | tail -1",
     "verify": "npm test && npm run typecheck && npm run build && npm run smoke && npm audit --omit=dev --audit-level=high"
   },
   "devDependencies": {
