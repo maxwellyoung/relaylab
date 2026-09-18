@@ -21,7 +21,7 @@ One continuous screen recording with spoken explanation, then light editing.
 | Segment | Show | Evidence produced |
 | --- | --- | --- |
 | Introduction | Name, student ID, course, Option A, one-line architecture | Assessment identity and scope |
-| Startup | `npm run start:downstream` and `npm run start:coordinator` in separate terminals; open the coordinator URL | Two independently running services, MySQL over verified TLS |
+| Startup | `npm run start:downstream` and `npm run start:coordinator`, then `/health` | Two independently running services; the reported driver and deadline |
 | Healthy exchange | Run Healthy; expand response evidence; point at both logs | HTTP 200, correlated JSON-RPC result, same `rpc=` ID in both processes, saved run |
 | Invalid input | Break the payload JSON and run | Client-side rejection, no request sent |
 | Failure kinds | Run Unavailable, Slow, Malformed | `downstream_error` over HTTP 200, `timeout` with the late downstream reply in its log, `invalid_response` |
@@ -79,14 +79,16 @@ coordinator and downstream as separate processes; a healthy request, an RPC
 application error, a deadline timeout, invalid JSON rejected, an outage while
 both services are down, and the saved history reopened, all recorded on the
 lecturer MySQL schema on 18 September with the current interface; a card showing both services' real log lines for the
-same two exchanges, with the matching `rpc=` id; the GitHub commits page; a
+same two exchanges with the matching `rpc=` id; a card showing the coordinator
+rejecting an invalid request with its field errors; the GitHub commits page; a
 closing card covering
 communication, failure handling, transactional persistence, the fresh-clone
 verification and the limitations; and an excerpt of the actual `npm run verify`
 output, so the spoken claim about the test suite is evidenced on screen.
 
-One limit of the current cut, visible rather than hidden: the startup footage is
-the 10 September SQLite run. Everything else is current. Invalid input, the
+Every section is current: the startup card, the three application clips, the log
+card and the validation card were all produced on 18 September against the
+lecturer MySQL schema. Invalid input, the
 outage and restart persistence were re-recorded on the lecturer MySQL schema on
 18 September by `scripts/record-demo-clips.mjs`, which drives the real browser
 against the configured database and records one clip per narrated section,
