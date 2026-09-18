@@ -54,8 +54,8 @@ One continuous screen recording with spoken explanation, then light editing.
 - [x] 15 September: lecturer MySQL schema passed a live verified-TLS create/run/read/restart check (see DEVELOPMENT_LOG.md). Hosted deployment is not required by the Option A brief and was not reverified.
 - [x] 18 September: the final video shows startup of both services, a healthy
       request, an RPC application error, a deadline timeout, invalid JSON
-      rejected, restart persistence, GitHub website commit dates (captured
-      10 September, so nothing after 22 August), and a limitations card.
+      rejected, restart persistence on the lecturer schema, commit dates on the
+      GitHub website through 18 September, and a limitations card.
 - [x] 17 September: name and student ID (Maxwell Young, 23213801) checked on the report cover, every report page header, and the demonstration title card.
 - [x] 17 September: `npm run package` builds the archive from `git archive`; it contains no `.env`, password, local database,
       `node_modules`, build output, cache, or unrelated private material.
@@ -82,12 +82,12 @@ saved history reopened; the GitHub commits page; and a closing card covering
 communication, failure handling, transactional persistence, the fresh-clone
 verification and the limitations.
 
-Two limits of the current cut, both visible rather than hidden: the startup
-footage is the 10 September SQLite run, and the GitHub capture is from
-10 September, so commits after 22 August are not on screen. Re-record the
-commits page and rebuild with `build.py --github CLIP` to show the September
-dates. Invalid input, the outage and restart persistence were re-recorded on the
-lecturer MySQL schema on 18 September by `scripts/record-mysql-restart.mjs`,
-which drives the real browser while it stops and restarts both services.
+One limit of the current cut, visible rather than hidden: the startup footage is
+the 10 September SQLite run. Everything else is current. Invalid input, the
+outage and restart persistence were re-recorded on the lecturer MySQL schema on
+18 September by `scripts/record-mysql-restart.mjs`, which drives the real browser
+while it stops and restarts both services. The GitHub segment is a screen
+recording of the commits page made on 18 September, so the September commits and
+their dates are on screen.
 The fuller live route in the table above was not recorded; cuts v2 to v6 are
 superseded.

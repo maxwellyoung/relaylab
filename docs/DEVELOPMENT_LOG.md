@@ -342,3 +342,7 @@ Replaced the demonstration's invalid-input and restart segment with a single con
 ## 18 September: narration cleaned and levelled
 
 Cleaned the six voice takes with a new tracked script: removed a false start where the JSON-RPC acronym was restarted mid-word, trimmed pauses over one second, tightened each take's head and tail, notched out a 120 Hz buzz and a low hum cluster, gated the room tone between phrases, and normalised every take to -16 LUFS with peaks at -1.5 dBTP. Room tone in the gaps fell by about 32 dB. A compressor and a broadband denoiser were both tried and rejected: measured against a speech-to-text transcript of the same audio, each smeared consonants badly enough to turn "stop" into "start" and "healthy" into "help you". The finished video is 1:51; its audio track was transcribed end to end to confirm the narration survived the edits.
+
+## 18 September: GitHub history captured live
+
+The demonstration's development-history segment is now a screen recording of the signed-in GitHub commits page, made on 18 September, so the date headers through Sep 18 and Sep 17 are visible alongside the August milestones. It replaces the 10 September still, which stopped at 22 August and made the narration's reference to September work unsupported. Automated capture was attempted first and abandoned: Chrome's cookie encryption will not unlock for an automated profile copy, and the live profile cannot be opened while Chrome is running.
