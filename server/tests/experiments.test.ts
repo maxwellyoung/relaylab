@@ -12,6 +12,7 @@ import path from "node:path";
 import SqliteDatabase from "better-sqlite3";
 import request from "supertest";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { buildDownstreamService } from "../../downstream/src/app.js";
 import { buildApplication } from "../src/app.js";
 import { openDatabase } from "../src/database.js";
 
@@ -111,6 +112,36 @@ describe("request experiments", () => {
       `saved run=${run.body.id} experiment=${experiment.body.id} outcome=success`,
       "rejected experiment: invalid input (400)",
     ]);
+  });
+
+  it("lets one request be followed across both service processes", async () => {
+    // The real downstream service, not a stub: both logs must name the same exchange.
+    const coordinatorLines: string[] = [];
+    const downstreamLines: string[] = [];
+    const service = buildDownstreamService({ log: (line) => downstreamLines.push(line) });
+    downstreamServer = createServer(service);
+    await new Promise<void>((resolve) => downstreamServer?.listen(0, "127.0.0.1", resolve));
+    const address = downstreamServer.address();
+    if (!address || typeof address === "string") throw new Error("No test port");
+
+    temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
+    application = build({
+      databasePath: path.join(temporaryDirectory, "relaylab.sqlite"),
+      downstreamUrl: `http://127.0.0.1:${address.port}`,
+      log: (line) => coordinatorLines.push(line),
+    });
+    const experiment = await request(application.app)
+      .post("/api/experiments")
+      .send({ name: "Traced exchange", behavior: "healthy", payload: { orderId: "ORDER-99" } });
+
+    const run = await request(application.app).post(`/api/experiments/${experiment.body.id}/runs`);
+
+    const correlationId = run.headers["x-correlation-id"];
+    const short = String(correlationId).slice(0, 8);
+    expect(run.body.response.id).toBe(correlationId);
+    expect(coordinatorLines.filter((line) => line.includes(`rpc=${short}`))).toHaveLength(2);
+    expect(downstreamLines.filter((line) => line.includes(`rpc=${short}`)).length)
+      .toBeGreaterThanOrEqual(1);
   });
 
   it("reports coordinator health without touching the database workflow", async () => {

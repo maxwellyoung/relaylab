@@ -1,4 +1,7 @@
 import { EventEmitter } from "node:events";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import SqliteDatabase from "better-sqlite3";
 import type { Pool } from "mysql2/promise";
 import { describe, expect, it, vi } from "vitest";
@@ -9,6 +12,10 @@ import {
   schemaStatements,
   useUtcSessions,
 } from "../src/database.js";
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+const readQuery = (name: string) =>
+  readFileSync(path.join(ROOT, "database/queries", name), "utf8").replace(/;\s*$/, "");
 
 const experimentRow = {
   id: 7,
@@ -123,6 +130,25 @@ describe("MySQL writes", () => {
       user: "student_user",
       password: "local-secret",
     })).toMatchObject({ connectionLimit: 5, enableKeepAlive: true });
+  });
+});
+
+describe("shipped reporting queries", () => {
+  it("run against the schema they are written for", () => {
+    const database = new SqliteDatabase(":memory:");
+    database.exec(readSchema("schema.sqlite.sql"));
+    database.prepare("INSERT INTO experiments (name, behavior, payload_json) VALUES (?, ?, ?)")
+      .run("Reported", "healthy", "{}");
+    database.prepare(
+      "INSERT INTO experiment_runs (experiment_id, outcome, http_status, rpc_error_code, duration_ms) VALUES (?, ?, ?, ?, ?)",
+    ).run(1, "downstream_error", 200, -32001, 3);
+
+    const counts = database.prepare(readQuery("counts.sql")).get();
+    const outcomes = database.prepare(readQuery("runs-by-outcome.sql")).all();
+
+    expect(counts).toEqual({ experiments: 1, runs: 1 });
+    expect(outcomes).toEqual([{ outcome: "downstream_error", runs: 1 }]);
+    database.close();
   });
 });
 

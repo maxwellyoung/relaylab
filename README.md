@@ -211,7 +211,7 @@ JSON-RPC error code when its method failed, the elapsed time and the full
 response envelope. Each run response returns an `X-Correlation-Id` header
 carrying the JSON-RPC id, so one exchange can be matched across both services'
 logs, and `GET /health` reports the configured driver and request deadline. `npm run db:inspect` prints the rows and the counts by
-outcome.
+outcome, using the queries in `database/queries`.
 
 Example experiment:
 

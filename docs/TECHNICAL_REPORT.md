@@ -14,15 +14,15 @@
 
 RelayLab is a small distributed web application for observing what happens when
 one service depends on another. A user selects a deterministic dependency
-behaviour and supplies a JSON request payload. A coordinator service sends the
-request to a separately running downstream service using JSON-RPC 2.0,
-classifies the result, and stores the evidence.
+behaviour and a JSON payload; a coordinator sends the request to a separately
+running downstream service over JSON-RPC 2.0, classifies the result, and stores
+the evidence.
 
 The intended user wants a repeatable way to compare a healthy exchange with each
 failure mode. The selected assignment route is
-Option A. Its functional requirements are to provide one usable client, a
-server-side API, at least three meaningful operations, persistent related data,
-input validation, controlled errors, and reproducible run and test instructions.
+Option A. Its requirements are one usable client, a server-side API, at least three
+meaningful operations, persistent related data, input validation, controlled
+errors, and reproducible run and test instructions.
 
 RelayLab implements create, read, execute and delete: create an experiment, list
 saved experiments, read one with its history, execute it repeatedly, and delete
@@ -118,7 +118,7 @@ removes its history and leaves no orphans.
 
 The schema ships as `database/schema.sqlite.sql` and
 `database/schema.mysql.sql`, applied idempotently at startup; SQLite also
-indexes runs by experiment and by outcome. Both scripts constrain the behaviour and outcome
+indexes runs by experiment and by outcome. Reporting queries ship in `database/queries`. Both scripts constrain the behaviour and outcome
 values in the database, not only in the application, and an idempotent migration
 adds the error-code column to older schemas without losing rows.
 
@@ -130,19 +130,18 @@ appear in source, documentation, logs, screenshots, or submitted artifacts.
 
 ## 6. Testing and Evidence
 
-The complete verification command is `npm ci && npm run verify`. The current
-suite contains 52 automated tests: five client tests, thirty-nine coordinator,
-RPC-contract, database, and logging tests, and eight downstream-service
-tests. These cover
+The verification command is `npm ci && npm run verify`. The suite contains 54
+tests: five client, forty-one coordinator, RPC-contract, database and logging,
+and eight downstream-service tests. These cover
 the create/run/render workflow, invalid client JSON, saved-history reopening,
 all five run outcomes, mismatched correlation IDs, relational
-persistence, MySQL configuration, and the fixed connection-pool limit. A killed child process proves the unreachable outcome. The 9 September checks also prove that
+persistence, MySQL configuration, and the fixed connection-pool limit. A killed child process proves the unreachable outcome, one request is followed across both service logs, and the shipped reporting queries run against the schema. The 9 September checks also prove that
 malformed HTTP JSON returns 400 and that a failed database write cannot invent
 an unreachable-downstream result.
 
 The gate also runs type checks and production builds, starts the built
 application, creates and executes an experiment, restarts the services, and
-proves both survived. On 18 September a fresh clone of the GitHub repository passed `npm ci` and the full gate: all 52 tests, type checks, builds, restart-persistence smoke, and a production dependency audit with no known vulnerabilities. The video shows a successful exchange, an RPC application error and a deadline timeout on the lecturer MySQL schema (15 September); invalid-JSON rejection, an outage and restart persistence on that schema with both services stopped mid-recording (18 September); startup on SQLite (10 September); and commit dates on the GitHub website captured 18 September, including the September work.
+proves both survived. On 18 September a fresh clone passed `npm ci` and the full gate: 54 tests, type checks, builds, restart-persistence smoke, and a dependency audit with no known vulnerabilities. The video shows a successful exchange, an RPC application error and a deadline timeout on the lecturer MySQL schema (15 September); invalid-JSON rejection, an outage and restart persistence on that schema with both services stopped mid-recording (18 September); startup on SQLite (10 September); and commit dates on the GitHub website captured 18 September, including the September work.
 
 Live MySQL checks used verified TLS; on 18 September `npm run db:inspect` reported 9 experiments and 18 runs covering success, downstream_error, timeout and invalid_response. On 17 September the transactional write path was rechecked live: create, two runs, restart, reopen. A discovered selection/loading race was fixed by disabling controls during requests, with a regression test preventing execution of the previous selection.
 

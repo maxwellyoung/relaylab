@@ -1,5 +1,6 @@
 // Prints the two related tables straight from the configured database (SQLite or MySQL)
 // without printing any connection settings. Run after `npm run build`.
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import SqliteDatabase from "better-sqlite3";
@@ -8,14 +9,11 @@ import { createConnection } from "mysql2/promise";
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const limit = Number(process.argv[2] ?? 8);
 
-const countsSql = `
-  SELECT (SELECT COUNT(*) FROM experiments) AS experiments,
-         (SELECT COUNT(*) FROM experiment_runs) AS runs`;
-const outcomesSql = `
-  SELECT outcome, COUNT(*) AS runs
-  FROM experiment_runs
-  GROUP BY outcome
-  ORDER BY runs DESC, outcome`;
+// The reporting queries are submitted artifacts under database/queries.
+const readQuery = (name) =>
+  readFileSync(path.join(rootDirectory, "database/queries", name), "utf8").replace(/;\s*$/, "");
+const countsSql = readQuery("counts.sql");
+const outcomesSql = readQuery("runs-by-outcome.sql");
 // A database the coordinator has not opened yet may predate rpc_error_code.
 const runsSqlFor = (hasErrorCode) => `
   SELECT r.id AS run, r.experiment_id AS experiment, e.name, r.outcome,
