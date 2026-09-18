@@ -16,10 +16,11 @@ const outcomesSql = `
   FROM experiment_runs
   GROUP BY outcome
   ORDER BY runs DESC, outcome`;
-const runsSql = `
+// A database the coordinator has not opened yet may predate rpc_error_code.
+const runsSqlFor = (hasErrorCode) => `
   SELECT r.id AS run, r.experiment_id AS experiment, e.name, r.outcome,
-         r.http_status AS http, r.rpc_error_code AS rpc_error, r.duration_ms AS ms,
-         r.created_at
+         r.http_status AS http,${hasErrorCode ? " r.rpc_error_code AS rpc_error," : ""}
+         r.duration_ms AS ms, r.created_at
   FROM experiment_runs r
   JOIN experiments e ON e.id = r.experiment_id
   ORDER BY r.id DESC
@@ -42,7 +43,12 @@ async function query() {
     try {
       const [[counts]] = await connection.query(countsSql);
       const [outcomes] = await connection.query(outcomesSql);
-      const [runs] = await connection.query(runsSql);
+      const [columns] = await connection.query(
+        `SELECT COLUMN_NAME FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'experiment_runs'
+           AND COLUMN_NAME = 'rpc_error_code'`,
+      );
+      const [runs] = await connection.query(runsSqlFor(columns.length > 0));
       return { label: "MySQL", counts, outcomes, runs };
     } finally {
       await connection.end();
@@ -55,11 +61,15 @@ async function query() {
     fileMustExist: true,
   });
   try {
+    const hasErrorCode = database
+      .prepare("SELECT name FROM pragma_table_info('experiment_runs')")
+      .all()
+      .some((column) => column.name === "rpc_error_code");
     return {
       label: "SQLite",
       counts: database.prepare(countsSql).get(),
       outcomes: database.prepare(outcomesSql).all(),
-      runs: database.prepare(runsSql).all(),
+      runs: database.prepare(runsSqlFor(hasErrorCode)).all(),
     };
   } finally {
     database.close();
