@@ -715,6 +715,67 @@ describe("request experiments", () => {
     expect(run.body.response.id).toBe(header);
   });
 
+  it("answers an oversized body with 413 rather than blaming the database", async () => {
+    temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
+    application = build({ databasePath: path.join(temporaryDirectory, "relaylab.sqlite") });
+
+    const response = await request(application.app)
+      .post("/api/experiments")
+      .set("Content-Type", "application/json")
+      .send(JSON.stringify({ name: "Huge", behavior: "healthy", payload: { blob: "x".repeat(200_000) } }));
+
+    expect(response.status).toBe(413);
+    expect(response.body).toEqual({ error: "Request rejected" });
+  });
+
+  it("answers an unknown API route with JSON, not an HTML error page", async () => {
+    temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
+    application = build({ databasePath: path.join(temporaryDirectory, "relaylab.sqlite") });
+
+    const response = await request(application.app).get("/api/nope");
+
+    expect(response.status).toBe(404);
+    expect(response.headers["content-type"]).toContain("application/json");
+    expect(response.body).toEqual({ error: "Not found" });
+  });
+
+  it("keeps a non-JSON dependency reply as text and still reads it back", async () => {
+    downstreamServer = createServer((_incoming, outgoing) => {
+      // A proxy or a dead-but-listening dependency answers with HTML.
+      outgoing.writeHead(200, { "Content-Type": "text/html" });
+      outgoing.end("<html>502 Bad Gateway</html>");
+    });
+    await new Promise<void>((resolve) => downstreamServer?.listen(0, "127.0.0.1", resolve));
+    const address = downstreamServer.address();
+    if (!address || typeof address === "string") throw new Error("No test port");
+
+    temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
+    application = build({
+      databasePath: path.join(temporaryDirectory, "relaylab.sqlite"),
+      downstreamUrl: `http://127.0.0.1:${address.port}`,
+    });
+    const experiment = await request(application.app)
+      .post("/api/experiments")
+      .send({ name: "Proxy page", behavior: "healthy", payload: {} });
+
+    const run = await request(application.app).post(`/api/experiments/${experiment.body.id}/runs`);
+
+    expect(run.body).toMatchObject({ outcome: "invalid_response", response: "<html>502 Bad Gateway</html>" });
+    // The read must survive the stored text on both drivers.
+    const details = await request(application.app).get(`/api/experiments/${experiment.body.id}`);
+    expect(details.status).toBe(200);
+    expect(details.body.runs[0].response).toBe("<html>502 Bad Gateway</html>");
+  });
+
+  it("exposes the correlation header to a cross-origin caller", async () => {
+    temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
+    application = build({ databasePath: path.join(temporaryDirectory, "relaylab.sqlite") });
+
+    const response = await request(application.app).get("/health");
+
+    expect(response.headers["access-control-expose-headers"]).toContain("X-Correlation-Id");
+  });
+
   it("answers malformed experiment identifiers with 404 without querying the database", async () => {
     temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
     const databasePath = path.join(temporaryDirectory, "relaylab.sqlite");

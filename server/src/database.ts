@@ -96,8 +96,14 @@ function parseJsonResponse(
   value: string | Record<string, unknown> | null,
 ): Record<string, unknown> | string | null {
   if (value === null) return null;
+  // MySQL hands a JSON column back already parsed, so a stored plain-text
+  // response arrives as a bare string. Returning it beats failing the read.
   if (typeof value !== "string") return value;
-  return JSON.parse(value) as Record<string, unknown> | string;
+  try {
+    return JSON.parse(value) as Record<string, unknown> | string;
+  } catch {
+    return value;
+  }
 }
 
 function normalizeTimestamp(value: string | Date): string {
@@ -306,9 +312,11 @@ export function buildMySqlPoolOptions(
     ssl: config.ssl,
     waitForConnections: true,
     connectionLimit: MAX_DATABASE_CONNECTIONS,
-    queueLimit: 0,
     enableKeepAlive: true,
     keepAliveInitialDelay: 10_000,
+    // Fail visibly instead of queueing for ever if the shared server stalls.
+    queueLimit: 20,
+    connectTimeout: 10_000,
     charset: "utf8mb4",
     timezone: "Z",
     dateStrings: true,
@@ -346,15 +354,22 @@ export function createMySqlDatabase(pool: Pool): RelayLabDatabase {
     if (columns.length === 0) {
       await pool.query("ALTER TABLE experiment_runs ADD COLUMN rpc_error_code INT NULL AFTER http_status");
     }
-    // MySQL has no CREATE INDEX IF NOT EXISTS, so check before adding.
-    const [indexes] = await pool.query<RowDataPacket[]>(
-      `SELECT INDEX_NAME FROM information_schema.STATISTICS
-       WHERE TABLE_SCHEMA = DATABASE()
-         AND TABLE_NAME = 'experiment_runs'
-         AND INDEX_NAME = 'idx_experiment_runs_outcome'`,
-    );
-    if (indexes.length === 0) {
-      await pool.query("CREATE INDEX idx_experiment_runs_outcome ON experiment_runs (outcome)");
+    // MySQL has no CREATE INDEX IF NOT EXISTS, and a schema created before the
+    // keys were declared inline needs them added.
+    for (const [name, columns] of [
+      ["idx_experiment_runs_outcome", "(outcome)"],
+      ["idx_experiment_runs_experiment", "(experiment_id, id)"],
+    ] as const) {
+      const [indexes] = await pool.query<RowDataPacket[]>(
+        `SELECT INDEX_NAME FROM information_schema.STATISTICS
+         WHERE TABLE_SCHEMA = DATABASE()
+           AND TABLE_NAME = 'experiment_runs'
+           AND INDEX_NAME = ?`,
+        [name],
+      );
+      if (indexes.length === 0) {
+        await pool.query(`CREATE INDEX ${name} ON experiment_runs ${columns}`);
+      }
     }
   })();
   // Attach a rejection handler immediately so unavailable credentials or a

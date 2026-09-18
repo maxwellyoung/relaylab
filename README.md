@@ -31,12 +31,13 @@ In production, one container starts the coordinator and downstream as separate
 Node processes. Only the coordinator port is public, and it serves the built
 React client. That container mounts SQLite at `/data`; the lecturer-provided
 MySQL schema is a credential-gated alternative. No hosted deployment forms part
-of this submission: the Fly and Vercel configuration is included but the current
-build was not redeployed.
+of this submission: the Fly configuration is included but the current build was
+not redeployed.
 
 ## Public workflow
 
-1. Save a request experiment with a name, behaviour, and JSON payload.
+1. Save a request experiment: choose a behaviour and a JSON payload, and the
+   coordinator stores it under a validated name.
 2. Run that experiment through the coordinator.
 3. The coordinator calls the separate downstream service.
 4. The coordinator classifies and stores the observed result.
@@ -65,7 +66,7 @@ instead of crashing or losing the attempt.
 
 ## Software
 
-- Node.js 24 or later
+- Node.js 24.15 or later
 - npm 11 or later
 
 No account, API key, external database, or cloud service is required for the
@@ -189,13 +190,6 @@ No deployment was made for this submission. The Fly configuration uses one
 machine because SQLite is attached to a single persistent volume. Automatic stop/start keeps the small assessment deployment
 idle when it is unused. The coordinator health endpoint is `/health`.
 
-### Vercel visual preview
-
-[`vercel.json`](vercel.json) builds only the React client for fast visual QA.
-A Vercel project would need `VITE_API_BASE_URL` set to a public coordinator URL.
-This never moves the coordinator, downstream service, or database to Vercel, and
-no preview is deployed as part of this submission.
-
 ## Coordinator API
 
 | Method | Route | Behaviour |
@@ -240,7 +234,7 @@ error codes are documented in [`docs/RPC_CONTRACT.md`](docs/RPC_CONTRACT.md).
 - The downstream behaviours are deterministic simulations, not measurements of
   arbitrary external systems.
 - The coordinator intentionally performs no retry or circuit-breaking.
-- Experiments and runs cannot yet be edited or deleted.
+- Experiments cannot be edited. Deleting one removes its runs by cascade.
 - One local user only; authentication is outside the assignment scope.
 - The container image is intentionally single-machine and is not designed for
   concurrent production traffic. Nothing is hosted for this submission.

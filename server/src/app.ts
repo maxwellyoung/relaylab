@@ -40,7 +40,7 @@ export function buildApplication({
   const database = suppliedDatabase ?? openDatabase(databasePath);
   const app = express();
 
-  app.use(cors());
+  app.use(cors({ exposedHeaders: ["X-Correlation-Id"] }));
   app.use(express.json());
 
   app.get("/health", (_request, response) => {
@@ -109,19 +109,28 @@ export function buildApplication({
         signal: AbortSignal.timeout(timeoutMs),
       });
       const responseText = await downstream.text();
-      let body: Record<string, unknown> | string;
+      // Keep the parsed value only when it is a JSON object. A scalar or null
+      // would otherwise be stored as evidence the public contract rejects.
+      let body: Record<string, unknown> | string = responseText;
       try {
-        body = JSON.parse(responseText) as Record<string, unknown>;
+        const parsed = JSON.parse(responseText) as unknown;
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          body = parsed as Record<string, unknown>;
+        }
       } catch {
         body = responseText;
       }
 
-      const rpc = classifyDownstreamRpcResponse(body, rpcRequest.id);
+      const classification = classifyDownstreamRpcResponse(body, rpcRequest.id);
       runInput = {
         experimentId,
-        outcome: downstream.ok ? rpc.outcome : "downstream_error",
+        // A correlated RPC error is the dependency's own answer even if the
+        // transport failed; only an uncorrelated failure is a transport fault.
+        outcome: classification.outcome === "downstream_error" || downstream.ok
+          ? classification.outcome
+          : "downstream_error",
         httpStatus: downstream.status,
-        rpcErrorCode: rpc.errorCode,
+        rpcErrorCode: classification.errorCode,
         durationMs: Math.max(1, Math.round(performance.now() - startedAt)),
         response: body,
       };
@@ -159,6 +168,10 @@ export function buildApplication({
     response.status(204).end();
   });
 
+  app.use("/api", (_request, response) => {
+    response.status(404).json({ error: "Not found" });
+  });
+
   if (clientDirectory) {
     app.use(express.static(clientDirectory));
     app.use((request, response, next) => {
@@ -174,6 +187,16 @@ export function buildApplication({
     // The JSON parser runs before our handlers; its failures are input errors.
     if (error instanceof SyntaxError && "type" in error && error.type === "entity.parse.failed") {
       response.status(400).json({ error: "Invalid JSON body" });
+      return;
+    }
+    // A request-level error carries its own status: an oversized body is 413,
+    // not a claim that the database is unavailable.
+    const status = error instanceof Error && "status" in error
+      ? Number((error as { status?: unknown }).status)
+      : Number.NaN;
+    if (Number.isInteger(status) && status >= 400 && status < 500) {
+      console.error("RelayLab rejected a request", { status });
+      response.status(status).json({ error: "Request rejected" });
       return;
     }
     console.error("RelayLab request failed", {

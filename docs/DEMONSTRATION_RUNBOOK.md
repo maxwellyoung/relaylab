@@ -28,7 +28,7 @@ One continuous screen recording with spoken explanation, then light editing.
 | Unreachable dependency | Stop only the downstream; run; restart it; run again | `unreachable` recorded while the coordinator keeps serving, then recovery |
 | Data design | `npm run db:inspect`; server-side validation with `curl` | Two related tables with a foreign key; 400 with field errors |
 | Durable state | Restart the coordinator; reload; reopen saved experiments | History survives restart |
-| Test evidence | `npm test` | 49 passing tests |
+| Test evidence | `npm test` | 63 passing tests |
 | GitHub history | Scroll the repository **Commits** page | Commit dates on the GitHub website |
 | Limitations | Spoken | Simulated failures, single user, no authentication or retries, no hosted deployment in this submission |
 
@@ -40,7 +40,7 @@ One continuous screen recording with spoken explanation, then light editing.
 | REST plus JSON-RPC | `server/src/app.ts`, `server/src/downstream-rpc.ts`, `downstream/src/app.ts` | Correlation, method, parameter, result, and error tests | Expand the saved RPC envelope |
 | Relational one-to-many persistence | `server/src/database.ts` | API persistence tests and `npm run smoke` | Reopen history after a new run/restart |
 | Controlled failure handling | `server/src/app.ts` | RPC error, timeout, malformed-result, and unreachable tests | Show at least one failed request |
-| Browser workflow | `client/src/App.tsx` | Five client tests | Create, run, inspect, and reopen |
+| Browser workflow | `client/src/App.tsx` | Eight client tests | Create, run, inspect, and reopen |
 | Optional MySQL pool limit | `server/src/database.ts` | Database configuration tests | Show pool cap 5 without showing credentials |
 | Incremental development | GitHub repository | Commit history and development log | Show timestamps on GitHub website |
 

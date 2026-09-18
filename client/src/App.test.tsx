@@ -98,6 +98,7 @@ describe("RelayLab browser workflow", () => {
 
   it("deletes a saved experiment and clears it from the list", async () => {
     const user = userEvent.setup();
+    vi.spyOn(window, "confirm").mockReturnValue(true);
     const saved = experiment({ id: 3, name: "Disposable experiment" });
     mockedListExperiments.mockResolvedValueOnce([saved]).mockResolvedValueOnce([]);
     mockedGetExperiment.mockResolvedValue({ ...saved, runs: [run({ experimentId: 3 })] });
@@ -112,6 +113,23 @@ describe("RelayLab browser workflow", () => {
     await waitFor(() =>
       expect(screen.queryByRole("button", { name: "Open Disposable experiment" })).toBeNull());
     expect(screen.getByText("Your first completed request will be stored here.")).toBeVisible();
+  });
+
+  it("keeps the experiment when the delete confirmation is declined", async () => {
+    const user = userEvent.setup();
+    const saved = experiment({ id: 5, name: "Keep me" });
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    mockedListExperiments.mockResolvedValue([saved]);
+    mockedGetExperiment.mockResolvedValue({ ...saved, runs: [run({ experimentId: 5 })] });
+    render(<App />);
+    await screen.findByRole("heading", { name: "RPC method failed" });
+    await user.click(screen.getByText("Saved experiments"));
+
+    await user.click(screen.getByRole("button", { name: /Delete Keep me/ }));
+
+    expect(confirm).toHaveBeenCalled();
+    expect(mockedDeleteExperiment).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Open Keep me" })).toBeVisible();
   });
 
   it("shows the correlation ID the coordinator returned for a run", async () => {

@@ -91,6 +91,10 @@ function responseText(run: ExperimentRun) {
 }
 
 function rpcSignal(run: ExperimentRun) {
+  // The coordinator classifies and stores the code; do not re-derive it.
+  if (typeof run.rpcErrorCode === "number") {
+    return String(run.rpcErrorCode).replace("-", "−");
+  }
   if (run.outcome === "invalid_response") return "invalid";
   if (!run.response || typeof run.response !== "object") return "—";
   const envelope = run.response as {
@@ -172,8 +176,12 @@ export default function App() {
     }
   }
 
-  async function removeExperiment(experimentId: number) {
+  async function removeExperiment(experimentId: number, name: string) {
     if (isBusy) return;
+    const confirmed = window.confirm(
+      `Delete "${name}" and every run saved against it? This cannot be undone.`,
+    );
+    if (!confirmed) return;
     setError("");
     setIsLoading(true);
     try {
@@ -302,6 +310,12 @@ export default function App() {
               />
             </label>
           </details>
+
+          {!selected && experiments.length > 0 ? (
+            <p className="fork-hint">
+              Nothing is selected, so running saves a new experiment.
+            </p>
+          ) : null}
 
           <button
             className="run-button"
@@ -437,7 +451,7 @@ export default function App() {
                     className="delete-experiment"
                     disabled={isBusy}
                     aria-label={`Delete ${experiment.name} and its runs`}
-                    onClick={() => void removeExperiment(experiment.id)}
+                    onClick={() => void removeExperiment(experiment.id, experiment.name)}
                     type="button"
                   >
                     Delete

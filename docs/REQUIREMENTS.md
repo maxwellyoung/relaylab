@@ -10,7 +10,7 @@ without adding speculative scope:
 | --- | --- |
 | One simple client | One React experiment screen |
 | Server-side API/service layer | Express coordinator API |
-| At least three meaningful API operations | Create, list, read details, and run |
+| At least three meaningful API operations | Create, list, read details, run, and delete |
 | Simple data persistence | SQLite locally/tests or lecturer MySQL |
 | At least two related entities | `experiments` and `experiment_runs` |
 | Relationship or meaningful workflow | One experiment produces many durable runs |
@@ -19,9 +19,9 @@ without adding speculative scope:
 
 The brief permits basic CRUD **or another meaningful workflow**. RelayLab uses
 the latter: create a request definition, execute it across a second service,
-classify the exchange, and read the durable evidence. Update/delete operations
-are therefore outside the frozen scope unless the lecturer explicitly requires
-them later.
+classify the exchange, and read the durable evidence. Delete is also
+implemented, so an experiment and its runs can be removed together; update is
+outside the frozen scope unless the lecturer explicitly requires it later.
 
 ## Scenario
 

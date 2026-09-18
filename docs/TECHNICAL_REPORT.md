@@ -130,9 +130,9 @@ appear in source, documentation, logs, screenshots, or submitted artifacts.
 
 ## 6. Testing and Evidence
 
-The verification command is `npm ci && npm run verify`. The suite contains 54
-tests: five client, forty-one coordinator, RPC-contract, database and logging,
-and eight downstream-service tests. These cover
+The verification command is `npm ci && npm run verify`. The suite contains 63
+tests: eight client, forty-six coordinator, RPC-contract, database and logging,
+and nine downstream-service tests. These cover
 the create/run/render workflow, invalid client JSON, saved-history reopening,
 all five run outcomes, mismatched correlation IDs, relational
 persistence, MySQL configuration, and the fixed connection-pool limit. A killed child process proves the unreachable outcome, one request is followed across both service logs, and the shipped reporting queries run against the schema. The 9 September checks also prove that
@@ -141,9 +141,9 @@ an unreachable-downstream result.
 
 The gate also runs type checks and production builds, starts the built
 application, creates and executes an experiment, restarts the services, and
-proves both survived. On 18 September a fresh clone passed `npm ci` and the full gate: 54 tests, type checks, builds, restart-persistence smoke, and a dependency audit with no known vulnerabilities. The video shows a successful exchange, an RPC application error, a deadline timeout, invalid-JSON rejection, an outage and restart persistence, all recorded on the lecturer MySQL schema on 18 September; startup on SQLite from 10 September; and commit dates on the GitHub website captured 18 September.
+proves both survived. On 18 September a fresh clone passed `npm ci` and the full gate: 63 tests, type checks, builds, restart-persistence smoke, and a dependency audit with no known vulnerabilities. The video shows the two services starting, a successful exchange, an RPC application error, a deadline timeout, invalid-JSON rejection, an outage and restart persistence, all on the lecturer MySQL schema and recorded 18 September, together with both services' logs for one exchange and commit dates on the GitHub website.
 
-Live MySQL checks used verified TLS; on 18 September `npm run db:inspect` reported 9 experiments and 18 runs covering success, downstream_error, timeout and invalid_response. On 17 September the transactional write path was rechecked live: create, two runs, restart, reopen. A discovered selection/loading race was fixed by disabling controls during requests, with a regression test preventing execution of the previous selection.
+Live MySQL checks used verified TLS; on 18 September `npm run db:inspect` reported 9 experiments and 18 runs at the time of the check, covering success, downstream_error, timeout and invalid_response. On 17 September the transactional write path was rechecked live: create, two runs, restart, reopen. A discovered selection/loading race was fixed by disabling controls during requests, with a regression test preventing execution of the previous selection.
 
 Lab work was submitted on 10 September, with Canvas receipts for Weeks 2–6; Appendix A maps those concepts to this project.
 

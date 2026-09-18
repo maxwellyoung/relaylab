@@ -17,7 +17,7 @@ details. The machine-readable browser contract is [`openapi.json`](openapi.json)
 
 ## Predict before running
 
-Write your own prediction in Project Studio before executing the check:
+Write down the predicted outcome before executing the check:
 
 1. What will the V1 client do when the server adds the unknown `summary` field?
 2. What will it do when required `name` is replaced by `displayName`?
@@ -37,7 +37,7 @@ The fixtures are deliberately small:
   renames one required field.
 
 The compatibility check uses the old V1 decoder against all three responses.
-It also checks that OpenAPI documents exactly the four frozen resource
+It also checks that OpenAPI documents exactly the five frozen resource
 operations and their success/error status codes.
 
 ## Student-owned interpretation

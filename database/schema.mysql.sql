@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS experiment_runs (
   duration_ms INT UNSIGNED NOT NULL,
   response_json JSON NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_experiment_runs_experiment (experiment_id, id),
   KEY idx_experiment_runs_outcome (outcome),
   CONSTRAINT fk_experiment_runs_experiment
     FOREIGN KEY (experiment_id)

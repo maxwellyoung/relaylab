@@ -26,7 +26,7 @@ sequenceDiagram
         D--xC: error envelope, no response within timeout, bad shape, or connection refused
     end
     C->>C: classify outcome (success | downstream_error | timeout | invalid_response | unreachable)
-    C->>S: INSERT experiment_runs {outcome, http_status, duration_ms, response_json}
+    C->>S: INSERT experiment_runs {outcome, http_status, rpc_error_code, duration_ms, response_json}
     C-->>B: 201 {run}
 
     B->>C: GET /api/experiments/:id

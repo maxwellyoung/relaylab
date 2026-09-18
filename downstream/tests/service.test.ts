@@ -178,4 +178,20 @@ describe("downstream JSON-RPC service", () => {
       },
     });
   });
+
+  it("answers an unreadable envelope with a JSON-RPC parse error", async () => {
+    const service = buildDownstreamService();
+
+    const response = await request(service)
+      .post("/rpc")
+      .set("Content-Type", "application/json")
+      .send('{"jsonrpc":');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      jsonrpc: "2.0",
+      id: null,
+      error: { code: -32700, message: "Parse error" },
+    });
+  });
 });

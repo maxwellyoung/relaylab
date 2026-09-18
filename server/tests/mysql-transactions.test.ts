@@ -115,6 +115,22 @@ describe("MySQL writes", () => {
     expect(schema[script.length]).toContain("information_schema.COLUMNS");
   });
 
+  it("reads back a plain-text response that MySQL returns already unwrapped", async () => {
+    const textRow = { ...runRow, response_json: "<html>502 Bad Gateway</html>" };
+    const pool = {
+      query: vi.fn(async () => [[]]),
+      execute: vi.fn(async (sql: string) =>
+        sql.includes("experiment_runs") ? [[textRow]] : [[experimentRow]]),
+      getConnection: vi.fn(),
+      end: vi.fn(),
+    };
+    const database = createMySqlDatabase(pool as unknown as Pool);
+
+    const details = await database.getExperiment(7);
+
+    expect(details?.runs[0]?.response).toBe("<html>502 Bad Gateway</html>");
+  });
+
   it("puts every pooled MySQL session in UTC and keeps idle connections alive", () => {
     const events = new EventEmitter();
     const session = { query: vi.fn() };

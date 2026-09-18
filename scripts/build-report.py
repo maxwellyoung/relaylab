@@ -536,6 +536,8 @@ def add_contents(document: Document) -> None:
     note.paragraph_format.space_after = Pt(0)
     report_text = REPORT.read_text(encoding="utf-8")
     body = report_text.split("\n## 1.", 1)[1].split("\n## References", 1)[0]
+    # The fenced diagram is rendered as an image, so its words are not in the document.
+    body = re.sub(r"```.*?```", "", body, flags=re.S)
     report_words = len(re.findall(r"\b[\w'-]+\b", body))
     run = note.add_run(
         f"Main body word count (sections 1-8): {report_words:,} words. "
@@ -548,6 +550,10 @@ def add_contents(document: Document) -> None:
 
 def build(output: Path) -> None:
     document = Document()
+    document.core_properties.author = "Maxwell Young"
+    document.core_properties.title = "RelayLab: a distributed API reliability workbench"
+    document.core_properties.comments = "COMP713 Assessment 2, Individual Project, Option A"
+
     configure_styles(document)
     configure_sections(document)
     add_cover(document)

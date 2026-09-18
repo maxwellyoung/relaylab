@@ -42,10 +42,28 @@ export function buildDownstreamService({
 } = {}) {
   const app = express();
 
-  app.use(express.json());
+  // Match the coordinator's limit so an accepted payload cannot become a
+  // downstream 413 once the envelope is added.
+  app.use(express.json({ limit: "200kb" }));
 
   app.get("/health", (_request, response) => {
     response.json({ status: "ok", service: "relaylab-downstream" });
+  });
+
+  app.use((
+    error: unknown,
+    _request: express.Request,
+    response: express.Response,
+    next: express.NextFunction,
+  ) => {
+    // A JSON-RPC service answers JSON-RPC, including when the envelope is
+    // unreadable. Express would otherwise return an HTML error page.
+    if (error instanceof SyntaxError) {
+      log("replied rpc=- error=-32700");
+      response.json(rpcError(null, -32700, "Parse error"));
+      return;
+    }
+    next(error);
   });
 
   app.post("/rpc", async (request, response) => {

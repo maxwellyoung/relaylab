@@ -28,7 +28,9 @@ describe("lecturer database configuration", () => {
       password: "local-secret",
       waitForConnections: true,
       connectionLimit: 5,
-      queueLimit: 0,
+      // A bounded queue and connect timeout surface a stalled shared server.
+      queueLimit: 20,
+      connectTimeout: 10_000,
     });
   });
 

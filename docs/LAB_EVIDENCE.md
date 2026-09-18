@@ -74,4 +74,4 @@ Revised Canvas Attempt 2 receipts confirm Week 3 at 10:59, Week 4 at 11:00, Week
 - Week 6: five tests plus eleven real HTTP checks, including no orphan enrolment after downstream failure.
 - Week 7: two-host mutual exclusion plus four independent-JVM consensus cases; packaged, with no separate Canvas upload slot identified.
 
-Lab work and weekly progress carry 15 of the 100 rubric marks. The receipts above record when each revised attempt was submitted; they are not presented as evidence of weekly progress before those dates.
+The receipts above record when each revised attempt was submitted. The dated entries in `docs/DEVELOPMENT_LOG.md` from 28 July onward, and the July and August commits on GitHub, are the record of when the underlying work was done.

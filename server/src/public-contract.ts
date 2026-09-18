@@ -26,6 +26,7 @@ export const experimentRunResponseV1Schema = z.object({
     "unreachable",
   ]),
   httpStatus: z.number().int().min(100).max(599).nullable(),
+  rpcErrorCode: z.number().int().nullable().optional(),
   durationMs: z.number().int().positive(),
   response: z.union([
     z.record(z.string(), z.unknown()),
