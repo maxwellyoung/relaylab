@@ -78,7 +78,9 @@ was re-recorded on 18 September and shows them. Sections: title card with name a
 coordinator and downstream as separate processes; a healthy request, an RPC
 application error, a deadline timeout, invalid JSON rejected, an outage while
 both services are down, and the saved history reopened, all recorded on the
-lecturer MySQL schema on 18 September with the current interface; the GitHub commits page; a closing card covering
+lecturer MySQL schema on 18 September with the current interface; a card showing both services' real log lines for the
+same two exchanges, with the matching `rpc=` id; the GitHub commits page; a
+closing card covering
 communication, failure handling, transactional persistence, the fresh-clone
 verification and the limitations; and an excerpt of the actual `npm run verify`
 output, so the spoken claim about the test suite is evidenced on screen.

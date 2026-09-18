@@ -354,3 +354,7 @@ The dependency's JSON-RPC error code is now its own column on experiment_runs ra
 ## 18 September: verification shown on screen
 
 The demonstration now ends with an excerpt of the real `npm run verify` output: 5 client, 8 downstream and 36 coordinator tests passing, the production restart smoke, and a clean dependency audit, labelled with the date and as an excerpt. The narration already claimed the suite passes; now the claim is visible rather than asserted.
+
+## 18 September: cross-process logs on screen
+
+The report claimed live logs appeared in the video; they did not. Rather than delete the claim, the demonstration now carries a card of both services' actual log output for the same two exchanges, showing the matching shortened rpc= id and, usefully, the downstream reply arriving a second after the coordinator had already recorded the timeout. All application footage was also re-recorded from the current interface, so the film shows the correlation ID the client now displays.
