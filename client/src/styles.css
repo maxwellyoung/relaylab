@@ -480,3 +480,34 @@ a:focus-visible {
     gap: 12px;
   }
 }
+
+.experiment-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.experiment-row > button:first-child {
+  flex: 1;
+}
+
+.delete-experiment {
+  border: 1px solid var(--line, #d9dade);
+  background: transparent;
+  color: #6b6d74;
+  border-radius: 8px;
+  padding: 0 14px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.delete-experiment:hover:not(:disabled) {
+  color: #a8323b;
+  border-color: #e0b4b8;
+}
+
+.delete-experiment:disabled {
+  opacity: 0.45;
+  cursor: default;
+}

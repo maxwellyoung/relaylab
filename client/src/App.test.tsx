@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import {
   createExperiment,
+  deleteExperiment,
   getExperiment,
   listExperiments,
   runExperiment,
@@ -17,6 +18,7 @@ vi.mock("./api", async (importOriginal) => {
   return {
     ...actual,
     createExperiment: vi.fn(),
+    deleteExperiment: vi.fn(),
     getExperiment: vi.fn(),
     listExperiments: vi.fn(),
     runExperiment: vi.fn(),
@@ -27,6 +29,7 @@ const mockedCreateExperiment = vi.mocked(createExperiment);
 const mockedGetExperiment = vi.mocked(getExperiment);
 const mockedListExperiments = vi.mocked(listExperiments);
 const mockedRunExperiment = vi.mocked(runExperiment);
+const mockedDeleteExperiment = vi.mocked(deleteExperiment);
 
 const createdAt = "2026-08-11T00:00:00.000Z";
 
@@ -79,11 +82,11 @@ describe("RelayLab browser workflow", () => {
     render(<App />);
     await screen.findByRole("heading", { name: "RPC method failed" });
     await user.click(screen.getByText("Saved experiments"));
-    await user.click(screen.getByRole("button", { name: /Second experiment/ }));
+    await user.click(screen.getByRole("button", { name: "Open Second experiment" }));
     const loading = screen.getByRole("button", { name: "Loading…" });
     expect(loading).toBeDisabled();
     expect(screen.getByLabelText("Dependency behavior")).toBeDisabled();
-    expect(screen.getByRole("button", { name: /First experiment/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Open First experiment" })).toBeDisabled();
     await user.click(loading);
     expect(mockedRunExperiment).not.toHaveBeenCalled();
     resolveSelection({ ...second, runs: [] });
@@ -91,6 +94,44 @@ describe("RelayLab browser workflow", () => {
     await user.click(screen.getByRole("button", { name: "Run again" }));
     await waitFor(() => expect(mockedRunExperiment).toHaveBeenCalledWith(2));
     expect(mockedRunExperiment).toHaveBeenCalledTimes(1);
+  });
+
+  it("deletes a saved experiment and clears it from the list", async () => {
+    const user = userEvent.setup();
+    const saved = experiment({ id: 3, name: "Disposable experiment" });
+    mockedListExperiments.mockResolvedValueOnce([saved]).mockResolvedValueOnce([]);
+    mockedGetExperiment.mockResolvedValue({ ...saved, runs: [run({ experimentId: 3 })] });
+    mockedDeleteExperiment.mockResolvedValue(undefined);
+    render(<App />);
+    await screen.findByRole("heading", { name: "RPC method failed" });
+    await user.click(screen.getByText("Saved experiments"));
+
+    await user.click(screen.getByRole("button", { name: /Delete Disposable experiment/ }));
+
+    await waitFor(() => expect(mockedDeleteExperiment).toHaveBeenCalledWith(3));
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Open Disposable experiment" })).toBeNull());
+    expect(screen.getByText("Your first completed request will be stored here.")).toBeVisible();
+  });
+
+  it("shows the correlation ID the coordinator returned for a run", async () => {
+    const user = userEvent.setup();
+    const saved = experiment({ id: 4, behavior: "healthy", name: "Correlated" });
+    mockedListExperiments.mockResolvedValue([saved]);
+    mockedGetExperiment.mockResolvedValue({ ...saved, runs: [] });
+    mockedRunExperiment.mockResolvedValue(run({
+      experimentId: 4,
+      outcome: "success",
+      httpStatus: 200,
+      correlationId: "4f2b91ac-7a10-4c0e-9f2f-1d7c2b8e5a33",
+    }));
+    render(<App />);
+    await waitFor(() => expect(screen.getByRole("button", { name: /^Run/ })).toBeEnabled());
+
+    await user.click(screen.getByRole("button", { name: /^Run/ }));
+
+    const correlation = await screen.findByText("4f2b91ac");
+    expect(correlation).toBeVisible();
   });
 
   it("creates, runs, and renders durable failure evidence", async () => {

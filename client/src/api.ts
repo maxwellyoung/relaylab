@@ -27,6 +27,9 @@ export type ExperimentRun = {
   experimentId: number;
   outcome: RunOutcome;
   httpStatus: number | null;
+  rpcErrorCode?: number | null;
+  /** From the X-Correlation-Id response header, not the stored row. */
+  correlationId?: string | null;
   durationMs: number;
   response: Record<string, unknown> | string | null;
   createdAt: string;
@@ -81,10 +84,27 @@ export function getExperiment(
   return request(`/api/experiments/${experimentId}`);
 }
 
-export function runExperiment(
+export async function runExperiment(
   experimentId: number,
 ): Promise<ExperimentRun> {
-  return request(`/api/experiments/${experimentId}/runs`, {
+  const response = await fetch(`${apiBaseUrl}/api/experiments/${experimentId}/runs`, {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
   });
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(body?.error ?? `Request failed with ${response.status}`);
+  }
+  const run = (await response.json()) as ExperimentRun;
+  // The coordinator returns the JSON-RPC id, which also appears in both logs.
+  return { ...run, correlationId: response.headers.get("X-Correlation-Id") };
+}
+
+export async function deleteExperiment(experimentId: number): Promise<void> {
+  const response = await fetch(`${apiBaseUrl}/api/experiments/${experimentId}`, {
+    method: "DELETE",
+  });
+  if (!response.ok) {
+    throw new Error(`Request failed with ${response.status}`);
+  }
 }

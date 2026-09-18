@@ -93,7 +93,7 @@ try {
   // Reopen a saved experiment and read its run history back.
   await page.getByText("Saved experiments").click();
   await wait(1200);
-  const saved = page.locator(".experiment-list button");
+  const saved = page.locator(".experiment-list button[aria-pressed]");
   await saved.first().waitFor({ timeout: 15_000 });
   await saved.nth(Math.min(2, (await saved.count()) - 1)).click();
   await wait(4000);

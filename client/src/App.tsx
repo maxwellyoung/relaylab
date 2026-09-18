@@ -3,6 +3,7 @@ import {
   createExperiment,
   getExperiment,
   listExperiments,
+  deleteExperiment,
   runExperiment,
   type Experiment,
   type ExperimentBehavior,
@@ -165,6 +166,27 @@ export default function App() {
     } catch (reason) {
       setError(
         reason instanceof Error ? reason.message : "Unable to load experiment",
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function removeExperiment(experimentId: number) {
+    if (isBusy) return;
+    setError("");
+    setIsLoading(true);
+    try {
+      await deleteExperiment(experimentId);
+      const remaining = await listExperiments();
+      setExperiments(remaining);
+      if (selected?.id === experimentId) {
+        setSelected(null);
+        setLatestRun(null);
+      }
+    } catch (reason) {
+      setError(
+        reason instanceof Error ? reason.message : "Unable to delete experiment",
       );
     } finally {
       setIsLoading(false);
@@ -354,6 +376,14 @@ export default function App() {
                       <dt>Time</dt>
                       <dd>{latestRun.durationMs} ms</dd>
                     </div>
+                    {latestRun.correlationId ? (
+                      <div>
+                        <dt>Correlation</dt>
+                        <dd title={latestRun.correlationId}>
+                          {latestRun.correlationId.slice(0, 8)}
+                        </dd>
+                      </div>
+                    ) : null}
                   </dl>
                 </header>
                 <p>{currentOutcome.explanation}</p>
@@ -388,20 +418,31 @@ export default function App() {
           ) : (
             <div className="experiment-list">
               {experiments.map((experiment) => (
-                <button
-                  disabled={isBusy}
-                  aria-pressed={selected?.id === experiment.id}
-                  className={selected?.id === experiment.id ? "selected" : ""}
-                  key={experiment.id}
-                  onClick={() => void openExperiment(experiment.id)}
-                  type="button"
-                >
-                  <span>
-                    <strong>{experiment.name}</strong>
-                    <small>{formatTimestamp(experiment.createdAt)}</small>
-                  </span>
-                  <span>{behaviorCopy[experiment.behavior].signal}</span>
-                </button>
+                <div className="experiment-row" key={experiment.id}>
+                  <button
+                    disabled={isBusy}
+                    aria-label={`Open ${experiment.name}`}
+                    aria-pressed={selected?.id === experiment.id}
+                    className={selected?.id === experiment.id ? "selected" : ""}
+                    onClick={() => void openExperiment(experiment.id)}
+                    type="button"
+                  >
+                    <span>
+                      <strong>{experiment.name}</strong>
+                      <small>{formatTimestamp(experiment.createdAt)}</small>
+                    </span>
+                    <span>{behaviorCopy[experiment.behavior].signal}</span>
+                  </button>
+                  <button
+                    className="delete-experiment"
+                    disabled={isBusy}
+                    aria-label={`Delete ${experiment.name} and its runs`}
+                    onClick={() => void removeExperiment(experiment.id)}
+                    type="button"
+                  >
+                    Delete
+                  </button>
+                </div>
               ))}
             </div>
           )}
