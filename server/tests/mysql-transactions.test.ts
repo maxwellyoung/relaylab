@@ -133,10 +133,13 @@ describe("SQLite schema script", () => {
     database.exec(readSchema("schema.sqlite.sql"));
     database.exec(readSchema("schema.sqlite.sql"));
 
-    const index = database
-      .prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'experiment_runs'")
+    const indexes = database
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'experiment_runs' ORDER BY name")
       .all();
-    expect(index).toEqual([{ name: "idx_experiment_runs_experiment" }]);
+    expect(indexes).toEqual([
+      { name: "idx_experiment_runs_experiment" },
+      { name: "idx_experiment_runs_outcome" },
+    ]);
     expect(() => database
       .prepare("INSERT INTO experiment_runs (experiment_id, outcome, duration_ms) VALUES (99, 'success', 1)")
       .run()).toThrow(/FOREIGN KEY/);

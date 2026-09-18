@@ -138,6 +138,7 @@ export type RelayLabDatabase = {
   createRun(
     input: Omit<ExperimentRun, "id" | "createdAt">,
   ): Promise<ExperimentRun>;
+  deleteExperiment(experimentId: number): Promise<boolean>;
   close(): Promise<void>;
 };
 
@@ -217,6 +218,11 @@ export function openDatabase(databasePath: string): RelayLabDatabase {
     RETURNING *
   `);
 
+  const deleteExperiment = database.prepare<[number]>(`
+    DELETE FROM experiments
+    WHERE id = ?
+  `);
+
   const listRuns = database.prepare<[number], ExperimentRunRow>(`
     SELECT *
     FROM experiment_runs
@@ -268,6 +274,10 @@ export function openDatabase(databasePath: string): RelayLabDatabase {
         throw new Error("SQLite did not return the created experiment run");
       }
       return toExperimentRun(row);
+    },
+    async deleteExperiment(experimentId: number): Promise<boolean> {
+      // Foreign keys are on, so the experiment's runs cascade with it.
+      return deleteExperiment.run(experimentId).changes > 0;
     },
     async close() {
       database.close();
@@ -335,6 +345,16 @@ export function createMySqlDatabase(pool: Pool): RelayLabDatabase {
     );
     if (columns.length === 0) {
       await pool.query("ALTER TABLE experiment_runs ADD COLUMN rpc_error_code INT NULL AFTER http_status");
+    }
+    // MySQL has no CREATE INDEX IF NOT EXISTS, so check before adding.
+    const [indexes] = await pool.query<RowDataPacket[]>(
+      `SELECT INDEX_NAME FROM information_schema.STATISTICS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'experiment_runs'
+         AND INDEX_NAME = 'idx_experiment_runs_outcome'`,
+    );
+    if (indexes.length === 0) {
+      await pool.query("CREATE INDEX idx_experiment_runs_outcome ON experiment_runs (outcome)");
     }
   })();
   // Attach a rejection handler immediately so unavailable credentials or a
@@ -443,6 +463,14 @@ export function createMySqlDatabase(pool: Pool): RelayLabDatabase {
         }
         return toExperimentRun(row);
       });
+    },
+    async deleteExperiment(experimentId) {
+      await initialized;
+      const [result] = await pool.execute<ResultSetHeader>(
+        "DELETE FROM experiments WHERE id = ?",
+        [experimentId],
+      );
+      return result.affectedRows > 0;
     },
     async close() {
       await initialized.catch(() => undefined);

@@ -102,6 +102,25 @@
             "$ref": "#/components/responses/PersistenceUnavailable"
           }
         }
+      },
+      "delete": {
+        "summary": "Delete one experiment and, by cascade, its runs",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ExperimentId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The experiment and its runs were deleted"
+          },
+          "404": {
+            "description": "No experiment with that identifier"
+          },
+          "503": {
+            "description": "Persistence temporarily unavailable"
+          }
+        }
       }
     },
     "/api/experiments/{experimentId}/runs": {

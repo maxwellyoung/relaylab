@@ -13,7 +13,7 @@ async function readJson(relativePath: string): Promise<unknown> {
 }
 
 describe("browser-facing REST contract", () => {
-  it("documents only the four frozen resource operations and their status codes", async () => {
+  it("documents only the five frozen resource operations and their status codes", async () => {
     const document = await readJson("docs/openapi.json") as {
       openapi: string;
       paths: Record<string, Record<string, { responses: Record<string, unknown> }>>;
@@ -28,7 +28,8 @@ describe("browser-facing REST contract", () => {
     expect(Object.keys(document.paths["/api/experiments"]).sort()).toEqual(["get", "post"]);
     expect(Object.keys(document.paths["/api/experiments"].post.responses).sort()).toEqual(["201", "400", "503"]);
     expect(Object.keys(document.paths["/api/experiments"].get.responses).sort()).toEqual(["200", "503"]);
-    expect(Object.keys(document.paths["/api/experiments/{experimentId}"]).sort()).toEqual(["get"]);
+    expect(Object.keys(document.paths["/api/experiments/{experimentId}"]).sort()).toEqual(["delete", "get"]);
+    expect(Object.keys(document.paths["/api/experiments/{experimentId}"].delete.responses).sort()).toEqual(["204", "404", "503"]);
     expect(Object.keys(document.paths["/api/experiments/{experimentId}"].get.responses).sort()).toEqual(["200", "404", "503"]);
     expect(Object.keys(document.paths["/api/experiments/{experimentId}/runs"]).sort()).toEqual(["post"]);
     expect(Object.keys(document.paths["/api/experiments/{experimentId}/runs"].post.responses).sort()).toEqual(["201", "404", "503"]);

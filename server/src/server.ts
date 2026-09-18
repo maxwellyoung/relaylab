@@ -26,6 +26,7 @@ const application = buildApplication({
   database,
   downstreamUrl,
   timeoutMs,
+  databaseDriver: process.env.RELAYLAB_DATABASE_DRIVER?.trim().toLowerCase() ?? "sqlite",
   clientDirectory,
   log: (line) => console.log(`[coordinator ${new Date().toTimeString().slice(0, 8)}] ${line}`),
 });

@@ -25,6 +25,7 @@ export function buildApplication({
   database: suppliedDatabase,
   downstreamUrl = "http://127.0.0.1:3001",
   timeoutMs = 400,
+  databaseDriver = "sqlite",
   clientDirectory,
   log = () => {},
 }: {
@@ -32,6 +33,7 @@ export function buildApplication({
   database?: RelayLabDatabase;
   downstreamUrl?: string;
   timeoutMs?: number;
+  databaseDriver?: string;
   clientDirectory?: string;
   log?: (line: string) => void;
 }): RelayLabApplication {
@@ -42,7 +44,14 @@ export function buildApplication({
   app.use(express.json());
 
   app.get("/health", (_request, response) => {
-    response.json({ status: "ok", service: "relaylab-coordinator" });
+    // Report the live configuration so a reader never has to trust a hardcoded
+    // number. Nothing here identifies the database or its credentials.
+    response.json({
+      status: "ok",
+      service: "relaylab-coordinator",
+      database: databaseDriver,
+      downstreamTimeoutMs: timeoutMs,
+    });
   });
 
   app.post("/api/experiments", async (request, response) => {
@@ -130,10 +139,24 @@ export function buildApplication({
       };
     }
     log(`reply rpc=${rpc} outcome=${runInput.outcome} http=${runInput.httpStatus ?? "-"} ${runInput.durationMs}ms`);
+    // Hand the correlation ID back so a caller can match this run to both logs.
+    response.setHeader("X-Correlation-Id", rpcRequest.id);
     // Storage failures must not be reclassified as downstream network failures.
     const run = await database.createRun(runInput);
     log(`saved run=${run.id} experiment=${experimentId} outcome=${run.outcome}`);
     response.status(201).json(run);
+  });
+
+  app.delete("/api/experiments/:experimentId", async (request, response) => {
+    const experimentId = parseExperimentId(request.params.experimentId);
+    const deleted = experimentId !== undefined
+      && await database.deleteExperiment(experimentId);
+    if (!deleted) {
+      response.status(404).json({ error: "Experiment not found" });
+      return;
+    }
+    log(`deleted experiment=${experimentId} with its runs`);
+    response.status(204).end();
   });
 
   if (clientDirectory) {

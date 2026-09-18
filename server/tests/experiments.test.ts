@@ -111,12 +111,15 @@ describe("request experiments", () => {
     temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
     application = buildApplication({
       databasePath: path.join(temporaryDirectory, "relaylab.sqlite"),
+      timeoutMs: 400,
     });
 
     const response = await request(application.app).get("/health");
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({
+      database: "sqlite",
+      downstreamTimeoutMs: 400,
       status: "ok",
       service: "relaylab-coordinator",
     });
@@ -613,6 +616,66 @@ describe("request experiments", () => {
     } finally {
       direct.close();
     }
+  });
+
+  it("deletes an experiment and lets the database cascade its runs", async () => {
+    downstreamServer = createServer(async (incoming, outgoing) => {
+      writeRpcResult(outgoing, await readRpcRequest(incoming));
+    });
+    await new Promise<void>((resolve) => downstreamServer?.listen(0, "127.0.0.1", resolve));
+    const address = downstreamServer.address();
+    if (!address || typeof address === "string") throw new Error("No test port");
+
+    temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
+    const databasePath = path.join(temporaryDirectory, "relaylab.sqlite");
+    application = buildApplication({ databasePath, downstreamUrl: `http://127.0.0.1:${address.port}` });
+    const experiment = await request(application.app)
+      .post("/api/experiments")
+      .send({ name: "Temporary experiment", behavior: "healthy", payload: {} });
+    await request(application.app).post(`/api/experiments/${experiment.body.id}/runs`);
+
+    const removed = await request(application.app).delete(`/api/experiments/${experiment.body.id}`);
+    expect(removed.status).toBe(204);
+    expect(removed.body).toEqual({});
+
+    const missing = await request(application.app).get(`/api/experiments/${experiment.body.id}`);
+    expect(missing.status).toBe(404);
+    const again = await request(application.app).delete(`/api/experiments/${experiment.body.id}`);
+    expect(again.status).toBe(404);
+
+    // ON DELETE CASCADE removed the runs with their experiment, leaving no orphans.
+    const direct = new SqliteDatabase(databasePath);
+    try {
+      const { runs } = direct.prepare("SELECT COUNT(*) AS runs FROM experiment_runs").get() as { runs: number };
+      expect(runs).toBe(0);
+    } finally {
+      direct.close();
+    }
+  });
+
+  it("returns the correlation ID to the caller as a response header", async () => {
+    downstreamServer = createServer(async (incoming, outgoing) => {
+      writeRpcResult(outgoing, await readRpcRequest(incoming));
+    });
+    await new Promise<void>((resolve) => downstreamServer?.listen(0, "127.0.0.1", resolve));
+    const address = downstreamServer.address();
+    if (!address || typeof address === "string") throw new Error("No test port");
+
+    temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
+    application = buildApplication({
+      databasePath: path.join(temporaryDirectory, "relaylab.sqlite"),
+      downstreamUrl: `http://127.0.0.1:${address.port}`,
+    });
+    const experiment = await request(application.app)
+      .post("/api/experiments")
+      .send({ name: "Correlated run", behavior: "healthy", payload: {} });
+
+    const run = await request(application.app).post(`/api/experiments/${experiment.body.id}/runs`);
+
+    const header = run.headers["x-correlation-id"];
+    expect(header).toMatch(/^[0-9a-f-]{36}$/);
+    // The header matches the ID inside the preserved envelope.
+    expect(run.body.response.id).toBe(header);
   });
 
   it("answers malformed experiment identifiers with 404 without querying the database", async () => {

@@ -29,3 +29,7 @@ CREATE TABLE IF NOT EXISTS experiment_runs (
 -- SQLite does not index foreign keys automatically; run history is read by experiment.
 CREATE INDEX IF NOT EXISTS idx_experiment_runs_experiment
   ON experiment_runs (experiment_id, id);
+
+-- Runs are also counted and filtered by outcome.
+CREATE INDEX IF NOT EXISTS idx_experiment_runs_outcome
+  ON experiment_runs (outcome);
