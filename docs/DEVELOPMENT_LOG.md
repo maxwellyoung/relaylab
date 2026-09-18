@@ -346,3 +346,7 @@ Cleaned the six voice takes with a new tracked script: removed a false start whe
 ## 18 September: GitHub history captured live
 
 The demonstration's development-history segment is now a screen recording of the signed-in GitHub commits page, made on 18 September, so the date headers through Sep 18 and Sep 17 are visible alongside the August milestones. It replaces the 10 September still, which stopped at 22 August and made the narration's reference to September work unsupported. Automated capture was attempted first and abandoned: Chrome's cookie encryption will not unlock for an automated profile copy, and the live profile cannot be opened while Chrome is running.
+
+## 18 September: data design and failure evidence strengthened
+
+The dependency's JSON-RPC error code is now its own column on experiment_runs rather than something only recoverable from the stored envelope, so failures are countable in SQL. Both schema scripts constrain the behaviour and outcome value sets at the database level, and an idempotent migration adds the new column to a schema created before it, keeping existing rows: the lecturer schema was migrated in place. The unreachable outcome is now proved by killing a real downstream child process between two runs of the same experiment, instead of by pointing the coordinator at an unused port, and db:inspect has a test and reports runs grouped by outcome. The suite is 49 tests and the full verification ladder passes.

@@ -160,9 +160,10 @@ The tests exercise public HTTP and internal JSON-RPC behaviour with isolated tem
 databases and verify the lecturer MySQL configuration fails closed with a
 hard five-connection pool. MySQL write tests use a stub connection to prove
 commit, rollback and connection release. The SQLite schema script is tested for
-idempotence, foreign-key enforcement and the run-history index; the MySQL script
-is checked statement by statement against a stub and verified by hand on the
-lecturer server. Coordinator tests use a real TCP boundary for the
+idempotence, foreign-key enforcement, the run-history index and its value
+constraints; the MySQL script is checked statement by statement against a stub
+and verified by hand on the lecturer server. Another test kills a real
+downstream child process to prove the `unreachable` outcome. Coordinator tests use a real TCP boundary for the
 downstream contract and cover correlated results, RPC application errors,
 malformed results, timeouts, and unreachable services. Client tests exercise the create/run/render workflow,
 input rejection, and reopening durable history. The downstream package
@@ -203,6 +204,11 @@ no preview is deployed as part of this submission.
 | `GET` | `/api/experiments` | List experiments newest first |
 | `GET` | `/api/experiments/:id` | Return one experiment and its run history |
 | `POST` | `/api/experiments/:id/runs` | Execute and persist one distributed run |
+
+A stored run keeps the classified outcome, the HTTP status, the dependency's
+JSON-RPC error code when its method failed, the elapsed time and the full
+response envelope. `npm run db:inspect` prints the rows and the counts by
+outcome.
 
 Example experiment:
 
