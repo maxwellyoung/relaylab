@@ -43,7 +43,7 @@ describe("downstream RPC contract", () => {
         },
         "trace-1",
       ),
-    ).toBe("success");
+    ).toEqual({ outcome: "success", errorCode: null });
   });
 
   it("classifies a correlated RPC error separately from HTTP transport", () => {
@@ -60,7 +60,7 @@ describe("downstream RPC contract", () => {
         },
         "trace-2",
       ),
-    ).toBe("downstream_error");
+    ).toEqual({ outcome: "downstream_error", errorCode: -32001 });
   });
 
   it("rejects an otherwise valid envelope with the wrong correlation id", () => {
@@ -78,6 +78,6 @@ describe("downstream RPC contract", () => {
         },
         "expected-trace",
       ),
-    ).toBe("invalid_response");
+    ).toEqual({ outcome: "invalid_response", errorCode: null });
   });
 });

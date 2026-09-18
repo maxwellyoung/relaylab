@@ -23,12 +23,16 @@
               "application/json": {
                 "schema": {
                   "type": "array",
-                  "items": { "$ref": "#/components/schemas/Experiment" }
+                  "items": {
+                    "$ref": "#/components/schemas/Experiment"
+                  }
                 }
               }
             }
           },
-          "503": { "$ref": "#/components/responses/PersistenceUnavailable" }
+          "503": {
+            "$ref": "#/components/responses/PersistenceUnavailable"
+          }
         }
       },
       "post": {
@@ -38,7 +42,9 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/ExperimentInput" }
+              "schema": {
+                "$ref": "#/components/schemas/ExperimentInput"
+              }
             }
           }
         },
@@ -47,7 +53,9 @@
             "description": "Experiment created",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/Experiment" }
+                "schema": {
+                  "$ref": "#/components/schemas/Experiment"
+                }
               }
             }
           },
@@ -55,11 +63,15 @@
             "description": "Invalid experiment input",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ValidationError" }
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
               }
             }
           },
-          "503": { "$ref": "#/components/responses/PersistenceUnavailable" }
+          "503": {
+            "$ref": "#/components/responses/PersistenceUnavailable"
+          }
         }
       }
     },
@@ -68,19 +80,27 @@
         "operationId": "getExperiment",
         "summary": "Get one experiment and its run history",
         "parameters": [
-          { "$ref": "#/components/parameters/ExperimentId" }
+          {
+            "$ref": "#/components/parameters/ExperimentId"
+          }
         ],
         "responses": {
           "200": {
             "description": "Experiment with durable run history",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ExperimentDetails" }
+                "schema": {
+                  "$ref": "#/components/schemas/ExperimentDetails"
+                }
               }
             }
           },
-          "404": { "$ref": "#/components/responses/ExperimentNotFound" },
-          "503": { "$ref": "#/components/responses/PersistenceUnavailable" }
+          "404": {
+            "$ref": "#/components/responses/ExperimentNotFound"
+          },
+          "503": {
+            "$ref": "#/components/responses/PersistenceUnavailable"
+          }
         }
       }
     },
@@ -89,19 +109,27 @@
         "operationId": "runExperiment",
         "summary": "Execute and persist one distributed run",
         "parameters": [
-          { "$ref": "#/components/parameters/ExperimentId" }
+          {
+            "$ref": "#/components/parameters/ExperimentId"
+          }
         ],
         "responses": {
           "201": {
             "description": "Run persisted, including controlled dependency failures",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ExperimentRun" }
+                "schema": {
+                  "$ref": "#/components/schemas/ExperimentRun"
+                }
               }
             }
           },
-          "404": { "$ref": "#/components/responses/ExperimentNotFound" },
-          "503": { "$ref": "#/components/responses/PersistenceUnavailable" }
+          "404": {
+            "$ref": "#/components/responses/ExperimentNotFound"
+          },
+          "503": {
+            "$ref": "#/components/responses/PersistenceUnavailable"
+          }
         }
       }
     }
@@ -123,7 +151,9 @@
         "description": "Experiment does not exist",
         "content": {
           "application/json": {
-            "schema": { "$ref": "#/components/schemas/Error" }
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
           }
         }
       },
@@ -131,7 +161,9 @@
         "description": "The configured relational store is temporarily unavailable",
         "content": {
           "application/json": {
-            "schema": { "$ref": "#/components/schemas/Error" }
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
           }
         }
       }
@@ -139,61 +171,150 @@
     "schemas": {
       "ExperimentBehavior": {
         "type": "string",
-        "enum": ["healthy", "slow", "unavailable", "malformed"]
+        "enum": [
+          "healthy",
+          "slow",
+          "unavailable",
+          "malformed"
+        ]
       },
       "ExperimentInput": {
         "type": "object",
-        "required": ["name", "behavior", "payload"],
+        "required": [
+          "name",
+          "behavior",
+          "payload"
+        ],
         "properties": {
-          "name": { "type": "string", "minLength": 1, "maxLength": 80 },
-          "behavior": { "$ref": "#/components/schemas/ExperimentBehavior" },
-          "payload": { "type": "object", "additionalProperties": true }
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "behavior": {
+            "$ref": "#/components/schemas/ExperimentBehavior"
+          },
+          "payload": {
+            "type": "object",
+            "additionalProperties": true
+          }
         }
       },
       "Experiment": {
         "type": "object",
         "description": "V1 clients depend on these required fields and tolerate additional optional fields.",
-        "required": ["id", "name", "behavior", "payload", "createdAt"],
+        "required": [
+          "id",
+          "name",
+          "behavior",
+          "payload",
+          "createdAt"
+        ],
         "additionalProperties": true,
         "properties": {
-          "id": { "type": "integer", "minimum": 1 },
-          "name": { "type": "string" },
-          "behavior": { "$ref": "#/components/schemas/ExperimentBehavior" },
-          "payload": { "type": "object", "additionalProperties": true },
-          "createdAt": { "type": "string", "format": "date-time" }
+          "id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "name": {
+            "type": "string"
+          },
+          "behavior": {
+            "$ref": "#/components/schemas/ExperimentBehavior"
+          },
+          "payload": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
         }
       },
       "RunOutcome": {
         "type": "string",
-        "enum": ["success", "downstream_error", "timeout", "invalid_response", "unreachable"]
+        "enum": [
+          "success",
+          "downstream_error",
+          "timeout",
+          "invalid_response",
+          "unreachable"
+        ]
       },
       "ExperimentRun": {
         "type": "object",
-        "required": ["id", "experimentId", "outcome", "httpStatus", "durationMs", "response", "createdAt"],
+        "required": [
+          "id",
+          "experimentId",
+          "outcome",
+          "httpStatus",
+          "durationMs",
+          "response",
+          "createdAt"
+        ],
         "additionalProperties": true,
         "properties": {
-          "id": { "type": "integer", "minimum": 1 },
-          "experimentId": { "type": "integer", "minimum": 1 },
-          "outcome": { "$ref": "#/components/schemas/RunOutcome" },
-          "httpStatus": { "type": ["integer", "null"], "minimum": 100, "maximum": 599 },
-          "durationMs": { "type": "integer", "minimum": 1 },
+          "id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "experimentId": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/RunOutcome"
+          },
+          "httpStatus": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 100,
+            "maximum": 599
+          },
+          "rpcErrorCode": {
+            "description": "The dependency's JSON-RPC error code when its method failed, otherwise null",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "durationMs": {
+            "type": "integer",
+            "minimum": 1
+          },
           "response": {
             "description": "The preserved dependency envelope or null when no response arrived",
-            "type": ["object", "string", "null"]
+            "type": [
+              "object",
+              "string",
+              "null"
+            ]
           },
-          "createdAt": { "type": "string", "format": "date-time" }
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
         }
       },
       "ExperimentDetails": {
         "allOf": [
-          { "$ref": "#/components/schemas/Experiment" },
+          {
+            "$ref": "#/components/schemas/Experiment"
+          },
           {
             "type": "object",
-            "required": ["runs"],
+            "required": [
+              "runs"
+            ],
             "properties": {
               "runs": {
                 "type": "array",
-                "items": { "$ref": "#/components/schemas/ExperimentRun" }
+                "items": {
+                  "$ref": "#/components/schemas/ExperimentRun"
+                }
               }
             }
           }
@@ -201,18 +322,27 @@
       },
       "Error": {
         "type": "object",
-        "required": ["error"],
+        "required": [
+          "error"
+        ],
         "properties": {
-          "error": { "type": "string" }
+          "error": {
+            "type": "string"
+          }
         }
       },
       "ValidationError": {
         "allOf": [
-          { "$ref": "#/components/schemas/Error" },
+          {
+            "$ref": "#/components/schemas/Error"
+          },
           {
             "type": "object",
             "properties": {
-              "details": { "type": "object", "additionalProperties": true }
+              "details": {
+                "type": "object",
+                "additionalProperties": true
+              }
             }
           }
         ]

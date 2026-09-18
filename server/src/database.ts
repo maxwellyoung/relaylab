@@ -54,6 +54,7 @@ export type ExperimentRun = {
   experimentId: number;
   outcome: RunOutcome;
   httpStatus: number | null;
+  rpcErrorCode: number | null;
   durationMs: number;
   response: Record<string, unknown> | string | null;
   createdAt: string;
@@ -76,6 +77,7 @@ type ExperimentRunRow = {
   experiment_id: number;
   outcome: RunOutcome;
   http_status: number | null;
+  rpc_error_code: number | null;
   duration_ms: number;
   response_json: string | Record<string, unknown> | null;
   created_at: string | Date;
@@ -120,6 +122,7 @@ function toExperimentRun(row: ExperimentRunRow): ExperimentRun {
     experimentId: row.experiment_id,
     outcome: row.outcome,
     httpStatus: row.http_status,
+    rpcErrorCode: row.rpc_error_code ?? null,
     durationMs: row.duration_ms,
     response: parseJsonResponse(row.response_json),
     createdAt: normalizeTimestamp(row.created_at),
@@ -143,6 +146,15 @@ export function openDatabase(databasePath: string): RelayLabDatabase {
   database.pragma("foreign_keys = ON");
   database.pragma("journal_mode = WAL");
   database.exec(readSchema("schema.sqlite.sql"));
+  // A database created before rpc_error_code existed keeps its rows; add the
+  // column rather than requiring anyone to delete their data.
+  const columns = database
+    .prepare<[], { name: string }>("SELECT name FROM pragma_table_info('experiment_runs')")
+    .all()
+    .map((column) => column.name);
+  if (!columns.includes("rpc_error_code")) {
+    database.exec("ALTER TABLE experiment_runs ADD COLUMN rpc_error_code INTEGER");
+  }
 
   const insertExperiment = database.prepare<
     {
@@ -181,6 +193,7 @@ export function openDatabase(databasePath: string): RelayLabDatabase {
       experimentId: number;
       outcome: RunOutcome;
       httpStatus: number | null;
+      rpcErrorCode: number | null;
       durationMs: number;
       responseJson: string | null;
     },
@@ -190,12 +203,14 @@ export function openDatabase(databasePath: string): RelayLabDatabase {
       experiment_id,
       outcome,
       http_status,
+      rpc_error_code,
       duration_ms,
       response_json
     ) VALUES (
       @experimentId,
       @outcome,
       @httpStatus,
+      @rpcErrorCode,
       @durationMs,
       @responseJson
     )
@@ -244,6 +259,7 @@ export function openDatabase(databasePath: string): RelayLabDatabase {
         experimentId: input.experimentId,
         outcome: input.outcome,
         httpStatus: input.httpStatus,
+        rpcErrorCode: input.rpcErrorCode,
         durationMs: input.durationMs,
         responseJson:
           input.response === null ? null : JSON.stringify(input.response),
@@ -309,6 +325,16 @@ export function createMySqlDatabase(pool: Pool): RelayLabDatabase {
   const initialized = (async () => {
     for (const statement of schemaStatements(readSchema("schema.mysql.sql"))) {
       await pool.query(statement);
+    }
+    // Same migration as SQLite: an existing schema keeps its rows and gains the column.
+    const [columns] = await pool.query<RowDataPacket[]>(
+      `SELECT COLUMN_NAME FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'experiment_runs'
+         AND COLUMN_NAME = 'rpc_error_code'`,
+    );
+    if (columns.length === 0) {
+      await pool.query("ALTER TABLE experiment_runs ADD COLUMN rpc_error_code INT NULL AFTER http_status");
     }
   })();
   // Attach a rejection handler immediately so unavailable credentials or a
@@ -394,13 +420,15 @@ export function createMySqlDatabase(pool: Pool): RelayLabDatabase {
              experiment_id,
              outcome,
              http_status,
+             rpc_error_code,
              duration_ms,
              response_json
-           ) VALUES (?, ?, ?, ?, ?)`,
+           ) VALUES (?, ?, ?, ?, ?, ?)`,
           [
             input.experimentId,
             input.outcome,
             input.httpStatus,
+            input.rpcErrorCode,
             input.durationMs,
             input.response === null ? null : JSON.stringify(input.response),
           ],

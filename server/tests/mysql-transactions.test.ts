@@ -23,6 +23,7 @@ const runRow = {
   experiment_id: 7,
   outcome: "success",
   http_status: 200,
+  rpc_error_code: null,
   duration_ms: 12,
   response_json: { jsonrpc: "2.0" },
   created_at: "2026-09-17 06:00:01",
@@ -57,6 +58,7 @@ const runInput = {
   experimentId: 7,
   outcome: "success" as const,
   httpStatus: 200,
+  rpcErrorCode: null,
   durationMs: 12,
   response: { jsonrpc: "2.0" },
 };
@@ -98,9 +100,12 @@ describe("MySQL writes", () => {
 
     await database.createExperiment({ name: "Checkout", behavior: "healthy", payload: {} });
 
-    expect(schema).toEqual(schemaStatements(readSchema("schema.mysql.sql")));
-    expect(schema).toHaveLength(2);
-    expect(schema[1]).toContain("FOREIGN KEY (experiment_id)");
+    const script = schemaStatements(readSchema("schema.mysql.sql"));
+    expect(schema.slice(0, script.length)).toEqual(script);
+    expect(script).toHaveLength(2);
+    expect(script[1]).toContain("FOREIGN KEY (experiment_id)");
+    // Then the migration check for databases created before rpc_error_code.
+    expect(schema[script.length]).toContain("information_schema.COLUMNS");
   });
 
   it("puts every pooled MySQL session in UTC and keeps idle connections alive", () => {

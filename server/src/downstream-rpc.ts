@@ -44,19 +44,25 @@ export function buildDownstreamRpcRequest(experiment: Experiment) {
   };
 }
 
+export type DownstreamRpcOutcome = {
+  outcome: "success" | "downstream_error" | "invalid_response";
+  errorCode: number | null;
+};
+
 export function classifyDownstreamRpcResponse(
   body: unknown,
   expectedId: string | number,
-): "success" | "downstream_error" | "invalid_response" {
+): DownstreamRpcOutcome {
   const success = rpcSuccess.safeParse(body);
   if (success.success && success.data.id === expectedId) {
-    return "success";
+    return { outcome: "success", errorCode: null };
   }
 
   const error = rpcError.safeParse(body);
   if (error.success && error.data.id === expectedId) {
-    return "downstream_error";
+    // The method failed. Keep its code queryable rather than only inside the envelope.
+    return { outcome: "downstream_error", errorCode: error.data.error.code };
   }
 
-  return "invalid_response";
+  return { outcome: "invalid_response", errorCode: null };
 }

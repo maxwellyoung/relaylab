@@ -1,3 +1,5 @@
+import { spawn, type ChildProcess } from "node:child_process";
+import { createConnection } from "node:net";
 import {
   createServer,
   type IncomingMessage,
@@ -7,6 +9,7 @@ import {
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import SqliteDatabase from "better-sqlite3";
 import request from "supertest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildApplication } from "../src/app.js";
@@ -56,6 +59,7 @@ function writeRpcResult(
 describe("request experiments", () => {
   let application: ReturnType<typeof buildApplication> | undefined;
   let downstreamServer: Server | undefined;
+  let downstreamProcess: ChildProcess | undefined;
   let temporaryDirectory: string | undefined;
 
   afterEach(async () => {
@@ -63,6 +67,8 @@ describe("request experiments", () => {
     application = undefined;
     downstreamServer?.close();
     downstreamServer = undefined;
+    downstreamProcess?.kill("SIGKILL");
+    downstreamProcess = undefined;
 
     if (temporaryDirectory) {
       await rm(temporaryDirectory, { recursive: true, force: true });
@@ -260,6 +266,8 @@ describe("request experiments", () => {
       experimentId: experiment.body.id,
       outcome: "downstream_error",
       httpStatus: 200,
+      // The method's error code is queryable, not only buried in the envelope.
+      rpcErrorCode: -32001,
       response: {
         jsonrpc: "2.0",
         id: expect.any(String),
@@ -392,6 +400,74 @@ describe("request experiments", () => {
     });
   });
 
+  it("records unreachable when a live downstream process is killed mid-session", async () => {
+    // A real child process, not an unused port: the dependency dies between runs.
+    const reserved = createServer();
+    await new Promise<void>((resolve) => reserved.listen(0, "127.0.0.1", resolve));
+    const reservedAddress = reserved.address();
+    if (!reservedAddress || typeof reservedAddress === "string") {
+      throw new Error("Could not reserve a port");
+    }
+    const { port } = reservedAddress;
+    await new Promise<void>((resolve, reject) =>
+      reserved.close((error) => (error ? reject(error) : resolve())));
+
+    const source = `require("http").createServer((incoming, outgoing) => {
+      let body = "";
+      incoming.on("data", (chunk) => { body += chunk; });
+      incoming.on("end", () => {
+        const request = JSON.parse(body);
+        outgoing.writeHead(200, { "Content-Type": "application/json" });
+        outgoing.end(JSON.stringify({
+          jsonrpc: "2.0",
+          id: request.id,
+          result: {
+            accepted: true,
+            experimentId: request.params.experimentId,
+            echo: request.params.payload,
+            processedAt: new Date().toISOString(),
+          },
+        }));
+      });
+    }).listen(${port}, "127.0.0.1");`;
+    downstreamProcess = spawn(process.execPath, ["-e", source], { stdio: "ignore" });
+
+    const reachable = async () => new Promise<boolean>((resolve) => {
+      const socket = createConnection({ port, host: "127.0.0.1" })
+        .on("connect", () => { socket.end(); resolve(true); })
+        .on("error", () => resolve(false));
+    });
+    for (let attempt = 0; attempt < 100 && !(await reachable()); attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+
+    temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
+    application = buildApplication({
+      databasePath: path.join(temporaryDirectory, "relaylab.sqlite"),
+      downstreamUrl: `http://127.0.0.1:${port}`,
+    });
+    const experiment = await request(application.app)
+      .post("/api/experiments")
+      .send({ name: "Dependency that dies", behavior: "healthy", payload: { orderId: "ORDER-77" } });
+
+    const before = await request(application.app).post(`/api/experiments/${experiment.body.id}/runs`);
+    expect(before.body).toMatchObject({ outcome: "success", httpStatus: 200 });
+
+    downstreamProcess.kill("SIGKILL");
+    for (let attempt = 0; attempt < 100 && (await reachable()); attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+
+    const after = await request(application.app).post(`/api/experiments/${experiment.body.id}/runs`);
+    expect(after.status).toBe(201);
+    expect(after.body).toMatchObject({ outcome: "unreachable", httpStatus: null, response: null });
+
+    // The coordinator kept serving and both attempts are durable evidence.
+    const details = await request(application.app).get(`/api/experiments/${experiment.body.id}`);
+    expect(details.body.runs.map((run: { outcome: string }) => run.outcome))
+      .toEqual(["unreachable", "success"]);
+  });
+
   it("rejects an unknown downstream behavior with a controlled error", async () => {
     temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
     application = buildApplication({
@@ -467,6 +543,76 @@ describe("request experiments", () => {
 
     expect(response.status).toBe(404);
     expect(response.body).toEqual({ error: "Experiment not found" });
+  });
+
+  it("keeps a database created before rpc_error_code existed, and adds the column", async () => {
+    temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
+    const databasePath = path.join(temporaryDirectory, "relaylab.sqlite");
+
+    // The schema as it shipped before the column was introduced.
+    const legacy = new SqliteDatabase(databasePath);
+    legacy.exec(`
+      CREATE TABLE experiments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        behavior TEXT NOT NULL,
+        payload_json TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE experiment_runs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        experiment_id INTEGER NOT NULL,
+        outcome TEXT NOT NULL,
+        http_status INTEGER,
+        duration_ms INTEGER NOT NULL,
+        response_json TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (experiment_id) REFERENCES experiments(id) ON DELETE CASCADE
+      );
+      INSERT INTO experiments (name, behavior, payload_json)
+        VALUES ('Older experiment', 'healthy', '{"orderId":"OLD-1"}');
+      INSERT INTO experiment_runs (experiment_id, outcome, http_status, duration_ms, response_json)
+        VALUES (1, 'success', 200, 12, '{"jsonrpc":"2.0"}');
+    `);
+    legacy.close();
+
+    const database = openDatabase(databasePath);
+    const experiment = await database.getExperiment(1);
+    expect(experiment?.name).toBe("Older experiment");
+    expect(experiment?.runs).toHaveLength(1);
+    expect(experiment?.runs[0]?.rpcErrorCode).toBeNull();
+
+    const run = await database.createRun({
+      experimentId: 1,
+      outcome: "downstream_error",
+      httpStatus: 200,
+      rpcErrorCode: -32001,
+      durationMs: 5,
+      response: { jsonrpc: "2.0" },
+    });
+    expect(run.rpcErrorCode).toBe(-32001);
+    await database.close();
+  });
+
+  it("lets the database reject an unsupported behaviour or outcome", async () => {
+    temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
+    const databasePath = path.join(temporaryDirectory, "relaylab.sqlite");
+    const database = openDatabase(databasePath);
+    await database.close();
+
+    const direct = new SqliteDatabase(databasePath);
+    try {
+      expect(() => direct
+        .prepare("INSERT INTO experiments (name, behavior, payload_json) VALUES (?, ?, ?)")
+        .run("Bad behaviour", "teleport", "{}")).toThrow(/CHECK constraint/);
+      direct.prepare("INSERT INTO experiments (name, behavior, payload_json) VALUES (?, ?, ?)")
+        .run("Good behaviour", "healthy", "{}");
+      expect(() => direct
+        .prepare("INSERT INTO experiment_runs (experiment_id, outcome, duration_ms) VALUES (?, ?, ?)")
+        .run(1, "exploded", 1)).toThrow(/CHECK constraint/);
+    } finally {
+      direct.close();
+    }
   });
 
   it("answers malformed experiment identifiers with 404 without querying the database", async () => {

@@ -107,12 +107,12 @@ export function buildApplication({
         body = responseText;
       }
 
-      const rpcOutcome = classifyDownstreamRpcResponse(body, rpcRequest.id);
+      const rpc = classifyDownstreamRpcResponse(body, rpcRequest.id);
       runInput = {
         experimentId,
-        outcome:
-          downstream.ok ? rpcOutcome : "downstream_error",
+        outcome: downstream.ok ? rpc.outcome : "downstream_error",
         httpStatus: downstream.status,
+        rpcErrorCode: rpc.errorCode,
         durationMs: Math.max(1, Math.round(performance.now() - startedAt)),
         response: body,
       };
@@ -124,6 +124,7 @@ export function buildApplication({
             ? "timeout"
             : "unreachable",
         httpStatus: null,
+        rpcErrorCode: null,
         durationMs: Math.max(1, Math.round(performance.now() - startedAt)),
         response: null,
       };

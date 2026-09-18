@@ -5,7 +5,8 @@
 CREATE TABLE IF NOT EXISTS experiments (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(80) NOT NULL,
-  behavior VARCHAR(32) NOT NULL,
+  behavior VARCHAR(32) NOT NULL
+    CHECK (behavior IN ('healthy', 'slow', 'unavailable', 'malformed')),
   payload_json JSON NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
@@ -13,8 +14,11 @@ CREATE TABLE IF NOT EXISTS experiments (
 CREATE TABLE IF NOT EXISTS experiment_runs (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   experiment_id BIGINT UNSIGNED NOT NULL,
-  outcome VARCHAR(32) NOT NULL,
+  outcome VARCHAR(32) NOT NULL
+    CHECK (outcome IN ('success', 'downstream_error', 'timeout',
+                       'invalid_response', 'unreachable')),
   http_status SMALLINT NULL,
+  rpc_error_code INT NULL,
   duration_ms INT UNSIGNED NOT NULL,
   response_json JSON NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
