@@ -141,7 +141,7 @@ an unreachable-downstream result.
 
 The gate also runs type checks and production builds, starts the built
 application, creates and executes an experiment, restarts the services, and
-proves both survived. On 18 September a fresh clone passed `npm ci` and the full gate: 54 tests, type checks, builds, restart-persistence smoke, and a dependency audit with no known vulnerabilities. The video shows a successful exchange, an RPC application error and a deadline timeout on the lecturer MySQL schema (15 September); invalid-JSON rejection, an outage and restart persistence on that schema with both services stopped mid-recording (18 September); startup on SQLite (10 September); and commit dates on the GitHub website captured 18 September, including the September work.
+proves both survived. On 18 September a fresh clone passed `npm ci` and the full gate: 54 tests, type checks, builds, restart-persistence smoke, and a dependency audit with no known vulnerabilities. The video shows a successful exchange, an RPC application error, a deadline timeout, invalid-JSON rejection, an outage and restart persistence, all recorded on the lecturer MySQL schema on 18 September; startup on SQLite from 10 September; and commit dates on the GitHub website captured 18 September.
 
 Live MySQL checks used verified TLS; on 18 September `npm run db:inspect` reported 9 experiments and 18 runs covering success, downstream_error, timeout and invalid_response. On 17 September the transactional write path was rechecked live: create, two runs, restart, reopen. A discovered selection/loading race was fixed by disabling controls during requests, with a regression test preventing execution of the previous selection.
 

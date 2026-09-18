@@ -75,10 +75,10 @@ recording's hum and normalises the level. One spoken claim that had gone stale
 was cut rather than left in: a test count the later database work changed. The
 narration's reference to September commits is kept, because the GitHub segment
 was re-recorded on 18 September and shows them. Sections: title card with name and student ID; startup of the
-coordinator and downstream as separate processes; a healthy request on the
-lecturer MySQL schema; an RPC application error and a deadline timeout on the
-same schema; invalid JSON rejected, then services stopped, restarted and the
-saved history reopened; the GitHub commits page; a closing card covering
+coordinator and downstream as separate processes; a healthy request, an RPC
+application error, a deadline timeout, invalid JSON rejected, an outage while
+both services are down, and the saved history reopened, all recorded on the
+lecturer MySQL schema on 18 September with the current interface; the GitHub commits page; a closing card covering
 communication, failure handling, transactional persistence, the fresh-clone
 verification and the limitations; and an excerpt of the actual `npm run verify`
 output, so the spoken claim about the test suite is evidenced on screen.
@@ -86,8 +86,9 @@ output, so the spoken claim about the test suite is evidenced on screen.
 One limit of the current cut, visible rather than hidden: the startup footage is
 the 10 September SQLite run. Everything else is current. Invalid input, the
 outage and restart persistence were re-recorded on the lecturer MySQL schema on
-18 September by `scripts/record-mysql-restart.mjs`, which drives the real browser
-while it stops and restarts both services. The GitHub segment is a screen
+18 September by `scripts/record-demo-clips.mjs`, which drives the real browser
+against the configured database and records one clip per narrated section,
+stopping and restarting both services for the last one. The GitHub segment is a screen
 recording of the commits page made on 18 September, so the September commits and
 their dates are on screen.
 The fuller live route in the table above was not recorded; cuts v2 to v6 are
