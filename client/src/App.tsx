@@ -311,12 +311,6 @@ export default function App() {
             </label>
           </details>
 
-          {!selected && experiments.length > 0 ? (
-            <p className="fork-hint">
-              Nothing is selected, so running saves a new experiment.
-            </p>
-          ) : null}
-
           <button
             className="run-button"
             disabled={isBusy}
@@ -325,6 +319,12 @@ export default function App() {
           >
             {isLoading ? "Loading…" : isRunning ? "Running…" : selected ? "Run again" : "Run experiment"}
           </button>
+
+          {!selected && experiments.length > 0 ? (
+            <p className="fork-hint">
+              Nothing is selected, so running saves a new experiment.
+            </p>
+          ) : null}
         </div>
 
         <p className="behavior-description">

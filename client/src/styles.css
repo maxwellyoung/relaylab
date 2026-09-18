@@ -521,7 +521,7 @@ a:focus-visible {
 }
 
 .fork-hint {
-  margin: 0 0 10px;
+  margin: 10px 0 0;
   font-size: 13px;
   color: #6b6d74;
 }
