@@ -204,10 +204,13 @@ no preview is deployed as part of this submission.
 | `GET` | `/api/experiments` | List experiments newest first |
 | `GET` | `/api/experiments/:id` | Return one experiment and its run history |
 | `POST` | `/api/experiments/:id/runs` | Execute and persist one distributed run |
+| `DELETE` | `/api/experiments/:id` | Delete an experiment; its runs cascade |
 
 A stored run keeps the classified outcome, the HTTP status, the dependency's
 JSON-RPC error code when its method failed, the elapsed time and the full
-response envelope. `npm run db:inspect` prints the rows and the counts by
+response envelope. Each run response returns an `X-Correlation-Id` header
+carrying the JSON-RPC id, so one exchange can be matched across both services'
+logs, and `GET /health` reports the configured driver and request deadline. `npm run db:inspect` prints the rows and the counts by
 outcome.
 
 Example experiment:
