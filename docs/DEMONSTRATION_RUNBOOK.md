@@ -28,7 +28,7 @@ One continuous screen recording with spoken explanation, then light editing.
 | Unreachable dependency | Stop only the downstream; run; restart it; run again | `unreachable` recorded while the coordinator keeps serving, then recovery |
 | Data design | `npm run db:inspect`; server-side validation with `curl` | Two related tables with a foreign key; 400 with field errors |
 | Durable state | Restart the coordinator; reload; reopen saved experiments | History survives restart |
-| Test evidence | `npm test` | 45 passing tests |
+| Test evidence | `npm test` | 49 passing tests |
 | GitHub history | Scroll the repository **Commits** page | Commit dates on the GitHub website |
 | Limitations | Spoken | Simulated failures, single user, no authentication or retries, no hosted deployment in this submission |
 
@@ -66,7 +66,7 @@ One continuous screen recording with spoken explanation, then light editing.
 ## Current recording
 
 The submitted demonstration is `outputs/relaylab-film-v7/RelayLab-demo-23213801-Maxwell-Young.mp4`
-(1:51, 1920x1080). It is an edited film, not one continuous take: Maxwell's own
+(1:53, 1920x1080). It is an edited film, not one continuous take: Maxwell's own
 narration, recorded on 17 September, runs over real browser and console
 recordings, and every section states on screen which recording it shows and
 when it was made. The narration is cleaned by `scripts/clean-voice-takes.py`,
@@ -78,9 +78,10 @@ was re-recorded on 18 September and shows them. Sections: title card with name a
 coordinator and downstream as separate processes; a healthy request on the
 lecturer MySQL schema; an RPC application error and a deadline timeout on the
 same schema; invalid JSON rejected, then services stopped, restarted and the
-saved history reopened; the GitHub commits page; and a closing card covering
+saved history reopened; the GitHub commits page; a closing card covering
 communication, failure handling, transactional persistence, the fresh-clone
-verification and the limitations.
+verification and the limitations; and an excerpt of the actual `npm run verify`
+output, so the spoken claim about the test suite is evidenced on screen.
 
 One limit of the current cut, visible rather than hidden: the startup footage is
 the 10 September SQLite run. Everything else is current. Invalid input, the

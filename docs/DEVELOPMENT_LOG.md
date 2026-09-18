@@ -350,3 +350,7 @@ The demonstration's development-history segment is now a screen recording of the
 ## 18 September: data design and failure evidence strengthened
 
 The dependency's JSON-RPC error code is now its own column on experiment_runs rather than something only recoverable from the stored envelope, so failures are countable in SQL. Both schema scripts constrain the behaviour and outcome value sets at the database level, and an idempotent migration adds the new column to a schema created before it, keeping existing rows: the lecturer schema was migrated in place. The unreachable outcome is now proved by killing a real downstream child process between two runs of the same experiment, instead of by pointing the coordinator at an unused port, and db:inspect has a test and reports runs grouped by outcome. The suite is 49 tests and the full verification ladder passes.
+
+## 18 September: verification shown on screen
+
+The demonstration now ends with an excerpt of the real `npm run verify` output: 5 client, 8 downstream and 36 coordinator tests passing, the production restart smoke, and a clean dependency audit, labelled with the date and as an excerpt. The narration already claimed the suite passes; now the claim is visible rather than asserted.
