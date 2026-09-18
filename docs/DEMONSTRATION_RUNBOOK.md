@@ -66,10 +66,15 @@ One continuous screen recording with spoken explanation, then light editing.
 ## Current recording
 
 The submitted demonstration is `outputs/relaylab-film-v7/RelayLab-demo-23213801-Maxwell-Young.mp4`
-(1:58, 1920x1080). It is an edited film, not one continuous take: Maxwell's own
+(1:51, 1920x1080). It is an edited film, not one continuous take: Maxwell's own
 narration, recorded on 17 September, runs over real browser and console
 recordings, and every section states on screen which recording it shows and
-when it was made. Sections: title card with name and student ID; startup of the
+when it was made. The narration is cleaned by `scripts/clean-voice-takes.py`,
+which removes one false start, trims over-long pauses, notches out the
+recording's hum and normalises the level. Two spoken claims that had gone
+stale were cut rather than left in: a test count the later database work
+changed, and a reference to September commits that the GitHub capture does not
+show. Sections: title card with name and student ID; startup of the
 coordinator and downstream as separate processes; a healthy request on the
 lecturer MySQL schema; an RPC application error and a deadline timeout on the
 same schema; invalid JSON rejected, then services stopped, restarted and the

@@ -338,3 +338,7 @@ Assembled the submitted demonstration from six voice takes Maxwell recorded on 1
 ## 18 September: restart evidence re-recorded on the lecturer schema
 
 Replaced the demonstration's invalid-input and restart segment with a single continuous browser recording made against the assigned lecturer MySQL schema, driven by a Playwright script that stops and restarts both services mid-session. The recording shows invalid JSON rejected in the browser, the running page reporting the outage while both processes are down, and the saved experiments and run history returning from MySQL after restart. Only the startup segment now comes from the earlier SQLite run. Report and runbook updated to match.
+
+## 18 September: narration cleaned and levelled
+
+Cleaned the six voice takes with a new tracked script: removed a false start where the JSON-RPC acronym was restarted mid-word, trimmed pauses over one second, tightened each take's head and tail, notched out a 120 Hz buzz and a low hum cluster, gated the room tone between phrases, and normalised every take to -16 LUFS with peaks at -1.5 dBTP. Room tone in the gaps fell by about 32 dB. A compressor and a broadband denoiser were both tried and rejected: measured against a speech-to-text transcript of the same audio, each smeared consonants badly enough to turn "stop" into "start" and "healthy" into "help you". The finished video is 1:51; its audio track was transcribed end to end to confirm the narration survived the edits.
