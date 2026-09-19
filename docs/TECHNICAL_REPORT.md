@@ -165,7 +165,7 @@ Appendix A maps those concepts to this project.
 ## 7. Limitations and Possible Improvements
 
 The downstream behaviours are simulations rather than measurements of
-arbitrary external services. The coordinator intentionally has no retries,
+arbitrary external services. The coordinator intentionally has no automatic retries,
 circuit breaker, queue, authentication, editing, or production
 monitoring. The Fly deployment configuration uses a single SQLite instance and is not
 designed for concurrent production traffic. The lecturer MySQL adapter passed the demonstrated workflows and restart checks; concurrent-load testing remains outside the verification scope.

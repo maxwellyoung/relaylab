@@ -28,9 +28,9 @@ One continuous screen recording with spoken explanation, then light editing.
 | Unreachable dependency | Stop only the downstream; run; restart it; run again | `unreachable` recorded while the coordinator keeps serving, then recovery |
 | Data design | `npm run db:inspect`; server-side validation with `curl` | Two related tables with a foreign key; 400 with field errors |
 | Durable state | Restart the coordinator; reload; reopen saved experiments | History survives restart |
-| Test evidence | `npm test` | 63 passing tests |
+| Test evidence | `npm test` | 68 passing tests |
 | GitHub history | Scroll the repository **Commits** page | Commit dates on the GitHub website |
-| Limitations | Spoken | Simulated failures, single user, no authentication or retries, no hosted deployment in this submission |
+| Limitations | Spoken | Simulated failures, single user, no authentication or automatic retries, no hosted deployment in this submission |
 
 ## Report evidence matrix
 
@@ -87,9 +87,9 @@ communication, failure handling, transactional persistence, the fresh-clone
 verification and the limitations; and an excerpt of the actual `npm run verify`
 output, so the spoken claim about the test suite is evidenced on screen.
 
-Every section is current: the startup card, the three application clips, the log
-card and the validation card were all produced on 18 September against the
-lecturer MySQL schema. Invalid input, the
+Every section is current: the startup card, the three application clips and the
+validation card were produced on 18 September and the retry card on 19
+September, all against the lecturer MySQL schema. Invalid input, the
 outage and restart persistence were re-recorded on the lecturer MySQL schema on
 18 September by `scripts/record-demo-clips.mjs`, which drives the real browser
 against the configured database and records one clip per narrated section,
