@@ -1,5 +1,7 @@
 import SqliteDatabase from "better-sqlite3";
 import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   createPool,
   type Pool,
@@ -512,9 +514,12 @@ export function mySqlSslFromEnvironment(
 ): MySqlDatabaseConfig["ssl"] {
   if (environment.RELAYLAB_DB_SSL !== "true") return undefined;
   const caPath = environment.RELAYLAB_DB_SSL_CA?.trim();
-  return caPath
-    ? { rejectUnauthorized: true, ca: readFileSync(caPath, "utf8") }
-    : { rejectUnauthorized: true };
+  if (!caPath) return { rejectUnauthorized: true };
+  // A relative bundle path is taken from the project root, so the setting
+  // works the same whether a process starts from the root or a workspace.
+  const projectRoot = fileURLToPath(new URL("../..", import.meta.url));
+  const resolved = path.isAbsolute(caPath) ? caPath : path.resolve(projectRoot, caPath);
+  return { rejectUnauthorized: true, ca: readFileSync(resolved, "utf8") };
 }
 
 export function openDatabaseFromEnvironment({
