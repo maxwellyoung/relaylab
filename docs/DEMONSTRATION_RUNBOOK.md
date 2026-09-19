@@ -78,8 +78,9 @@ was re-recorded on 18 September and shows them. Sections: title card with name a
 coordinator and downstream as separate processes; a healthy request, an RPC
 application error, a deadline timeout, invalid JSON rejected, an outage while
 both services are down, and the saved history reopened, all recorded on the
-lecturer MySQL schema on 18 September with the current interface; a card showing both services' real log lines for the
-same two exchanges with the matching `rpc=` id; a card showing the coordinator
+lecturer MySQL schema on 18 September with the current interface; a card showing both services' real log lines for one exchange
+that timed out, was retried with the same idempotency key, and was replayed by
+the dependency rather than executed twice; a card showing the coordinator
 rejecting an invalid request with its field errors; the GitHub commits page; a
 closing card covering
 communication, failure handling, transactional persistence, the fresh-clone
