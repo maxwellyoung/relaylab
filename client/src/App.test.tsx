@@ -19,6 +19,9 @@ vi.mock("./api", async (importOriginal) => {
     ...actual,
     createExperiment: vi.fn(),
     deleteExperiment: vi.fn(),
+    getHealth: vi.fn(async () => ({
+      status: "ok", service: "relaylab-coordinator", database: "sqlite", downstreamTimeoutMs: 400,
+    })),
     getExperiment: vi.fn(),
     listExperiments: vi.fn(),
     runExperiment: vi.fn(),
