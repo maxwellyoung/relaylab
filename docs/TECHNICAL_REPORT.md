@@ -141,10 +141,10 @@ The verification command is `npm ci && npm run verify`. The suite contains 68
 tests: eight client, fifty coordinator, RPC-contract, database and logging,
 and ten downstream-service tests, plus a live lecturer-MySQL test that runs
 only when its credentials are present. They cover the browser workflow, every
-run outcome, validation at both boundaries, correlation checks, persistence,
-the pool limit, a failed write that must not invent evidence, a killed
-dependency process, one request traced across both logs, the shipped queries,
-idempotent replay and dedupe, and twenty concurrent runs. GitHub Actions runs
+run outcome, validation, correlation, persistence, the pool limit, a failed
+write that must not invent evidence, a killed dependency process, one request
+traced across both logs, the shipped queries, idempotent replay, and twenty
+concurrent runs. GitHub Actions runs
 the gate and the MySQL adapter against a real MySQL 8.4 service on every push.
 
 The gate also runs type checks and builds, then starts the built application,
@@ -156,10 +156,8 @@ persistence, all on the lecturer MySQL schema and recorded 18 September,
 together with both services' logs for one exchange, the API's own rejection of
 an invalid request, and commit dates on the GitHub website.
 
-Live MySQL checks used verified TLS: the transactional write path (create, two
-runs, restart, reopen) and `db:inspect` were rechecked on the assigned schema
-on 17 and 18 September. A selection/loading race in the client was fixed with
-a regression test.
+Live MySQL checks used verified TLS: the transactional write path and
+`db:inspect` were rechecked on the assigned schema on 17 and 18 September.
 
 Lab work was submitted on 10 September, with Canvas receipts for Weeks 2–6;
 Appendix A maps those concepts to this project.
