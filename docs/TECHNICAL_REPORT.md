@@ -134,10 +134,11 @@ appear in source, documentation, logs, screenshots, or submitted artifacts.
 
 The verification command is `npm ci && npm run verify`. The suite contains 63
 tests: eight client, forty-six coordinator, RPC-contract, database and logging,
-and nine downstream-service tests. These cover
+and nine downstream-service tests, plus a live lecturer-MySQL test that runs
+only when its credentials are present. These cover
 the create/run/render workflow, invalid client JSON, saved-history reopening,
 all five run outcomes, mismatched correlation IDs, relational
-persistence, MySQL configuration, and the fixed connection-pool limit. A killed child process proves the unreachable outcome, one request is followed across both service logs, and the shipped reporting queries run against the schema. The 9 September checks also prove that
+persistence, and the fixed connection-pool limit. A killed child process proves the unreachable outcome, one request is followed across both service logs, and the shipped reporting queries run against the schema. The 9 September checks also prove that
 malformed HTTP JSON returns 400 and that a failed database write cannot invent
 an unreachable-downstream result.
 

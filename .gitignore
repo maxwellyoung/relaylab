@@ -17,7 +17,6 @@ data/
 .env
 .env.*
 !.env.example
-.vercel/
 
 # Local demo renders, captures, and submission preparation
 output/
