@@ -72,7 +72,7 @@ describe("npm run db:inspect", () => {
       );
       INSERT INTO experiments (name, behavior, payload_json) VALUES ('Older', 'healthy', '{}');
       INSERT INTO experiment_runs (experiment_id, outcome, http_status, duration_ms, response_json)
-        VALUES (1, 'timeout', NULL, 404, NULL);
+        VALUES (1, 'timeout', NULL, 412, NULL);
     `);
     legacy.close();
 

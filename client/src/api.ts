@@ -65,6 +65,17 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+export type CoordinatorHealth = {
+  status: string;
+  service: string;
+  database: string;
+  downstreamTimeoutMs: number;
+};
+
+export function getHealth(): Promise<CoordinatorHealth> {
+  return request("/health");
+}
+
 export function listExperiments(): Promise<Experiment[]> {
   return request("/api/experiments");
 }

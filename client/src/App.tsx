@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   createExperiment,
   getExperiment,
+  getHealth,
   listExperiments,
   deleteExperiment,
   runExperiment,
@@ -121,10 +122,14 @@ export default function App() {
   const [error, setError] = useState("");
 
   const currentOutcome = latestRun ? outcomeCopy[latestRun.outcome] : null;
-  const runCount = useMemo(
-    () => selected?.runs.length ?? 0,
-    [selected?.runs.length],
-  );
+  const runCount = selected?.runs.length ?? 0;
+  // Read the configured deadline from the coordinator rather than hardcoding it.
+  const [deadlineMs, setDeadlineMs] = useState<number | null>(null);
+  useEffect(() => {
+    getHealth()
+      .then((health) => setDeadlineMs(health.downstreamTimeoutMs))
+      .catch(() => setDeadlineMs(null));
+  }, []);
 
   useEffect(() => {
     void loadInitialState();
@@ -246,9 +251,7 @@ export default function App() {
   return (
     <main id="main-content">
       <header className="topbar">
-        <a href="#main-content" aria-label="RelayLab home">
-          RelayLab
-        </a>
+        <span className="brand">RelayLab</span>
         <p>Distributed communication demo</p>
       </header>
 
@@ -349,7 +352,7 @@ export default function App() {
             <li className="route-node coordinator-node">
               <div>
                 <strong>Coordinator</strong>
-                <small>JSON-RPC 2.0 · 400 ms deadline</small>
+                <small>JSON-RPC 2.0 · {deadlineMs === null ? "bounded" : `${deadlineMs} ms`} deadline</small>
               </div>
             </li>
             <li className="route-line" aria-hidden="true">

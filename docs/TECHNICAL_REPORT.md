@@ -95,7 +95,9 @@ method failure. The coordinator maps observations to stable outcomes:
 `success`, `downstream_error`, `timeout`, `invalid_response`, or `unreachable`.
 This distinguishes an application error, a deadline failure, a contract failure,
 and a transport failure. The coordinator remains
-available and persists the attempt instead of crashing.
+available and persists the attempt instead of crashing. A timeout is
+at-least-once: the dependency may still finish after the coordinator has given
+up, which the paired logs show, so a repeated run is a second execution.
 
 Zod schemas reject unsupported behaviours, blank or oversized names, and
 payloads that are not JSON objects. Missing or malformed experiment identifiers produce a
@@ -139,9 +141,9 @@ persistence, MySQL configuration, and the fixed connection-pool limit. A killed 
 malformed HTTP JSON returns 400 and that a failed database write cannot invent
 an unreachable-downstream result.
 
-The gate also runs type checks and production builds, starts the built
-application, creates and executes an experiment, restarts the services, and
-proves both survived. On 18 September a fresh clone passed `npm ci` and the full gate: 63 tests, type checks, builds, restart-persistence smoke, and a dependency audit with no known vulnerabilities. The video shows the two services starting, a successful exchange, an RPC application error, a deadline timeout, invalid-JSON rejection, an outage and restart persistence, all on the lecturer MySQL schema and recorded 18 September, together with both services' logs for one exchange and commit dates on the GitHub website.
+The gate also runs type checks and builds, starts the built application,
+creates and executes an experiment, restarts the services, and proves both
+survived. On 18 September a fresh clone passed `npm ci` and the full gate: 63 tests, type checks, builds, restart-persistence smoke, and a dependency audit with no known vulnerabilities. The video shows the two services starting, a successful exchange, an RPC application error, a deadline timeout, invalid-JSON rejection, an outage and restart persistence, all on the lecturer MySQL schema and recorded 18 September, together with both services' logs for one exchange and commit dates on the GitHub website.
 
 Live MySQL checks used verified TLS; on 18 September `npm run db:inspect` reported 9 experiments and 18 runs at the time of the check, covering success, downstream_error, timeout and invalid_response. On 17 September the transactional write path was rechecked live: create, two runs, restart, reopen. A discovered selection/loading race was fixed by disabling controls during requests, with a regression test preventing execution of the previous selection.
 
@@ -155,9 +157,9 @@ circuit breaker, queue, authentication, editing, or production
 monitoring. The Fly deployment configuration uses a single SQLite instance and is not
 designed for concurrent production traffic. The lecturer MySQL adapter passed the demonstrated workflows and restart checks; concurrent-load testing remains outside the verification scope.
 
-Future work could add configurable timeout policies, outcome aggregation, and
-carefully bounded retry or circuit-breaker experiments. These are extensions,
-not missing parts of the submitted workflow.
+Future work could add timeout policies, outcome aggregation, and bounded retry
+or circuit-breaker experiments; these are extensions, not missing parts of the
+submitted workflow.
 
 ## 8. Running Instructions
 

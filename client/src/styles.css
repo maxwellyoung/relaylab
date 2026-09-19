@@ -62,7 +62,7 @@ main {
   border-bottom: 1px solid var(--line);
 }
 
-.topbar a {
+.topbar .brand {
   color: var(--ink);
   font-size: 0.95rem;
   font-weight: 700;

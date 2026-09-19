@@ -15,7 +15,8 @@ const builtClientDirectory = path.resolve(currentDirectory, "../../client/dist")
 const clientDirectory = process.env.CLIENT_DIST_DIR
   ?? (existsSync(builtClientDirectory) ? builtClientDirectory : undefined);
 
-mkdirSync(dataDirectory, { recursive: true });
+const driver = process.env.RELAYLAB_DATABASE_DRIVER?.trim().toLowerCase() ?? "sqlite";
+if (driver === "sqlite") mkdirSync(dataDirectory, { recursive: true });
 
 const database = openDatabaseFromEnvironment({
   sqlitePath: path.join(dataDirectory, "relaylab.sqlite"),
@@ -26,7 +27,7 @@ const application = buildApplication({
   database,
   downstreamUrl,
   timeoutMs,
-  databaseDriver: process.env.RELAYLAB_DATABASE_DRIVER?.trim().toLowerCase() ?? "sqlite",
+  databaseDriver: driver,
   clientDirectory,
   log: (line) => console.log(`[coordinator ${new Date().toTimeString().slice(0, 8)}] ${line}`),
 });
