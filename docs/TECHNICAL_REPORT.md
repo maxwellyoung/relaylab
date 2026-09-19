@@ -163,7 +163,7 @@ submitted workflow.
 
 ## 8. Running Instructions
 
-Install Node.js 24 or later. From the project root run `npm ci`, then
+Install Node.js 24.15 or later. From the project root run `npm ci`, then
 `npm run dev`, and open `http://localhost:5173`; ports 5173, 3000 and 3001 host
 the three processes. After `npm run build`, `npm run start:downstream` and `npm run start:coordinator` run the services separately, and `npm run db:inspect` prints the stored rows. Run `npm run verify` for the
 test, type-check, build, restart-persistence, and audit gate. The README lists
