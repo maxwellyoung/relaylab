@@ -27,11 +27,11 @@ describe("npm run db:inspect", () => {
     });
     await database.createRun({
       experimentId: experiment.id, outcome: "downstream_error", httpStatus: 200,
-      rpcErrorCode: -32001, durationMs: 4, response: { jsonrpc: "2.0" },
+      rpcErrorCode: -32001, idempotencyKey: null, durationMs: 4, response: { jsonrpc: "2.0" },
     });
     await database.createRun({
       experimentId: experiment.id, outcome: "success", httpStatus: 200,
-      rpcErrorCode: null, durationMs: 9, response: { jsonrpc: "2.0" },
+      rpcErrorCode: null, idempotencyKey: null, durationMs: 9, response: { jsonrpc: "2.0" },
     });
     await database.close();
 

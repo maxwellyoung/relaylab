@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS experiment_runs (
                        'invalid_response', 'unreachable')),
   http_status INTEGER,
   rpc_error_code INTEGER,
+  idempotency_key TEXT,
   duration_ms INTEGER NOT NULL,
   response_json TEXT,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -33,3 +34,7 @@ CREATE INDEX IF NOT EXISTS idx_experiment_runs_experiment
 -- Runs are also counted and filtered by outcome.
 CREATE INDEX IF NOT EXISTS idx_experiment_runs_outcome
   ON experiment_runs (outcome);
+
+-- A repeated request carries the same key; the coordinator looks it up here.
+CREATE INDEX IF NOT EXISTS idx_experiment_runs_key
+  ON experiment_runs (experiment_id, idempotency_key);

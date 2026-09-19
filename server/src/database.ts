@@ -57,6 +57,7 @@ export type ExperimentRun = {
   outcome: RunOutcome;
   httpStatus: number | null;
   rpcErrorCode: number | null;
+  idempotencyKey: string | null;
   durationMs: number;
   response: Record<string, unknown> | string | null;
   createdAt: string;
@@ -80,6 +81,7 @@ type ExperimentRunRow = {
   outcome: RunOutcome;
   http_status: number | null;
   rpc_error_code: number | null;
+  idempotency_key: string | null;
   duration_ms: number;
   response_json: string | Record<string, unknown> | null;
   created_at: string | Date;
@@ -131,6 +133,7 @@ function toExperimentRun(row: ExperimentRunRow): ExperimentRun {
     outcome: row.outcome,
     httpStatus: row.http_status,
     rpcErrorCode: row.rpc_error_code ?? null,
+    idempotencyKey: row.idempotency_key ?? null,
     durationMs: row.duration_ms,
     response: parseJsonResponse(row.response_json),
     createdAt: normalizeTimestamp(row.created_at),
@@ -146,6 +149,8 @@ export type RelayLabDatabase = {
   createRun(
     input: Omit<ExperimentRun, "id" | "createdAt">,
   ): Promise<ExperimentRun>;
+  /** The newest run recorded for a caller's idempotency key, if any. */
+  findRunByKey(experimentId: number, idempotencyKey: string): Promise<ExperimentRun | undefined>;
   deleteExperiment(experimentId: number): Promise<boolean>;
   close(): Promise<void>;
 };
@@ -154,16 +159,20 @@ export function openDatabase(databasePath: string): RelayLabDatabase {
   const database = new SqliteDatabase(databasePath);
   database.pragma("foreign_keys = ON");
   database.pragma("journal_mode = WAL");
-  database.exec(readSchema("schema.sqlite.sql"));
-  // A database created before rpc_error_code existed keeps its rows; add the
-  // column rather than requiring anyone to delete their data.
+  // A database created before these columns existed keeps its rows: add the
+  // columns first, so the schema script's indexes can then be created on it.
   const columns = database
     .prepare<[], { name: string }>("SELECT name FROM pragma_table_info('experiment_runs')")
     .all()
     .map((column) => column.name);
-  if (!columns.includes("rpc_error_code")) {
-    database.exec("ALTER TABLE experiment_runs ADD COLUMN rpc_error_code INTEGER");
+  if (columns.length > 0) {
+    for (const [name, type] of [["rpc_error_code", "INTEGER"], ["idempotency_key", "TEXT"]] as const) {
+      if (!columns.includes(name)) {
+        database.exec(`ALTER TABLE experiment_runs ADD COLUMN ${name} ${type}`);
+      }
+    }
   }
+  database.exec(readSchema("schema.sqlite.sql"));
 
   const insertExperiment = database.prepare<
     {
@@ -203,6 +212,7 @@ export function openDatabase(databasePath: string): RelayLabDatabase {
       outcome: RunOutcome;
       httpStatus: number | null;
       rpcErrorCode: number | null;
+      idempotencyKey: string | null;
       durationMs: number;
       responseJson: string | null;
     },
@@ -213,6 +223,7 @@ export function openDatabase(databasePath: string): RelayLabDatabase {
       outcome,
       http_status,
       rpc_error_code,
+      idempotency_key,
       duration_ms,
       response_json
     ) VALUES (
@@ -220,10 +231,19 @@ export function openDatabase(databasePath: string): RelayLabDatabase {
       @outcome,
       @httpStatus,
       @rpcErrorCode,
+      @idempotencyKey,
       @durationMs,
       @responseJson
     )
     RETURNING *
+  `);
+
+  const findRunByKey = database.prepare<[number, string], ExperimentRunRow>(`
+    SELECT *
+    FROM experiment_runs
+    WHERE experiment_id = ? AND idempotency_key = ?
+    ORDER BY id DESC
+    LIMIT 1
   `);
 
   const deleteExperiment = database.prepare<[number]>(`
@@ -274,6 +294,7 @@ export function openDatabase(databasePath: string): RelayLabDatabase {
         outcome: input.outcome,
         httpStatus: input.httpStatus,
         rpcErrorCode: input.rpcErrorCode,
+        idempotencyKey: input.idempotencyKey,
         durationMs: input.durationMs,
         responseJson:
           input.response === null ? null : JSON.stringify(input.response),
@@ -282,6 +303,10 @@ export function openDatabase(databasePath: string): RelayLabDatabase {
         throw new Error("SQLite did not return the created experiment run");
       }
       return toExperimentRun(row);
+    },
+    async findRunByKey(experimentId: number, idempotencyKey: string) {
+      const row = findRunByKey.get(experimentId, idempotencyKey);
+      return row ? toExperimentRun(row) : undefined;
     },
     async deleteExperiment(experimentId: number): Promise<boolean> {
       // Foreign keys are on, so the experiment's runs cascade with it.
@@ -356,11 +381,21 @@ export function createMySqlDatabase(pool: Pool): RelayLabDatabase {
     if (columns.length === 0) {
       await pool.query("ALTER TABLE experiment_runs ADD COLUMN rpc_error_code INT NULL AFTER http_status");
     }
+    const [keyColumns] = await pool.query<RowDataPacket[]>(
+      `SELECT COLUMN_NAME FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'experiment_runs'
+         AND COLUMN_NAME = 'idempotency_key'`,
+    );
+    if (keyColumns.length === 0) {
+      await pool.query("ALTER TABLE experiment_runs ADD COLUMN idempotency_key VARCHAR(80) NULL AFTER rpc_error_code");
+    }
     // MySQL has no CREATE INDEX IF NOT EXISTS, and a schema created before the
     // keys were declared inline needs them added.
     for (const [name, columns] of [
       ["idx_experiment_runs_outcome", "(outcome)"],
       ["idx_experiment_runs_experiment", "(experiment_id, id)"],
+      ["idx_experiment_runs_key", "(experiment_id, idempotency_key)"],
     ] as const) {
       const [indexes] = await pool.query<RowDataPacket[]>(
         `SELECT INDEX_NAME FROM information_schema.STATISTICS
@@ -458,14 +493,16 @@ export function createMySqlDatabase(pool: Pool): RelayLabDatabase {
              outcome,
              http_status,
              rpc_error_code,
+             idempotency_key,
              duration_ms,
              response_json
-           ) VALUES (?, ?, ?, ?, ?, ?)`,
+           ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
           [
             input.experimentId,
             input.outcome,
             input.httpStatus,
             input.rpcErrorCode,
+            input.idempotencyKey,
             input.durationMs,
             input.response === null ? null : JSON.stringify(input.response),
           ],
@@ -480,6 +517,16 @@ export function createMySqlDatabase(pool: Pool): RelayLabDatabase {
         }
         return toExperimentRun(row);
       });
+    },
+    async findRunByKey(experimentId, idempotencyKey) {
+      await initialized;
+      const [rows] = await pool.execute<MySqlExperimentRunRow[]>(
+        `SELECT * FROM experiment_runs
+         WHERE experiment_id = ? AND idempotency_key = ?
+         ORDER BY id DESC LIMIT 1`,
+        [experimentId, idempotencyKey],
+      );
+      return rows[0] ? toExperimentRun(rows[0]) : undefined;
     },
     async deleteExperiment(experimentId) {
       await initialized;

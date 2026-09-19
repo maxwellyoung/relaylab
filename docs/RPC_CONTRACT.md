@@ -54,3 +54,12 @@ interface therefore presents HTTP transport and RPC outcome separately. An
 invalid envelope, wrong correlation ID, or wrong result shape becomes
 `invalid_response`. A deadline or connection failure remains `timeout` or
 `unreachable` because no valid RPC response was received.
+
+## Idempotency
+
+`params` may carry `idempotencyKey` (a string of at most 80 characters). The
+downstream service executes an operation once per key: a repeated request,
+including one that arrives while the first attempt is still running, waits for
+and receives the same reply, and the service logs `replayed` instead of
+`replied`. This is what lets a coordinator that gave up at its deadline retry
+without causing a second execution.

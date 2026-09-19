@@ -98,9 +98,16 @@ export function getExperiment(
 export async function runExperiment(
   experimentId: number,
 ): Promise<ExperimentRun> {
+  // One id per click: it becomes the JSON-RPC exchange id the dependency logs,
+  // and the idempotency key that lets a repeated request replay safely.
+  const exchangeId = crypto.randomUUID();
   const response = await fetch(`${apiBaseUrl}/api/experiments/${experimentId}/runs`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "X-Request-Id": exchangeId,
+      "Idempotency-Key": exchangeId,
+    },
   });
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as { error?: string } | null;

@@ -194,4 +194,25 @@ describe("downstream JSON-RPC service", () => {
       error: { code: -32700, message: "Parse error" },
     });
   });
+
+  it("executes a repeated idempotency key once, even when the retry arrives mid-flight", async () => {
+    const lines: string[] = [];
+    const service = buildDownstreamService({ slowDelayMs: 150, log: (line) => lines.push(line) });
+    const params = { experimentId: 5, behavior: "slow", payload: { orderId: "K-1" }, idempotencyKey: "key-1" };
+
+    const [first, second] = await Promise.all([
+      request(service).post("/rpc").send(rpcRequest(params, { id: "trace-a" })),
+      request(service).post("/rpc").send(rpcRequest(params, { id: "trace-b" })),
+    ]);
+    const third = await request(service).post("/rpc").send(rpcRequest(params, { id: "trace-c" }));
+
+    expect(first.body.id).toBe("trace-a");
+    expect(second.body.id).toBe("trace-b");
+    expect(third.body.id).toBe("trace-c");
+    // One execution, identical result for all three callers.
+    expect(second.body.result.processedAt).toBe(first.body.result.processedAt);
+    expect(third.body.result.processedAt).toBe(first.body.result.processedAt);
+    expect(lines.filter((line) => line.includes("result=accepted"))).toHaveLength(1);
+    expect(lines.filter((line) => line.includes("replayed"))).toHaveLength(2);
+  });
 });

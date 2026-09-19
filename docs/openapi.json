@@ -130,9 +130,32 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/ExperimentId"
+          },
+          {
+            "name": "X-Request-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Optional exchange id minted by the caller; becomes the JSON-RPC id and is echoed in X-Correlation-Id"
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 80
+            },
+            "description": "Optional key for a retry of the same logical run. A settled run is replayed with 200; an unsettled attempt is sent again and the dependency dedupes"
           }
         ],
         "responses": {
+          "200": {
+            "description": "A settled run replayed for a repeated Idempotency-Key; X-Idempotent-Replay: true"
+          },
           "201": {
             "description": "Run persisted, including controlled dependency failures",
             "content": {
@@ -299,6 +322,13 @@
               "integer",
               "null"
             ]
+          },
+          "idempotencyKey": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The caller's Idempotency-Key for this attempt, if any"
           },
           "durationMs": {
             "type": "integer",

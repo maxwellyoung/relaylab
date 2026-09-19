@@ -22,6 +22,7 @@ describe.skipIf(!configured)("lecturer MySQL, live", () => {
         outcome: "downstream_error",
         httpStatus: 200,
         rpcErrorCode: -32001,
+        idempotencyKey: null,
         durationMs: 7,
         response: { jsonrpc: "2.0", id: "live", error: { code: -32001, message: "Dependency unavailable" } },
       });
@@ -33,6 +34,7 @@ describe.skipIf(!configured)("lecturer MySQL, live", () => {
         outcome: "invalid_response",
         httpStatus: 200,
         rpcErrorCode: null,
+        idempotencyKey: null,
         durationMs: 3,
         response: "<html>502 Bad Gateway</html>",
       });

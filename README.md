@@ -202,9 +202,12 @@ idle when it is unused. The coordinator health endpoint is `/health`.
 
 A stored run keeps the classified outcome, the HTTP status, the dependency's
 JSON-RPC error code when its method failed, the elapsed time and the full
-response envelope. Each run response returns an `X-Correlation-Id` header
-carrying the JSON-RPC id, so one exchange can be matched across both services'
-logs, and `GET /health` reports the configured driver and request deadline. `npm run db:inspect` prints the rows and the counts by
+response envelope. The browser mints one id per click and sends it as both `X-Request-Id`, which
+becomes the JSON-RPC id and comes back as `X-Correlation-Id`, and
+`Idempotency-Key`. A repeated key replays a settled run with `200` and
+`X-Idempotent-Replay: true` without calling the dependency; an attempt that
+timed out is sent again, and the dependency itself dedupes by key so the work
+still executes once. `GET /health` reports the configured driver and deadline. `npm run db:inspect` prints the rows and the counts by
 outcome, using the queries in `database/queries`.
 
 Example experiment:
@@ -233,7 +236,8 @@ error codes are documented in [`docs/RPC_CONTRACT.md`](docs/RPC_CONTRACT.md).
 
 - The downstream behaviours are deterministic simulations, not measurements of
   arbitrary external systems.
-- The coordinator intentionally performs no retry or circuit-breaking.
+- The coordinator performs no automatic retry or circuit-breaking; a caller may
+  retry with the same `Idempotency-Key` and the dependency dedupes.
 - Experiments cannot be edited. Deleting one removes its runs by cascade.
 - One local user only; authentication is outside the assignment scope.
 - The container image is intentionally single-machine and is not designed for

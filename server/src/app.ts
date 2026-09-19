@@ -11,6 +11,11 @@ import {
   classifyDownstreamRpcResponse,
 } from "./downstream-rpc.js";
 
+function readHeader(request: express.Request, name: string, maxLength: number): string | null {
+  const value = request.get(name)?.trim();
+  return value && value.length <= maxLength && /^[\w.:-]+$/.test(value) ? value : null;
+}
+
 function parseExperimentId(value: string): number | undefined {
   return /^[1-9][0-9]{0,14}$/.test(value) ? Number(value) : undefined;
 }
@@ -96,7 +101,28 @@ export function buildApplication({
       return;
     }
 
-    const rpcRequest = buildDownstreamRpcRequest(experiment);
+    // A caller may mint the exchange id and mark the request as a retry of an
+    // earlier one. A settled result for the same key is replayed without
+    // calling the dependency; an unsettled attempt (timeout, unreachable) is
+    // sent again, and the dependency dedupes so the work still runs once.
+    const idempotencyKey = readHeader(request, "idempotency-key", 80);
+    if (idempotencyKey) {
+      const earlier = await database.findRunByKey(experimentId, idempotencyKey);
+      if (earlier && earlier.outcome !== "timeout" && earlier.outcome !== "unreachable") {
+        log(`replayed run=${earlier.id} experiment=${experimentId} key=${idempotencyKey.slice(0, 8)}`);
+        response.setHeader("X-Idempotent-Replay", "true");
+        if (typeof earlier.response === "object" && earlier.response && typeof earlier.response.id === "string") {
+          response.setHeader("X-Correlation-Id", earlier.response.id);
+        }
+        response.status(200).json(earlier);
+        return;
+      }
+    }
+
+    const rpcRequest = buildDownstreamRpcRequest(experiment, {
+      correlationId: readHeader(request, "x-request-id", 36),
+      idempotencyKey,
+    });
     const rpc = rpcRequest.id.slice(0, 8);
     log(`run experiment=${experimentId} behavior=${experiment.behavior} -> ${rpcRequest.method} rpc=${rpc}`);
     const startedAt = performance.now();
@@ -131,6 +157,7 @@ export function buildApplication({
           : "downstream_error",
         httpStatus: downstream.status,
         rpcErrorCode: classification.errorCode,
+        idempotencyKey,
         durationMs: Math.max(1, Math.round(performance.now() - startedAt)),
         response: body,
       };
@@ -143,6 +170,7 @@ export function buildApplication({
             : "unreachable",
         httpStatus: null,
         rpcErrorCode: null,
+        idempotencyKey,
         durationMs: Math.max(1, Math.round(performance.now() - startedAt)),
         response: null,
       };

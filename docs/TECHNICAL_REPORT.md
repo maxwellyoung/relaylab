@@ -66,6 +66,7 @@ depending on a third-party network.
 | List saved experiments | Completed and tested | API tests and client saved-history view |
 | Read one experiment and its runs | Completed and tested | API tests, client reopening test, and restart smoke |
 | Delete an experiment and cascade its runs | Completed and tested | API test asserts 204, then 404, and no orphan runs |
+| Idempotent retry of a run | Completed and tested | Replay test, mid-flight dedupe test, and a timed-out attempt retried into one execution |
 | Execute a versioned downstream RPC method | Completed and tested locally | Healthy result, RPC error, timeout, malformed result, and unreachable tests |
 | Persist experiments and one-to-many run history | Completed and tested | SQLite smoke and live lecturer-MySQL restart check |
 | Use lecturer MySQL with a five-connection maximum | Completed; live-checked manually | Verified TLS and save/run/reopen/restart on the assigned schema (15 September); transactional writes rechecked 17 September. Automated tests use a stub connection |
@@ -96,8 +97,12 @@ method failure. The coordinator maps observations to stable outcomes:
 This distinguishes an application error, a deadline failure, a contract failure,
 and a transport failure. The coordinator remains
 available and persists the attempt instead of crashing. A timeout is
-at-least-once: the dependency may still finish after the coordinator has given
-up, which the paired logs show, so a repeated run is a second execution.
+at-least-once: the dependency may finish after the coordinator gives up, which
+the paired logs show. The browser therefore sends one id per click as both the
+exchange id and an `Idempotency-Key`. The coordinator replays a settled run for
+a repeated key without calling the dependency, and for an unsettled attempt it
+calls again while the dependency dedupes by key, so a retried timeout returns
+the single completed result: effectively once.
 
 Zod schemas reject unsupported behaviours, blank or oversized names, and
 payloads that are not JSON objects. Missing or malformed experiment identifiers produce a
@@ -132,23 +137,32 @@ appear in source, documentation, logs, screenshots, or submitted artifacts.
 
 ## 6. Testing and Evidence
 
-The verification command is `npm ci && npm run verify`. The suite contains 63
-tests: eight client, forty-six coordinator, RPC-contract, database and logging,
-and nine downstream-service tests, plus a live lecturer-MySQL test that runs
-only when its credentials are present. These cover
-the create/run/render workflow, invalid client JSON, saved-history reopening,
-all five run outcomes, mismatched correlation IDs, relational
-persistence, and the fixed connection-pool limit. A killed child process proves the unreachable outcome, one request is followed across both service logs, and the shipped reporting queries run against the schema. The 9 September checks also prove that
-malformed HTTP JSON returns 400 and that a failed database write cannot invent
-an unreachable-downstream result.
+The verification command is `npm ci && npm run verify`. The suite contains 68
+tests: eight client, fifty coordinator, RPC-contract, database and logging,
+and ten downstream-service tests, plus a live lecturer-MySQL test that runs
+only when its credentials are present. They cover the browser workflow, every
+run outcome, validation at both boundaries, correlation checks, persistence,
+the pool limit, a failed write that must not invent evidence, a killed
+dependency process, one request traced across both logs, the shipped queries,
+idempotent replay and dedupe, and twenty concurrent runs. GitHub Actions runs
+the gate and the MySQL adapter against a real MySQL 8.4 service on every push.
 
-The gate also runs type checks and builds, starts the built application,
-creates and executes an experiment, restarts the services, and proves both
-survived. On 18 September a fresh clone passed `npm ci` and the full gate: 63 tests, type checks, builds, restart-persistence smoke, and a dependency audit with no known vulnerabilities. The video shows the two services starting, a successful exchange, an RPC application error, a deadline timeout, invalid-JSON rejection, an outage and restart persistence, all on the lecturer MySQL schema and recorded 18 September, together with both services' logs for one exchange and commit dates on the GitHub website.
+The gate also runs type checks and builds, then starts the built application,
+executes an experiment, restarts the services and proves both survived. A
+fresh clone passed it on 18 September with no known vulnerabilities. The video
+shows the two services starting, a successful exchange, an RPC application
+error, a deadline timeout, invalid-JSON rejection, an outage and restart
+persistence, all on the lecturer MySQL schema and recorded 18 September,
+together with both services' logs for one exchange, the API's own rejection of
+an invalid request, and commit dates on the GitHub website.
 
-Live MySQL checks used verified TLS; on 18 September `npm run db:inspect` reported 9 experiments and 18 runs at the time of the check, covering success, downstream_error, timeout and invalid_response. On 17 September the transactional write path was rechecked live: create, two runs, restart, reopen. A discovered selection/loading race was fixed by disabling controls during requests, with a regression test preventing execution of the previous selection.
+Live MySQL checks used verified TLS: the transactional write path (create, two
+runs, restart, reopen) and `db:inspect` were rechecked on the assigned schema
+on 17 and 18 September. A selection/loading race in the client was fixed with
+a regression test.
 
-Lab work was submitted on 10 September, with Canvas receipts for Weeks 2–6; Appendix A maps those concepts to this project.
+Lab work was submitted on 10 September, with Canvas receipts for Weeks 2–6;
+Appendix A maps those concepts to this project.
 
 ## 7. Limitations and Possible Improvements
 

@@ -19,11 +19,13 @@ CREATE TABLE IF NOT EXISTS experiment_runs (
                        'invalid_response', 'unreachable')),
   http_status SMALLINT NULL,
   rpc_error_code INT NULL,
+  idempotency_key VARCHAR(80) NULL,
   duration_ms INT UNSIGNED NOT NULL,
   response_json JSON NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   KEY idx_experiment_runs_experiment (experiment_id, id),
   KEY idx_experiment_runs_outcome (outcome),
+  KEY idx_experiment_runs_key (experiment_id, idempotency_key),
   CONSTRAINT fk_experiment_runs_experiment
     FOREIGN KEY (experiment_id)
     REFERENCES experiments(id)

@@ -27,6 +27,7 @@ export const experimentRunResponseV1Schema = z.object({
   ]),
   httpStatus: z.number().int().min(100).max(599).nullable(),
   rpcErrorCode: z.number().int().nullable().optional(),
+  idempotencyKey: z.string().nullable().optional(),
   durationMs: z.number().int().positive(),
   response: z.union([
     z.record(z.string(), z.unknown()),

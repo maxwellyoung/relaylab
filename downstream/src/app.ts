@@ -5,7 +5,11 @@ const processRequest = z.object({
   experimentId: z.number().int().positive(),
   behavior: z.enum(["healthy", "slow", "unavailable", "malformed"]),
   payload: z.record(z.string(), z.unknown()),
+  // A caller that retries the same logical operation sends the same key.
+  idempotencyKey: z.string().min(1).max(80).optional(),
 });
+
+type Reply = { result: unknown } | { error: { code: number; message: string; data?: Record<string, unknown> } };
 
 const rpcRequest = z.object({
   jsonrpc: z.literal("2.0"),
@@ -41,6 +45,10 @@ export function buildDownstreamService({
   log?: (line: string) => void;
 } = {}) {
   const app = express();
+  // Completed and in-flight work by idempotency key. A retry that arrives while
+  // the first attempt is still running awaits the same promise, so the
+  // operation executes once even when the caller has already given up on it.
+  const replies = new Map<string, Promise<Reply>>();
 
   // Match the coordinator's limit so an accepted payload cannot become a
   // downstream 413 once the envelope is added.
@@ -95,41 +103,44 @@ export function buildDownstreamService({
 
     log(`received ${RPC_METHOD} rpc=${rpc} experiment=${parsed.data.experimentId} behavior=${parsed.data.behavior}`);
 
-    if (parsed.data.behavior === "unavailable") {
-      log(`replied rpc=${rpc} error=-32001`);
-      response.json(
-        rpcError(envelope.data.id, -32001, "Dependency unavailable", {
-          retryable: true,
-        }),
-      );
-      return;
+    const { idempotencyKey } = parsed.data;
+    const execute = async (): Promise<Reply> => {
+      if (parsed.data.behavior === "unavailable") {
+        return { error: { code: -32001, message: "Dependency unavailable", data: { retryable: true } } };
+      }
+      if (parsed.data.behavior === "malformed") {
+        return { result: "upstream said maybe" };
+      }
+      if (parsed.data.behavior === "slow") {
+        await new Promise((resolve) => setTimeout(resolve, slowDelayMs));
+      }
+      return {
+        result: {
+          accepted: true,
+          experimentId: parsed.data.experimentId,
+          echo: parsed.data.payload,
+          processedAt: new Date().toISOString(),
+        },
+      };
+    };
+
+    let reply: Reply;
+    const known = idempotencyKey ? replies.get(idempotencyKey) : undefined;
+    if (known) {
+      reply = await known;
+      log(`replayed rpc=${rpc} key=${idempotencyKey!.slice(0, 8)}`);
+    } else {
+      const pending = execute();
+      if (idempotencyKey) replies.set(idempotencyKey, pending);
+      reply = await pending;
+      log("error" in reply
+        ? `replied rpc=${rpc} error=${reply.error.code}`
+        : `replied rpc=${rpc} result=${typeof reply.result === "string" ? "malformed" : "accepted"}`);
     }
 
-    if (parsed.data.behavior === "malformed") {
-      log(`replied rpc=${rpc} result=malformed`);
-      response.json({
-        jsonrpc: "2.0",
-        id: envelope.data.id,
-        result: "upstream said maybe",
-      });
-      return;
-    }
-
-    if (parsed.data.behavior === "slow") {
-      await new Promise((resolve) => setTimeout(resolve, slowDelayMs));
-    }
-
-    log(`replied rpc=${rpc} result=accepted`);
-    response.json({
-      jsonrpc: "2.0",
-      id: envelope.data.id,
-      result: {
-        accepted: true,
-        experimentId: parsed.data.experimentId,
-        echo: parsed.data.payload,
-        processedAt: new Date().toISOString(),
-      },
-    });
+    response.json("error" in reply
+      ? rpcError(envelope.data.id, reply.error.code, reply.error.message, reply.error.data)
+      : { jsonrpc: "2.0", id: envelope.data.id, result: reply.result });
   });
 
   return app;

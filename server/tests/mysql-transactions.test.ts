@@ -66,6 +66,7 @@ const runInput = {
   outcome: "success" as const,
   httpStatus: 200,
   rpcErrorCode: null,
+  idempotencyKey: null,
   durationMs: 12,
   response: { jsonrpc: "2.0" },
 };
@@ -180,6 +181,7 @@ describe("SQLite schema script", () => {
       .all();
     expect(indexes).toEqual([
       { name: "idx_experiment_runs_experiment" },
+      { name: "idx_experiment_runs_key" },
       { name: "idx_experiment_runs_outcome" },
     ]);
     expect(() => database

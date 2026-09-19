@@ -31,15 +31,26 @@ const rpcError = z.object({
 
 export type DownstreamRpcRequest = ReturnType<typeof buildDownstreamRpcRequest>;
 
-export function buildDownstreamRpcRequest(experiment: Experiment) {
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function buildDownstreamRpcRequest(
+  experiment: Experiment,
+  options: { correlationId?: string | null; idempotencyKey?: string | null } = {},
+) {
+  // A caller may mint the exchange id, so one value can be followed from the
+  // browser through the coordinator to the dependency's log.
+  const id = options.correlationId && UUID.test(options.correlationId)
+    ? options.correlationId.toLowerCase()
+    : randomUUID();
   return {
     jsonrpc: "2.0" as const,
-    id: randomUUID(),
+    id,
     method: DOWNSTREAM_RPC_METHOD,
     params: {
       experimentId: experiment.id,
       behavior: experiment.behavior,
       payload: experiment.payload,
+      ...(options.idempotencyKey ? { idempotencyKey: options.idempotencyKey } : {}),
     },
   };
 }

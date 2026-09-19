@@ -1,0 +1,49 @@
+name: verify
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  gate:
+    name: tests, types, builds, smoke, audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run verify
+
+  mysql:
+    name: adapter against a real MySQL 8.4
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci-root
+          MYSQL_DATABASE: relaylab_ci
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -pci-root"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      RELAYLAB_DATABASE_DRIVER: mysql
+      RELAYLAB_DB_HOST: 127.0.0.1
+      RELAYLAB_DB_PORT: "3306"
+      RELAYLAB_DB_NAME: relaylab_ci
+      RELAYLAB_DB_USER: root
+      RELAYLAB_DB_PASSWORD: ci-root
+      RELAYLAB_DB_SSL: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run test -w server -- mysql-live

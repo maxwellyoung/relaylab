@@ -627,6 +627,7 @@ describe("request experiments", () => {
       outcome: "downstream_error",
       httpStatus: 200,
       rpcErrorCode: -32001,
+      idempotencyKey: null,
       durationMs: 5,
       response: { jsonrpc: "2.0" },
     });
@@ -774,6 +775,128 @@ describe("request experiments", () => {
     const response = await request(application.app).get("/health");
 
     expect(response.headers["access-control-expose-headers"]).toContain("X-Correlation-Id");
+  });
+
+  it("uses the caller's request id as the exchange id all the way to the dependency", async () => {
+    const seen: string[] = [];
+    downstreamServer = createServer(async (incoming, outgoing) => {
+      const body = await readRpcRequest(incoming);
+      seen.push(body.id);
+      writeRpcResult(outgoing, body);
+    });
+    await new Promise<void>((resolve) => downstreamServer?.listen(0, "127.0.0.1", resolve));
+    const address = downstreamServer.address();
+    if (!address || typeof address === "string") throw new Error("No test port");
+    temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
+    application = build({
+      databasePath: path.join(temporaryDirectory, "relaylab.sqlite"),
+      downstreamUrl: `http://127.0.0.1:${address.port}`,
+    });
+    const experiment = await request(application.app)
+      .post("/api/experiments").send({ name: "Browser-minted id", behavior: "healthy", payload: {} });
+
+    const minted = "6f0b2b1c-2f7e-4d43-9a3f-0c5d2b1e8a11";
+    const run = await request(application.app)
+      .post(`/api/experiments/${experiment.body.id}/runs`)
+      .set("X-Request-Id", minted);
+
+    expect(seen).toEqual([minted]);
+    expect(run.headers["x-correlation-id"]).toBe(minted);
+    expect(run.body.response.id).toBe(minted);
+  });
+
+  it("replays a settled run for a repeated idempotency key without calling the dependency", async () => {
+    let calls = 0;
+    downstreamServer = createServer(async (incoming, outgoing) => {
+      calls += 1;
+      writeRpcResult(outgoing, await readRpcRequest(incoming));
+    });
+    await new Promise<void>((resolve) => downstreamServer?.listen(0, "127.0.0.1", resolve));
+    const address = downstreamServer.address();
+    if (!address || typeof address === "string") throw new Error("No test port");
+    temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
+    application = build({
+      databasePath: path.join(temporaryDirectory, "relaylab.sqlite"),
+      downstreamUrl: `http://127.0.0.1:${address.port}`,
+    });
+    const experiment = await request(application.app)
+      .post("/api/experiments").send({ name: "Retried click", behavior: "healthy", payload: {} });
+
+    const first = await request(application.app)
+      .post(`/api/experiments/${experiment.body.id}/runs`).set("Idempotency-Key", "click-1");
+    const again = await request(application.app)
+      .post(`/api/experiments/${experiment.body.id}/runs`).set("Idempotency-Key", "click-1");
+
+    expect(first.status).toBe(201);
+    expect(again.status).toBe(200);
+    expect(again.headers["x-idempotent-replay"]).toBe("true");
+    expect(again.body.id).toBe(first.body.id);
+    expect(calls).toBe(1);
+    const details = await request(application.app).get(`/api/experiments/${experiment.body.id}`);
+    expect(details.body.runs).toHaveLength(1);
+  });
+
+  it("turns a timed-out attempt into effectively-once work when retried with the same key", async () => {
+    // The real downstream service: slow enough that the first attempt times out,
+    // yet it completes the work and remembers it under the idempotency key.
+    const service = buildDownstreamService({ slowDelayMs: 300 });
+    downstreamServer = createServer(service);
+    await new Promise<void>((resolve) => downstreamServer?.listen(0, "127.0.0.1", resolve));
+    const address = downstreamServer.address();
+    if (!address || typeof address === "string") throw new Error("No test port");
+    temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
+    application = build({
+      databasePath: path.join(temporaryDirectory, "relaylab.sqlite"),
+      downstreamUrl: `http://127.0.0.1:${address.port}`,
+      timeoutMs: 60,
+    });
+    const experiment = await request(application.app)
+      .post("/api/experiments").send({ name: "Slow but retried", behavior: "slow", payload: { orderId: "ONCE-1" } });
+
+    const attempt = await request(application.app)
+      .post(`/api/experiments/${experiment.body.id}/runs`).set("Idempotency-Key", "once-1");
+    expect(attempt.body.outcome).toBe("timeout");
+
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    const retryStartedAt = Date.now();
+    const retry = await request(application.app)
+      .post(`/api/experiments/${experiment.body.id}/runs`).set("Idempotency-Key", "once-1");
+
+    // The retry is a new attempt from the coordinator's point of view, but the
+    // dependency replays the single execution it already completed: the result
+    // it returns was processed before the retry was even sent.
+    expect(retry.status).toBe(201);
+    expect(retry.body.outcome).toBe("success");
+    const processedAt = retry.body.response.result.processedAt as string;
+    expect(new Date(processedAt).getTime()).toBeLessThanOrEqual(retryStartedAt);
+    expect(retry.body.durationMs).toBeLessThan(60);
+    const details = await request(application.app).get(`/api/experiments/${experiment.body.id}`);
+    expect(details.body.runs.map((run: { outcome: string }) => run.outcome)).toEqual(["success", "timeout"]);
+  });
+
+  it("persists every run when many requests race each other", async () => {
+    downstreamServer = createServer(async (incoming, outgoing) => {
+      writeRpcResult(outgoing, await readRpcRequest(incoming));
+    });
+    await new Promise<void>((resolve) => downstreamServer?.listen(0, "127.0.0.1", resolve));
+    const address = downstreamServer.address();
+    if (!address || typeof address === "string") throw new Error("No test port");
+    temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
+    application = build({
+      databasePath: path.join(temporaryDirectory, "relaylab.sqlite"),
+      downstreamUrl: `http://127.0.0.1:${address.port}`,
+    });
+    const experiment = await request(application.app)
+      .post("/api/experiments").send({ name: "Concurrent", behavior: "healthy", payload: {} });
+
+    const { app } = application;
+    const results = await Promise.all(Array.from({ length: 20 }, () =>
+      request(app).post(`/api/experiments/${experiment.body.id}/runs`)));
+
+    expect(results.every((result) => result.status === 201)).toBe(true);
+    expect(new Set(results.map((result) => result.body.id)).size).toBe(20);
+    const details = await request(application.app).get(`/api/experiments/${experiment.body.id}`);
+    expect(details.body.runs).toHaveLength(20);
   });
 
   it("answers malformed experiment identifiers with 404 without querying the database", async () => {
