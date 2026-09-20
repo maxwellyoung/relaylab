@@ -22,8 +22,10 @@ downstream endpoint `POST /rpc` using JSON-RPC 2.0.
 }
 ```
 
-The coordinator generates the UUID. A response is valid only when its `id`
-matches the request and its result matches the method-specific schema.
+The browser supplies a UUID correlation header; the coordinator generates a UUID
+when a caller omits it or supplies an invalid value. A response is valid only when
+its `id` matches the request and its result matches the method-specific schema
+and requested experiment. A response containing both `result` and `error` is invalid.
 
 ## Successful result
 
@@ -58,8 +60,16 @@ invalid envelope, wrong correlation ID, or wrong result shape becomes
 ## Idempotency
 
 `params` may carry `idempotencyKey` (a string of at most 80 characters). The
-downstream service executes an operation once per key: a repeated request,
+downstream service executes an operation once per experiment/key pair during its
+current process lifetime: a repeated request,
 including one that arrives while the first attempt is still running, waits for
 and receives the same reply, and the service logs `replayed` instead of
 `replied`. This is what lets a coordinator that gave up at its deadline retry
 without causing a second execution.
+
+Different experiments remain isolated when a caller reuses a key. The cache is
+in-memory, has no eviction, and is lost when the downstream restarts. This is
+not a durable exactly-once guarantee. A timeout establishes an uncertain outcome,
+not cancellation or an at-least-once delivery guarantee. Each browser Run click
+uses a fresh key; explicit same-key retries are available to API callers. The
+coordinator can persist multiple attempts for one downstream execution.

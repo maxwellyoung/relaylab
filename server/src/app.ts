@@ -147,7 +147,7 @@ export function buildApplication({
         body = responseText;
       }
 
-      const classification = classifyDownstreamRpcResponse(body, rpcRequest.id);
+      const classification = classifyDownstreamRpcResponse(body, rpcRequest.id, experimentId);
       runInput = {
         experimentId,
         // A correlated RPC error is the dependency's own answer even if the

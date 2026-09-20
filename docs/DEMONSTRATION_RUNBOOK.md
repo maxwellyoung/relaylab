@@ -28,7 +28,7 @@ One continuous screen recording with spoken explanation, then light editing.
 | Unreachable dependency | Stop only the downstream; run; restart it; run again | `unreachable` recorded while the coordinator keeps serving, then recovery |
 | Data design | `npm run db:inspect`; server-side validation with `curl` | Two related tables with a foreign key; 400 with field errors |
 | Durable state | Restart the coordinator; reload; reopen saved experiments | History survives restart |
-| Test evidence | `npm test` | 68 passing tests |
+| Test evidence | `npm test` | 71 passing tests (20 September; earlier footage is dated separately) |
 | GitHub history | Scroll the repository **Commits** page | Commit dates on the GitHub website |
 | Limitations | Spoken | Simulated failures, single user, no authentication or automatic retries, no hosted deployment in this submission |
 

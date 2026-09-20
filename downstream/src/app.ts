@@ -45,7 +45,7 @@ export function buildDownstreamService({
   log?: (line: string) => void;
 } = {}) {
   const app = express();
-  // Completed and in-flight work by idempotency key. A retry that arrives while
+  // Completed and in-flight work by experiment and idempotency key. A retry that arrives while
   // the first attempt is still running awaits the same promise, so the
   // operation executes once even when the caller has already given up on it.
   const replies = new Map<string, Promise<Reply>>();
@@ -125,13 +125,18 @@ export function buildDownstreamService({
     };
 
     let reply: Reply;
-    const known = idempotencyKey ? replies.get(idempotencyKey) : undefined;
+    // Match the coordinator's database lookup scope: independent experiments
+    // must never receive one another's cached payload when a key is reused.
+    const cacheKey = idempotencyKey
+      ? JSON.stringify([parsed.data.experimentId, idempotencyKey])
+      : undefined;
+    const known = cacheKey ? replies.get(cacheKey) : undefined;
     if (known) {
       reply = await known;
       log(`replayed rpc=${rpc} key=${idempotencyKey!.slice(0, 8)}`);
     } else {
       const pending = execute();
-      if (idempotencyKey) replies.set(idempotencyKey, pending);
+      if (cacheKey) replies.set(cacheKey, pending);
       reply = await pending;
       log("error" in reply
         ? `replied rpc=${rpc} error=${reply.error.code}`

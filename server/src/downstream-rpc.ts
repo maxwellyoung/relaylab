@@ -63,9 +63,16 @@ export type DownstreamRpcOutcome = {
 export function classifyDownstreamRpcResponse(
   body: unknown,
   expectedId: string | number,
+  expectedExperimentId?: number,
 ): DownstreamRpcOutcome {
+  // JSON-RPC permits a result or an error, never both, even if each object
+  // separately matches a schema. Keep contradictory evidence out of success.
+  if (body && typeof body === "object" && "result" in body && "error" in body) {
+    return { outcome: "invalid_response", errorCode: null };
+  }
   const success = rpcSuccess.safeParse(body);
-  if (success.success && success.data.id === expectedId) {
+  if (success.success && success.data.id === expectedId
+      && (expectedExperimentId === undefined || success.data.result.experimentId === expectedExperimentId)) {
     return { outcome: "success", errorCode: null };
   }
 

@@ -77,7 +77,7 @@ C++ compiler.
 ## Install and run
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
@@ -228,7 +228,8 @@ Example experiment:
 The coordinator is the only caller of `POST /rpc`. It sends a JSON-RPC 2.0
 request using the versioned method `relaylab.process.v1` and a UUID correlation
 identifier. The downstream returns either a correlated `result` or `error`.
-The coordinator rejects mismatched IDs and invalid method results before
+The coordinator rejects mismatched IDs, results for the wrong experiment,
+contradictory result/error envelopes, and invalid method results before
 persisting the full envelope as evidence. The frozen message contract and
 error codes are documented in [`docs/RPC_CONTRACT.md`](docs/RPC_CONTRACT.md).
 
@@ -237,7 +238,10 @@ error codes are documented in [`docs/RPC_CONTRACT.md`](docs/RPC_CONTRACT.md).
 - The downstream behaviours are deterministic simulations, not measurements of
   arbitrary external systems.
 - The coordinator performs no automatic retry or circuit-breaking; a caller may
-  retry with the same `Idempotency-Key` and the dependency dedupes.
+  retry with the same `Idempotency-Key` within an experiment. The dependency
+  deduplicates completed and in-flight work only for its current process lifetime.
+  Its cache has no eviction; restart loses that protection. Each browser Run click
+  uses a new key. Attempts and executions differ: retries may add history rows.
 - Experiments cannot be edited. Deleting one removes its runs by cascade.
 - One local user only; authentication is outside the assignment scope.
 - The container image is intentionally single-machine and is not designed for

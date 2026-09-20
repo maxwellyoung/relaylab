@@ -805,6 +805,53 @@ describe("request experiments", () => {
     expect(run.body.response.id).toBe(minted);
   });
 
+  it("keeps a reused idempotency key isolated between experiments", async () => {
+    downstreamServer = createServer(buildDownstreamService());
+    await new Promise<void>((resolve) => downstreamServer?.listen(0, "127.0.0.1", resolve));
+    const address = downstreamServer.address();
+    if (!address || typeof address === "string") throw new Error("No test port");
+    temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
+    application = build({ databasePath: path.join(temporaryDirectory, "relaylab.sqlite"),
+      downstreamUrl: `http://127.0.0.1:${address.port}` });
+    const first = await request(application.app).post("/api/experiments")
+      .send({ name: "First order", behavior: "healthy", payload: { order: "A" } });
+    const second = await request(application.app).post("/api/experiments")
+      .send({ name: "Second order", behavior: "healthy", payload: { order: "B" } });
+    for (const experiment of [first.body, second.body]) {
+      const run = await request(application.app).post(`/api/experiments/${experiment.id}/runs`)
+        .set("Idempotency-Key", "same-client-key");
+      expect(run.status).toBe(201);
+      expect(run.body.outcome).toBe("success");
+      expect(run.body.response.result.experimentId).toBe(experiment.id);
+      expect(run.body.response.result.echo).toEqual(experiment.payload);
+    }
+  });
+
+  it.each(["wrong experiment", "result and error"])("rejects a correlated RPC response with %s", async (fault) => {
+    downstreamServer = createServer(async (incoming, outgoing) => {
+      const rpc = await readRpcRequest(incoming);
+      outgoing.setHeader("Content-Type", "application/json");
+      outgoing.end(JSON.stringify({ jsonrpc: "2.0", id: rpc.id,
+        result: { accepted: true, experimentId: fault === "wrong experiment" ? rpc.params.experimentId + 1 : rpc.params.experimentId,
+          echo: rpc.params.payload, processedAt: new Date().toISOString() },
+        ...(fault === "result and error" ? { error: { code: -32001, message: "Contradictory reply" } } : {}),
+      }));
+    });
+    await new Promise<void>((resolve) => downstreamServer?.listen(0, "127.0.0.1", resolve));
+    const address = downstreamServer.address();
+    if (!address || typeof address === "string") throw new Error("No test port");
+    temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
+    application = build({ databasePath: path.join(temporaryDirectory, "relaylab.sqlite"),
+      downstreamUrl: `http://127.0.0.1:${address.port}` });
+    const experiment = await request(application.app).post("/api/experiments")
+      .send({ name: "Wrong reply", behavior: "healthy", payload: {} });
+    const run = await request(application.app).post(`/api/experiments/${experiment.body.id}/runs`);
+    expect(run.status).toBe(201);
+    expect(run.body.outcome).toBe("invalid_response");
+    const details = await request(application.app).get(`/api/experiments/${experiment.body.id}`);
+    expect(details.body.runs[0].outcome).toBe("invalid_response");
+  });
+
   it("replays a settled run for a repeated idempotency key without calling the dependency", async () => {
     let calls = 0;
     downstreamServer = createServer(async (incoming, outgoing) => {
