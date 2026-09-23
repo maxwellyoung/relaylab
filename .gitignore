@@ -23,3 +23,6 @@ output/
 outputs/
 .playwright-cli/
 relaylab-submission.zip
+
+# Vercel linkage
+.vercel
