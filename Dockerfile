@@ -8,6 +8,7 @@ RUN apt-get update \
 
 COPY package.json package-lock.json ./
 COPY client/package.json client/package.json
+COPY runner/package.json runner/package.json
 COPY downstream/package.json downstream/package.json
 COPY server/package.json server/package.json
 RUN npm ci
@@ -35,8 +36,12 @@ COPY --from=build /app/downstream/package.json ./downstream/package.json
 COPY --from=build /app/downstream/dist ./downstream/dist
 COPY --from=build /app/server/package.json ./server/package.json
 COPY --from=build /app/server/dist ./server/dist
+COPY --from=build /app/runner/package.json ./runner/package.json
+COPY --from=build /app/runner/dist ./runner/dist
+COPY --from=build /app/protocol ./protocol
 COPY --from=build /app/database ./database
 COPY --from=build /app/scripts/start-production.mjs ./scripts/start-production.mjs
+COPY --from=build /app/scripts/start-group.mjs ./scripts/start-group.mjs
 
 RUN mkdir -p /data
 

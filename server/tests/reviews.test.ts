@@ -3,15 +3,15 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import request from "supertest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { buildApplication } from "../src/app.js";
+import { buildHttpApplication } from "./http-application.js";
 
 describe("researcher/reviewer handoff", () => {
-  let application: ReturnType<typeof buildApplication>;
+  let application: Awaited<ReturnType<typeof buildHttpApplication>>;
   let directory: string;
 
   beforeEach(async () => {
     directory = await mkdtemp(path.join(tmpdir(), "relaylab-reviews-"));
-    application = buildApplication({ databasePath: path.join(directory, "lab.sqlite"), downstreamUrl: "http://127.0.0.1:1", reviewDemoEnabled: true });
+    application = await buildHttpApplication({ databasePath: path.join(directory, "lab.sqlite"), downstreamUrl: "http://127.0.0.1:1", reviewDemoEnabled: true });
   });
   afterEach(async () => {
     vi.restoreAllMocks();
@@ -92,7 +92,7 @@ describe("researcher/reviewer handoff", () => {
     await request(application.app).patch(`/api/reviews/${submitted.body.id}`).set("Authorization", reviewer).send({ status: "rejected", feedback: "Please rerun with the dependency started." }).expect(200);
     await request(application.app).delete(`/api/experiments/${run.experimentId}`).expect(409);
     await application.close();
-    application = buildApplication({ databasePath: path.join(directory, "lab.sqlite"), reviewDemoEnabled: true });
+    application = await buildHttpApplication({ databasePath: path.join(directory, "lab.sqlite"), reviewDemoEnabled: true });
     await request(application.app).get("/api/reviews").set("Authorization", researcher).expect(401);
     const resumed = await session("researcher-a");
     const result = await request(application.app).get("/api/reviews").set("Authorization", resumed).expect(200);
@@ -109,7 +109,7 @@ describe("researcher/reviewer handoff", () => {
     await request(application.app).delete("/api/demo-sessions/current").set("Authorization", fresh).expect(204);
     await request(application.app).get("/api/reviews").set("Authorization", fresh).expect(401);
     await application.close();
-    application = buildApplication({ databasePath: path.join(directory, "lab.sqlite") });
+    application = await buildHttpApplication({ databasePath: path.join(directory, "lab.sqlite") });
     await request(application.app).post("/api/demo-sessions").send({ actorId: "reviewer" }).expect(403);
   });
 

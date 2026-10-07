@@ -12,6 +12,8 @@ data/
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
+*.sqlite.lock
+*.sqlite.lock.guard
 
 # Local configuration
 .env

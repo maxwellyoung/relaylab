@@ -110,7 +110,17 @@ export type CoordinatorHealth = {
   service: string;
   database: string;
   downstreamTimeoutMs: number;
+  executionTransport?: "json-rpc" | "grpc";
 };
+
+export type RunnerExecution = {
+  executionId: string; operationId: string; experimentRef: string;
+  state: "RUNNING" | "COMPLETED" | "INTERRUPTED";
+  outcome: string; resultJson: string; startedAt: string; completedAt: string;
+};
+export function getRunnerExecution(runId: number): Promise<RunnerExecution> {
+  return request(`/api/runs/${runId}/execution`);
+}
 
 export function getHealth(): Promise<CoordinatorHealth> {
   return request("/health");

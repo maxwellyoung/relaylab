@@ -311,6 +311,7 @@ a:focus-visible {
 
 .result-card dl {
   display: flex;
+  flex-wrap: wrap;
   gap: 20px;
   margin: 0;
 }
@@ -582,6 +583,13 @@ a:focus-visible {
   resize: vertical;
 }
 .review-feedback { white-space: pre-wrap; }
+.runner-inspection { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 12px; }
+.runner-inspection button {
+  min-height: 44px; border: 1px solid var(--line); border-radius: 4px;
+  background: var(--surface); color: var(--ink); padding: 8px 12px;
+}
+.runner-inspection code { overflow-wrap: anywhere; }
+.runner-inspection [role="alert"] { color: var(--bad); }
 @media (max-width: 400px) {
   .review-accounts { display: grid; grid-template-columns: 1fr; }
   .review-heading { align-items: start; }

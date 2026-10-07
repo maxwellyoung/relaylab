@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import ReviewWorkspace from "./ReviewWorkspace";
+import RunnerExecutionStatus from "./RunnerExecutionStatus";
 import {
   createExperiment,
   getExperiment,
@@ -76,6 +77,13 @@ const defaultPayload = `{
   "quantity": 2
 }`;
 
+const grpcBehaviorCopy: typeof behaviorCopy = {
+  healthy: { label: "Healthy", signal: "Valid execution", description: "The runner executes the payload and persists valid result evidence." },
+  slow: { label: "Slow", signal: "Deadline exceeded", description: "The accepted execution continues after the coordinator's deadline; inspect its eventual result." },
+  unavailable: { label: "Dependency failure", signal: "Execution failure", description: "The runner records a simulated dependency failure while the gRPC call itself succeeds." },
+  malformed: { label: "Malformed", signal: "Invalid result", description: "The runner returns result evidence that the coordinator rejects." },
+};
+
 function formatTimestamp(value: string) {
   return new Intl.DateTimeFormat("en-NZ", {
     day: "numeric",
@@ -93,6 +101,9 @@ function responseText(run: ExperimentRun) {
 }
 
 function rpcSignal(run: ExperimentRun) {
+  if (run.response && typeof run.response === "object" && run.response.transport === "grpc") {
+    return typeof run.response.grpcStatus === "number" ? `gRPC ${run.response.grpcStatus}` : "gRPC";
+  }
   // The coordinator classifies and stores the code; do not re-derive it.
   if (typeof run.rpcErrorCode === "number") {
     return String(run.rpcErrorCode).replace("-", "−");
@@ -123,13 +134,23 @@ export default function App() {
   const isBusy = isRunning || isLoading;
   const [error, setError] = useState("");
 
-  const currentOutcome = latestRun ? outcomeCopy[latestRun.outcome] : null;
+  const [executionTransport, setExecutionTransport] = useState<"json-rpc" | "grpc">("json-rpc");
+  const isGrpc = latestRun?.response && typeof latestRun.response === "object" ? latestRun.response.transport === "grpc" : executionTransport === "grpc";
+  const displayedBehaviors = executionTransport === "grpc" ? grpcBehaviorCopy : behaviorCopy;
+  const grpcCopy: Record<RunOutcome, { label: string; explanation: string }> = {
+    success: { label: "Execution completed", explanation: "The runner persisted its execution and returned validated evidence for this experiment." },
+    downstream_error: { label: "Runner execution failed", explanation: "The runner reported an execution failure or refused the request; inspect the preserved evidence." },
+    timeout: { label: "Deadline exceeded", explanation: "The coordinator stopped waiting. An accepted job may still complete; check its runner state." },
+    invalid_response: { label: "Contract rejected", explanation: "The runner answered, but its execution identity or result failed validation." },
+    unreachable: { label: "Runner unavailable", explanation: "The gRPC call could not reach the runner. Restore it and retry or inspect execution status." },
+  };
+  const currentOutcome = latestRun ? { ...outcomeCopy[latestRun.outcome], ...(isGrpc ? grpcCopy[latestRun.outcome] : {}) } : null;
   const runCount = selected?.runs.length ?? 0;
   // Read the configured deadline from the coordinator rather than hardcoding it.
   const [deadlineMs, setDeadlineMs] = useState<number | null>(null);
   useEffect(() => {
     getHealth()
-      .then((health) => setDeadlineMs(health.downstreamTimeoutMs))
+      .then((health) => { setDeadlineMs(health.downstreamTimeoutMs); setExecutionTransport(health.executionTransport ?? "json-rpc"); })
       .catch(() => setDeadlineMs(null));
   }, []);
 
@@ -229,7 +250,7 @@ export default function App() {
       const experiment =
         selected ??
         (await createExperiment({
-          name: `${behaviorCopy[behavior].label} dependency`,
+          name: `${displayedBehaviors[behavior].label} ${executionTransport === "grpc" ? "experiment" : "dependency"}`,
           behavior,
           payload,
         }));
@@ -264,10 +285,10 @@ export default function App() {
         aria-labelledby="lab-title"
       >
         <header className="lab-heading">
-          <h1 id="lab-title">Run a dependency failure experiment</h1>
+          <h1 id="lab-title">{executionTransport === "grpc" ? "Run an execution experiment" : "Run a dependency failure experiment"}</h1>
           <p>
-            Send one request through an Express coordinator to a separate
-            service. The result is stored in the configured relational database.
+            {executionTransport === "grpc" ? "Send an experiment to a separate gRPC runner. The runner owns its execution ledger; the coordinator preserves the attempt for review."
+              : "Send one request through an Express coordinator to a separate service. The result is stored in the configured relational database."}
           </p>
         </header>
 
@@ -291,8 +312,8 @@ export default function App() {
               {(Object.keys(behaviorCopy) as ExperimentBehavior[]).map(
                 (option) => (
                   <option key={option} value={option}>
-                    {behaviorCopy[option].label} —{" "}
-                    {behaviorCopy[option].signal}
+                    {displayedBehaviors[option].label} —{" "}
+                    {displayedBehaviors[option].signal}
                   </option>
                 ),
               )}
@@ -335,7 +356,7 @@ export default function App() {
         </div>
 
         <p className="behavior-description">
-          {behaviorCopy[behavior].description}
+          {displayedBehaviors[behavior].description}
         </p>
 
         <section className="trace" aria-label="Distributed request trace">
@@ -356,7 +377,7 @@ export default function App() {
             <li className="route-node coordinator-node">
               <div>
                 <strong>Coordinator</strong>
-                <small>JSON-RPC 2.0 · {deadlineMs === null ? "bounded" : `${deadlineMs} ms`} deadline</small>
+                <small>{executionTransport === "grpc" ? "gRPC" : "JSON-RPC 2.0"} · {deadlineMs === null ? "bounded" : `${deadlineMs} ms`} deadline</small>
               </div>
             </li>
             <li className="route-line" aria-hidden="true">
@@ -364,8 +385,8 @@ export default function App() {
             </li>
             <li className="route-node dependency-node">
               <div>
-                <strong>Dependency</strong>
-                <small>{behaviorCopy[behavior].signal}</small>
+                <strong>{executionTransport === "grpc" ? "Runner" : "Dependency"}</strong>
+                <small>{displayedBehaviors[behavior].signal}</small>
               </div>
             </li>
           </ol>
@@ -386,7 +407,7 @@ export default function App() {
                   <h3>{currentOutcome.label}</h3>
                   <dl>
                     <div>
-                      <dt>HTTP</dt>
+                      <dt>{isGrpc ? "HTTP downstream" : "HTTP"}</dt>
                       <dd>{latestRun.httpStatus ?? "—"}</dd>
                     </div>
                     <div>
@@ -412,6 +433,7 @@ export default function App() {
                   <summary>Response evidence</summary>
                   <pre>{responseText(latestRun)}</pre>
                 </details>
+                {isGrpc && <RunnerExecutionStatus key={latestRun.id} runId={latestRun.id} disabled={isBusy} />}
               </article>
             ) : (
               <div className="ready-state">
@@ -452,7 +474,7 @@ export default function App() {
                       <strong>{experiment.name}</strong>
                       <small>{formatTimestamp(experiment.createdAt)}</small>
                     </span>
-                    <span>{behaviorCopy[experiment.behavior].signal}</span>
+                    <span>{displayedBehaviors[experiment.behavior].signal}</span>
                   </button>
                   <button
                     className="delete-experiment"

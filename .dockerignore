@@ -14,4 +14,9 @@ tmp
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
+*.sqlite.lock
+*.sqlite.lock.guard
+output
+outputs
+.playwright-cli
 .DS_Store

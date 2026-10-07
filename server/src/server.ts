@@ -29,6 +29,8 @@ const application = buildApplication({
   timeoutMs,
   databaseDriver: driver,
   reviewDemoEnabled: process.env.RELAYLAB_REVIEW_DEMO === "true",
+  runnerTarget: process.env.RELAYLAB_RUNNER_TARGET,
+  runnerNamespace: process.env.RELAYLAB_RUNNER_NAMESPACE,
   clientDirectory,
   log: (line) => console.log(`[coordinator ${new Date().toTimeString().slice(0, 8)}] ${line}`),
 });
@@ -38,6 +40,7 @@ const application = buildApplication({
 const host = process.env.RELAYLAB_REVIEW_DEMO === "true" ? "127.0.0.1" : "0.0.0.0";
 const server = application.app.listen(port, host, () => {
   console.log(`RelayLab coordinator listening on http://localhost:${port}`);
+  process.send?.({ type: "coordinator-ready", port });
 });
 
 function shutdown() {

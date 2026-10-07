@@ -29,6 +29,7 @@ describe("browser-facing REST contract", () => {
       "/api/reviews",
       "/api/reviews/{reviewId}",
       "/api/runs/{runId}/reviews",
+      "/api/runs/{runId}/execution",
     ].sort());
     expect(Object.keys(document.paths["/api/experiments"]).sort()).toEqual(["get", "post"]);
     expect(Object.keys(document.paths["/api/experiments"].post.responses).sort()).toEqual(["201", "400", "503"]);

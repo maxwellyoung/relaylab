@@ -7,6 +7,7 @@ import {
 } from "./database.js";
 import { experimentInputSchema } from "./public-contract.js";
 import { installReviewRoutes } from "./review-routes.js";
+import { createRunnerConnection, runnerErrorStatus } from "./runner-client.js";
 import {
   buildDownstreamRpcRequest,
   classifyDownstreamRpcResponse,
@@ -35,6 +36,8 @@ export function buildApplication({
   clientDirectory,
   log = () => {},
   reviewDemoEnabled = false,
+  runnerTarget,
+  runnerNamespace,
 }: {
   databasePath: string;
   database?: RelayLabDatabase;
@@ -44,8 +47,11 @@ export function buildApplication({
   clientDirectory?: string;
   log?: (line: string) => void;
   reviewDemoEnabled?: boolean;
+  runnerTarget?: string;
+  runnerNamespace?: string;
 }): RelayLabApplication {
   const database = suppliedDatabase ?? openDatabase(databasePath);
+  const runner = runnerTarget ? createRunnerConnection(runnerTarget, timeoutMs, runnerNamespace) : undefined;
   const app = express();
 
   app.use(cors({ exposedHeaders: ["X-Correlation-Id"] }));
@@ -59,6 +65,7 @@ export function buildApplication({
       service: "relaylab-coordinator",
       database: databaseDriver,
       downstreamTimeoutMs: timeoutMs,
+      executionTransport: runner ? "grpc" : "json-rpc",
     });
   });
 
@@ -127,10 +134,13 @@ export function buildApplication({
       idempotencyKey,
     });
     const rpc = rpcRequest.id.slice(0, 8);
-    log(`run experiment=${experimentId} behavior=${experiment.behavior} -> ${rpcRequest.method} rpc=${rpc}`);
+    log(`run experiment=${experimentId} behavior=${experiment.behavior} -> ${runner ? "runner.ExecuteRun" : rpcRequest.method} rpc=${rpc}`);
     const startedAt = performance.now();
     let runInput: Parameters<RelayLabDatabase["createRun"]>[0];
-    try {
+    if (runner) {
+      const result = await runner.execute(experiment, rpcRequest.id, idempotencyKey);
+      runInput = { ...result, experimentId, idempotencyKey, durationMs: Math.max(1, Math.round(performance.now() - startedAt)) };
+    } else try {
       const downstream = await fetch(`${downstreamUrl}/rpc`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -201,6 +211,23 @@ export function buildApplication({
 
   installReviewRoutes(app, database, reviewDemoEnabled);
 
+  app.get("/api/runs/:runId/execution", async (request, response) => {
+    response.set("Cache-Control", "no-store");
+    const runId = parseExperimentId(request.params.runId);
+    const run = runId ? await database.getRun(runId) : undefined;
+    if (!run) { response.status(404).json({ error: "Run not found" }); return; }
+    const evidence = run.response;
+    if (!runner || !evidence || typeof evidence !== "object" || evidence.transport !== "grpc" || typeof evidence.operationId !== "string") {
+      response.status(409).json({ error: "This run has no configured gRPC execution" }); return;
+    }
+    try { response.json(await runner.getExecution(evidence.operationId)); }
+    catch (error) {
+      const status = runnerErrorStatus(error);
+      response.status(status).json({ error: status === 404 ? "Execution not found in the runner ledger; the recorded attempt may not have been accepted."
+        : "Runner execution unavailable; check the runner and try again" });
+    }
+  });
+
   app.use("/api", (_request, response) => {
     response.status(404).json({ error: "Not found" });
   });
@@ -249,6 +276,6 @@ export function buildApplication({
 
   return {
     app,
-    close: () => database.close(),
+    close: async () => { runner?.close(); await database.close(); },
   };
 }

@@ -1,0 +1,29 @@
+syntax = "proto3";
+package relaylab.runner.v1;
+
+// The runner owns execution records. experiment_ref is an opaque coordinator
+// reference, never a cross-service foreign key. Accepted jobs outlive an RPC
+// deadline; a repeated operation returns the same durable execution.
+service Runner {
+  rpc ExecuteRun(ExecuteRunRequest) returns (Execution);
+  rpc GetExecution(GetExecutionRequest) returns (Execution);
+}
+
+message ExecuteRunRequest {
+  string operation_id = 1;
+  string correlation_id = 2;
+  string experiment_ref = 3;
+  string behavior = 4;
+  string payload_json = 5;
+}
+message GetExecutionRequest { string operation_id = 1; }
+message Execution {
+  string execution_id = 1;
+  string operation_id = 2;
+  string experiment_ref = 3;
+  string state = 4; // RUNNING, COMPLETED, or INTERRUPTED
+  string outcome = 5; // success, downstream_error, or invalid_response
+  string result_json = 6;
+  string started_at = 7;
+  string completed_at = 8;
+}

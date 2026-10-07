@@ -140,7 +140,7 @@ export default function ReviewWorkspace({ latestRun, runBusy, onRoleChange }: {
           <strong className={`review-status ${review.status}`}>{statusLabels[review.status]}</strong>
         </header>
         <p>Submitted by {review.researcherId} · {new Date(review.submittedAt).toLocaleString("en-NZ")}</p>
-        <p>Execution: <strong>{review.run.outcome.replaceAll("_", " ")}</strong> · {review.run.durationMs} ms · HTTP {review.run.httpStatus ?? "no response"}</p>
+        <p>Execution: <strong>{review.run.outcome.replaceAll("_", " ")}</strong> · {review.run.durationMs} ms · {review.run.response && typeof review.run.response === "object" && review.run.response.transport === "grpc" ? `gRPC status ${review.run.response.grpcStatus ?? "unknown"}` : `HTTP ${review.run.httpStatus ?? "no response"}`}</p>
         <details><summary>Inspect run evidence</summary><pre>{review.run.response === null ? "No response body was received." : typeof review.run.response === "string" ? review.run.response : JSON.stringify(review.run.response, null, 2)}</pre></details>
         {review.feedback !== null && <>
           <p className="review-feedback"><strong>Reviewer feedback:</strong> {review.feedback}</p>

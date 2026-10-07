@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "RelayLab Coordinator API",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "description": "The browser-facing REST contract. Coordinator, JSON-RPC, repository, and database details remain private implementation concerns. Group extension: opt-in local demo sessions and independent run-review decisions. Demo identities are selectable by anyone and are not production authentication."
   },
   "servers": [
@@ -567,6 +567,66 @@
           }
         }
       }
+    },
+    "/api/runs/{runId}/execution": {
+      "get": {
+        "operationId": "getRunnerExecution",
+        "summary": "Inspect the runner-owned execution for a coordinator receipt without changing the recorded attempt",
+        "description": "Shared local lab read, like experiment history. Makes a real GetExecution gRPC call; no access to the runner database. Cache-Control: no-store. Legacy JSON-RPC receipts have no gRPC execution.",
+        "parameters": [
+          {
+            "name": "runId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Live execution",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunnerExecution"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Run or runner operation not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Run has no configured gRPC execution",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Runner unavailable, deadline exceeded or invalid response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -927,6 +987,53 @@
           },
           "run": {
             "$ref": "#/components/schemas/ExperimentRun"
+          }
+        }
+      },
+      "RunnerExecution": {
+        "type": "object",
+        "required": [
+          "executionId",
+          "operationId",
+          "experimentRef",
+          "state",
+          "outcome",
+          "resultJson",
+          "startedAt",
+          "completedAt"
+        ],
+        "properties": {
+          "executionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "operationId": {
+            "type": "string"
+          },
+          "experimentRef": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "RUNNING",
+              "COMPLETED",
+              "INTERRUPTED"
+            ]
+          },
+          "outcome": {
+            "type": "string"
+          },
+          "resultJson": {
+            "type": "string"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAt": {
+            "type": "string",
+            "description": "Empty while running; otherwise ISO timestamp."
           }
         }
       }

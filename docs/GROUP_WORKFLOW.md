@@ -3,7 +3,9 @@
 This local extension starts from the submitted RelayLab baseline, application
 commit `360b4db` and checkout `b410394` (the latter changes only `.gitignore`).
 It does not establish team agreement, teammate ownership, Android completion,
-advanced integration, or three weeks of Assessment 3 development.
+or three weeks of Assessment 3 development. The gRPC execution lane is now
+implemented and verified locally; [runner notes](GRPC_RUNNER.md) describe its
+scope and recovery limits.
 
 ## Run and exercise the handoff
 
@@ -11,10 +13,11 @@ Use the existing lockfile and Node prerequisites from the root README:
 
 ```bash
 npm ci
-RELAYLAB_REVIEW_DEMO=true npm run dev
+npm run build
+npm run start:group
 ```
 
-Open the Vite URL in two tabs. Choose **Researcher A** in the first and
+Open http://localhost:3000 in two tabs. Choose **Researcher A** in the first and
 **Reviewer** in the second. In the researcher tab:
 
 1. Run an experiment through the existing coordinator/downstream path.
@@ -36,7 +39,8 @@ cannot be deleted. Unsubmitted experiments retain the original delete behaviour.
 ## Shared HTTP contract
 
 The authoritative machine-readable contract is [openapi.json](openapi.json),
-version 1.1.0. Original experiment/run response fields remain compatible.
+version 1.2.0. Original experiment/run response fields remain compatible;
+gRPC receipts have null `httpStatus` and protocol-labelled evidence in `response`.
 
 | Method | Endpoint | Operation |
 | --- | --- | --- |
@@ -46,6 +50,7 @@ version 1.1.0. Original experiment/run response fields remain compatible.
 | POST | `/api/runs/{runId}/reviews` | Researcher submits an existing run exactly once; returns 201 and Location. |
 | GET | `/api/reviews/{reviewId}` | Read one visible review with its execution evidence. |
 | PATCH | `/api/reviews/{reviewId}` | Reviewer sends `{ "status": "approved", "feedback": "Evidence verified" }`, or `rejected`. |
+| GET | `/api/runs/{runId}/execution` | Read live runner execution over gRPC, without changing the persisted attempt. |
 
 Review/session operations use `Authorization: Bearer <token>`. Identity is
 resolved by the server, not accepted from review request bodies. Feedback is
@@ -64,8 +69,10 @@ the coordinator binds to `127.0.0.1` in this mode. Deployment defaults keep it o
 
 ## Persistence and concurrency
 
-The coordinator owns `experiments`, `experiment_runs`, and `run_reviews` in
-this slice. Startup creates the new table without resetting baseline rows in
+The coordinator owns `experiments`, immutable `experiment_runs` receipts, and
+`run_reviews`. The runner owns `executions` in a separate database. There is no
+cross-service SQL or foreign key; runner execution IDs and snapshots are opaque
+evidence in coordinator receipts. Startup creates the new table without resetting baseline rows in
 either schema. A unique run ID prevents duplicate submissions. Decisions use
 an atomic update conditioned on `status = 'pending'`; only one competing
 reviewer request can succeed. Write/read-back pairs run in transactions.
@@ -83,6 +90,7 @@ npm run typecheck
 npm run build
 npm run smoke
 npm run smoke:reviews
+npm run smoke:grpc
 ```
 
 The review smoke uses built code, real loopback HTTP and the actual JSON-RPC
@@ -100,16 +108,14 @@ the ignored `outputs/group-review-2026-10-08/` directory.
   technical responsibility. Record genuine contributions and AI-assisted
   changes accurately; individual investigation/reflection remains personal work.
 - Build the native Android reviewer and event-driven notification capability.
-- Implement gRPC as a meaningful runner service with its own data and contract,
-  including unavailable/deadline recovery. The existing JSON-RPC simulator is
-  retained; it is not gRPC evidence. Moving execution ownership will require
-  replacing the current local run foreign key with a service-owned identifier
-  and a deliberate evidence contract.
+- Integrate the verified gRPC lane with the team's agreed workflow and Android.
+  The original JSON-RPC simulator remains available for baseline regression;
+  the group launcher uses the runner-owned execution ledger.
 - Validate the agreed larger dataset, concurrent clients and actual Android
   response-time requirement; retain two genuine dated working checkpoints.
-- Address the current dependency audit before any release: on 8 October,
-  `npm audit --omit=dev` reports an inherited critical `proxy-addr` advisory.
-  This slice adds no dependencies and does not alter the lockfile.
+- The inherited `proxy-addr` advisory was cleared with its compatible patch
+  update during the gRPC milestone. The production dependency audit passes;
+  development-tool advisories remain outside that production audit.
 - Team reports/demo, independent individual reports, public repository
   publication and final submission remain separate work and approval gates.
 

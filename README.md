@@ -15,12 +15,19 @@ for setup, the shared HTTP contract, verification and remaining integration work
 
 ```bash
 npm ci
-RELAYLAB_REVIEW_DEMO=true npm run dev
+npm run build
+npm run start:group
 ```
 
-Demo account selection is disabled by default. In demo mode the coordinator
-binds to loopback. These accounts are not production authentication. Android,
-mobile notifications and gRPC are not implemented by this extension.
+Open http://localhost:3000 in two tabs and select Researcher A / Reviewer.
+The group launcher starts a real gRPC runner and coordinator with separate
+SQLite stores. The [runner notes](docs/GRPC_RUNNER.md) explain ownership,
+deadlines, restart recovery and the two RPC methods. `npm run smoke:grpc`
+verifies the built processes and failure paths.
+
+Demo account selection is disabled in the baseline lane and enabled by the
+group launcher, which binds both services to loopback. These accounts are not
+production authentication. Android and mobile notifications remain team work.
 
 ## Architecture
 

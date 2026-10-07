@@ -1,6 +1,15 @@
 import request from "supertest";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { buildDownstreamService } from "../src/app.js";
+import { listenHttp } from "../../test-support/http.js";
+
+const fixtures: Awaited<ReturnType<typeof listenHttp>>[] = [];
+afterEach(async () => { await Promise.all(fixtures.splice(0).map((fixture) => fixture.close())); });
+async function buildService(options?: Parameters<typeof buildDownstreamService>[0]) {
+  const fixture = await listenHttp(buildDownstreamService(options));
+  fixtures.push(fixture);
+  return fixture.app;
+}
 
 const rpcRequest = (
   params: Record<string, unknown>,
@@ -16,7 +25,7 @@ const rpcRequest = (
 describe("downstream JSON-RPC service", () => {
   it("logs each received call and its reply against the caller's correlation ID", async () => {
     const lines: string[] = [];
-    const service = buildDownstreamService({ log: (line) => lines.push(line) });
+    const service = await buildService({ log: (line) => lines.push(line) });
 
     await request(service)
       .post("/rpc")
@@ -29,7 +38,7 @@ describe("downstream JSON-RPC service", () => {
   });
 
   it("reports downstream health independently", async () => {
-    const service = buildDownstreamService();
+    const service = await buildService();
 
     const response = await request(service).get("/health");
 
@@ -41,7 +50,7 @@ describe("downstream JSON-RPC service", () => {
   });
 
   it("returns a correlated result for a healthy RPC request", async () => {
-    const service = buildDownstreamService();
+    const service = await buildService();
 
     const response = await request(service)
       .post("/rpc")
@@ -67,7 +76,7 @@ describe("downstream JSON-RPC service", () => {
   });
 
   it("returns a JSON-RPC application error when unavailable", async () => {
-    const service = buildDownstreamService();
+    const service = await buildService();
 
     const response = await request(service)
       .post("/rpc")
@@ -92,7 +101,7 @@ describe("downstream JSON-RPC service", () => {
   });
 
   it("can delay an RPC result to make timeout handling reproducible", async () => {
-    const service = buildDownstreamService({ slowDelayMs: 25 });
+    const service = await buildService({ slowDelayMs: 25 });
     const startedAt = performance.now();
 
     const response = await request(service)
@@ -119,7 +128,7 @@ describe("downstream JSON-RPC service", () => {
   });
 
   it("can return an invalid method result for contract checks", async () => {
-    const service = buildDownstreamService();
+    const service = await buildService();
 
     const response = await request(service)
       .post("/rpc")
@@ -140,7 +149,7 @@ describe("downstream JSON-RPC service", () => {
   });
 
   it("uses the standard method-not-found error", async () => {
-    const service = buildDownstreamService();
+    const service = await buildService();
 
     const response = await request(service)
       .post("/rpc")
@@ -163,7 +172,7 @@ describe("downstream JSON-RPC service", () => {
   });
 
   it("uses the standard invalid-params error", async () => {
-    const service = buildDownstreamService();
+    const service = await buildService();
 
     const response = await request(service)
       .post("/rpc")
@@ -180,7 +189,7 @@ describe("downstream JSON-RPC service", () => {
   });
 
   it("answers an unreadable envelope with a JSON-RPC parse error", async () => {
-    const service = buildDownstreamService();
+    const service = await buildService();
 
     const response = await request(service)
       .post("/rpc")
@@ -197,7 +206,7 @@ describe("downstream JSON-RPC service", () => {
 
   it("executes a repeated idempotency key once, even when the retry arrives mid-flight", async () => {
     const lines: string[] = [];
-    const service = buildDownstreamService({ slowDelayMs: 150, log: (line) => lines.push(line) });
+    const service = await buildService({ slowDelayMs: 150, log: (line) => lines.push(line) });
     const params = { experimentId: 5, behavior: "slow", payload: { orderId: "K-1" }, idempotencyKey: "key-1" };
 
     const [first, second] = await Promise.all([

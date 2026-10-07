@@ -14,6 +14,7 @@ import request from "supertest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildDownstreamService } from "../../downstream/src/app.js";
 import { buildApplication } from "../src/app.js";
+import { buildHttpApplication } from "./http-application.js";
 import { openDatabase } from "../src/database.js";
 
 type RpcRequestBody = {
@@ -59,12 +60,12 @@ function writeRpcResult(
 
 // Most tests are about behaviour, not the 400 ms bound, and a loaded machine can
 // exceed it on a local request. They get a generous deadline unless they set one.
-function build(options: Parameters<typeof buildApplication>[0]) {
-  return buildApplication({ timeoutMs: 5_000, ...options });
+async function build(options: Parameters<typeof buildApplication>[0]) {
+  return buildHttpApplication({ timeoutMs: 5_000, ...options });
 }
 
 describe("request experiments", () => {
-  let application: ReturnType<typeof buildApplication> | undefined;
+  let application: Awaited<ReturnType<typeof build>> | undefined;
   let downstreamServer: Server | undefined;
   let downstreamProcess: ChildProcess | undefined;
   let temporaryDirectory: string | undefined;
@@ -92,7 +93,7 @@ describe("request experiments", () => {
     if (!address || typeof address === "string") throw new Error("No test port");
     temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
     const lines: string[] = [];
-    application = build({
+    application = await build({
       databasePath: path.join(temporaryDirectory, "relaylab.sqlite"),
       downstreamUrl: `http://127.0.0.1:${address.port}`,
       log: (line) => lines.push(line),
@@ -125,7 +126,7 @@ describe("request experiments", () => {
     if (!address || typeof address === "string") throw new Error("No test port");
 
     temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
-    application = build({
+    application = await build({
       databasePath: path.join(temporaryDirectory, "relaylab.sqlite"),
       downstreamUrl: `http://127.0.0.1:${address.port}`,
       log: (line) => coordinatorLines.push(line),
@@ -146,7 +147,7 @@ describe("request experiments", () => {
 
   it("reports coordinator health without touching the database workflow", async () => {
     temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
-    application = build({
+    application = await build({
       databasePath: path.join(temporaryDirectory, "relaylab.sqlite"),
       timeoutMs: 400,
     });
@@ -157,6 +158,7 @@ describe("request experiments", () => {
     expect(response.body).toEqual({
       database: "sqlite",
       downstreamTimeoutMs: 400,
+      executionTransport: "json-rpc",
       status: "ok",
       service: "relaylab-coordinator",
     });
@@ -164,7 +166,7 @@ describe("request experiments", () => {
 
   it("creates an experiment and lists it later", async () => {
     temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
-    application = build({
+    application = await build({
       databasePath: path.join(temporaryDirectory, "relaylab.sqlite"),
     });
 
@@ -214,7 +216,7 @@ describe("request experiments", () => {
     }
 
     temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
-    application = build({
+    application = await build({
       databasePath: path.join(temporaryDirectory, "relaylab.sqlite"),
       downstreamUrl: `http://127.0.0.1:${address.port}`,
     });
@@ -285,7 +287,7 @@ describe("request experiments", () => {
     }
 
     temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
-    application = build({
+    application = await build({
       databasePath: path.join(temporaryDirectory, "relaylab.sqlite"),
       downstreamUrl: `http://127.0.0.1:${address.port}`,
     });
@@ -341,7 +343,7 @@ describe("request experiments", () => {
     }
 
     temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
-    application = build({
+    application = await build({
       databasePath: path.join(temporaryDirectory, "relaylab.sqlite"),
       downstreamUrl: `http://127.0.0.1:${address.port}`,
     });
@@ -385,7 +387,7 @@ describe("request experiments", () => {
     }
 
     temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
-    application = build({
+    application = await build({
       databasePath: path.join(temporaryDirectory, "relaylab.sqlite"),
       downstreamUrl: `http://127.0.0.1:${address.port}`,
       timeoutMs: 20,
@@ -415,7 +417,7 @@ describe("request experiments", () => {
 
   it("records an unreachable downstream instead of crashing the API", async () => {
     temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
-    application = build({
+    application = await build({
       databasePath: path.join(temporaryDirectory, "relaylab.sqlite"),
       downstreamUrl: "http://127.0.0.1:1",
       timeoutMs: 50,
@@ -482,7 +484,7 @@ describe("request experiments", () => {
     }
 
     temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
-    application = build({
+    application = await build({
       databasePath: path.join(temporaryDirectory, "relaylab.sqlite"),
       downstreamUrl: `http://127.0.0.1:${port}`,
     });
@@ -510,7 +512,7 @@ describe("request experiments", () => {
 
   it("rejects an unknown downstream behavior with a controlled error", async () => {
     temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
-    application = build({
+    application = await build({
       databasePath: path.join(temporaryDirectory, "relaylab.sqlite"),
     });
 
@@ -533,7 +535,7 @@ describe("request experiments", () => {
 
   it("rejects malformed JSON as client input and keeps the API usable", async () => {
     temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
-    application = build({
+    application = await build({
       databasePath: path.join(temporaryDirectory, "relaylab.sqlite"),
     });
 
@@ -560,7 +562,7 @@ describe("request experiments", () => {
     const databasePath = path.join(temporaryDirectory, "relaylab.sqlite");
     const database = openDatabase(databasePath);
     const write = vi.spyOn(database, "createRun").mockRejectedValueOnce(new Error("Temporary write failure"));
-    application = build({ databasePath, database, downstreamUrl: `http://127.0.0.1:${address.port}` });
+    application = await build({ databasePath, database, downstreamUrl: `http://127.0.0.1:${address.port}` });
     const experiment = await request(application.app).post("/api/experiments").send({
       name: "Healthy service, failed storage", behavior: "healthy", payload: {},
     });
@@ -573,7 +575,7 @@ describe("request experiments", () => {
 
   it("returns a controlled error when a missing experiment is run", async () => {
     temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
-    application = build({
+    application = await build({
       databasePath: path.join(temporaryDirectory, "relaylab.sqlite"),
     });
 
@@ -666,7 +668,7 @@ describe("request experiments", () => {
 
     temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
     const databasePath = path.join(temporaryDirectory, "relaylab.sqlite");
-    application = build({ databasePath, downstreamUrl: `http://127.0.0.1:${address.port}` });
+    application = await build({ databasePath, downstreamUrl: `http://127.0.0.1:${address.port}` });
     const experiment = await request(application.app)
       .post("/api/experiments")
       .send({ name: "Temporary experiment", behavior: "healthy", payload: {} });
@@ -700,7 +702,7 @@ describe("request experiments", () => {
     if (!address || typeof address === "string") throw new Error("No test port");
 
     temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
-    application = build({
+    application = await build({
       databasePath: path.join(temporaryDirectory, "relaylab.sqlite"),
       downstreamUrl: `http://127.0.0.1:${address.port}`,
     });
@@ -718,7 +720,7 @@ describe("request experiments", () => {
 
   it("answers an oversized body with 413 rather than blaming the database", async () => {
     temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
-    application = build({ databasePath: path.join(temporaryDirectory, "relaylab.sqlite") });
+    application = await build({ databasePath: path.join(temporaryDirectory, "relaylab.sqlite") });
 
     const response = await request(application.app)
       .post("/api/experiments")
@@ -731,7 +733,7 @@ describe("request experiments", () => {
 
   it("answers an unknown API route with JSON, not an HTML error page", async () => {
     temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
-    application = build({ databasePath: path.join(temporaryDirectory, "relaylab.sqlite") });
+    application = await build({ databasePath: path.join(temporaryDirectory, "relaylab.sqlite") });
 
     const response = await request(application.app).get("/api/nope");
 
@@ -751,7 +753,7 @@ describe("request experiments", () => {
     if (!address || typeof address === "string") throw new Error("No test port");
 
     temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
-    application = build({
+    application = await build({
       databasePath: path.join(temporaryDirectory, "relaylab.sqlite"),
       downstreamUrl: `http://127.0.0.1:${address.port}`,
     });
@@ -770,7 +772,7 @@ describe("request experiments", () => {
 
   it("exposes the correlation header to a cross-origin caller", async () => {
     temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
-    application = build({ databasePath: path.join(temporaryDirectory, "relaylab.sqlite") });
+    application = await build({ databasePath: path.join(temporaryDirectory, "relaylab.sqlite") });
 
     const response = await request(application.app).get("/health");
 
@@ -788,7 +790,7 @@ describe("request experiments", () => {
     const address = downstreamServer.address();
     if (!address || typeof address === "string") throw new Error("No test port");
     temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
-    application = build({
+    application = await build({
       databasePath: path.join(temporaryDirectory, "relaylab.sqlite"),
       downstreamUrl: `http://127.0.0.1:${address.port}`,
     });
@@ -811,7 +813,7 @@ describe("request experiments", () => {
     const address = downstreamServer.address();
     if (!address || typeof address === "string") throw new Error("No test port");
     temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
-    application = build({ databasePath: path.join(temporaryDirectory, "relaylab.sqlite"),
+    application = await build({ databasePath: path.join(temporaryDirectory, "relaylab.sqlite"),
       downstreamUrl: `http://127.0.0.1:${address.port}` });
     const first = await request(application.app).post("/api/experiments")
       .send({ name: "First order", behavior: "healthy", payload: { order: "A" } });
@@ -841,7 +843,7 @@ describe("request experiments", () => {
     const address = downstreamServer.address();
     if (!address || typeof address === "string") throw new Error("No test port");
     temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
-    application = build({ databasePath: path.join(temporaryDirectory, "relaylab.sqlite"),
+    application = await build({ databasePath: path.join(temporaryDirectory, "relaylab.sqlite"),
       downstreamUrl: `http://127.0.0.1:${address.port}` });
     const experiment = await request(application.app).post("/api/experiments")
       .send({ name: "Wrong reply", behavior: "healthy", payload: {} });
@@ -862,7 +864,7 @@ describe("request experiments", () => {
     const address = downstreamServer.address();
     if (!address || typeof address === "string") throw new Error("No test port");
     temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
-    application = build({
+    application = await build({
       databasePath: path.join(temporaryDirectory, "relaylab.sqlite"),
       downstreamUrl: `http://127.0.0.1:${address.port}`,
     });
@@ -892,7 +894,7 @@ describe("request experiments", () => {
     const address = downstreamServer.address();
     if (!address || typeof address === "string") throw new Error("No test port");
     temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
-    application = build({
+    application = await build({
       databasePath: path.join(temporaryDirectory, "relaylab.sqlite"),
       downstreamUrl: `http://127.0.0.1:${address.port}`,
       timeoutMs: 60,
@@ -929,7 +931,7 @@ describe("request experiments", () => {
     const address = downstreamServer.address();
     if (!address || typeof address === "string") throw new Error("No test port");
     temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
-    application = build({
+    application = await build({
       databasePath: path.join(temporaryDirectory, "relaylab.sqlite"),
       downstreamUrl: `http://127.0.0.1:${address.port}`,
     });
@@ -951,7 +953,7 @@ describe("request experiments", () => {
     const databasePath = path.join(temporaryDirectory, "relaylab.sqlite");
     const database = openDatabase(databasePath);
     const lookup = vi.spyOn(database, "getExperiment");
-    application = build({ databasePath, database });
+    application = await build({ databasePath, database });
 
     for (const identifier of ["abc", "0", "-1", "1.5", "1e3"]) {
       const read = await request(application.app).get(`/api/experiments/${identifier}`);
@@ -978,7 +980,7 @@ describe("request experiments", () => {
     temporaryDirectory = await mkdtemp(path.join(tmpdir(), "relaylab-test-"));
     const databasePath = path.join(temporaryDirectory, "relaylab.sqlite");
     const downstreamUrl = `http://127.0.0.1:${address.port}`;
-    application = build({ databasePath, downstreamUrl });
+    application = await build({ databasePath, downstreamUrl });
     const experiment = await request(application.app)
       .post("/api/experiments")
       .send({
@@ -991,7 +993,7 @@ describe("request experiments", () => {
     );
 
     await application.close();
-    application = build({ databasePath, downstreamUrl });
+    application = await build({ databasePath, downstreamUrl });
     const details = await request(application.app).get(
       `/api/experiments/${experiment.body.id}`,
     );

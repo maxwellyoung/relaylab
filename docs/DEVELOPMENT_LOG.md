@@ -403,3 +403,48 @@ Private logs/screenshots remain ignored under `outputs/group-review-2026-10-08/`
 This records today's real milestone only: it does not backfill development,
 prove three weeks of new work, establish teammate contribution, or author an
 individual reflection. No remote push, publication or assessment submission.
+
+## 8 October: durable gRPC execution integration
+
+Extended the provisional group workflow with a runner service and shared
+`relaylab.runner.v1` protobuf contract. The runner owns a separate execution
+ledger; the coordinator owns experiments, immutable observation receipts and
+reviews. Both ExecuteRun and GetExecution make actual gRPC calls. No application
+queries the other service's database or creates a cross-service foreign key.
+
+Recorded deadline receipts stay immutable while status inspection/same-key
+retry can recover a completed job. Duplicate and concurrent requests reuse one
+execution. Persisted request fingerprints reject mismatched operation reuse.
+Graceful shutdown finishes accepted work; abrupt process exit is recovered as
+INTERRUPTED rather than silently re-executing uncertain work. Ledger ownership
+is checked before startup recovery, with serialized lease acquisition/reclaim.
+The launcher waits for readiness and leaves the coordinator usable after a
+runner failure. Browser labels distinguish gRPC transport status from execution
+outcome and mark cached runner status when refresh fails.
+
+Verification: 103 tests passed and one live MySQL test skipped, all types/builds,
+baseline/review/gRPC smoke checks and production dependency audit passed.
+The gRPC smoke uses independent built processes and separate databases. The
+runner suite includes an actual abruptly killed disposable process and a refused
+competing ledger owner. Browser evidence covers the two-client approval flow,
+403 ms deadline and later completed runner result, unavailable status 14,
+inspection error and restored operation without restarting the coordinator.
+The execution controls were checked at 320px with no horizontal overflow.
+
+The prior intermittent 404 test failures were traced to HTTP test routing:
+macOS permits a default IPv6 listener and an IPv4 listener on the same port,
+while Supertest connects to IPv4. Reproduced the wrong-server response and
+changed HTTP fixtures to await explicit IPv4 binding. The full suite and three
+additional server-suite runs passed with the corrected fixtures.
+
+Added pinned gRPC dependencies and the runner workspace; updated the lockfile
+with the compatible proxy-addr patch that clears the production advisory.
+Docker sources include the runner/protocol and exclude private outputs and
+captures. Docker image execution remains unverified because the local engine
+status query did not respond; the query was stopped without changing the engine.
+
+This is a local advanced-integration milestone, not a native Android checkpoint,
+team agreement, production deployment, three-week history claim, personal
+reflection, public push or assessment submission. Raw proof stays ignored under
+`outputs/grpc-runner-2026-10-08/`; setup and constraints are in
+`docs/GRPC_RUNNER.md`.

@@ -7,6 +7,7 @@
   },
   "workspaces": [
     "client",
+    "runner",
     "downstream",
     "server"
   ],
@@ -15,6 +16,8 @@
     "start": "node scripts/start-production.mjs",
     "start:downstream": "node downstream/dist/server.js",
     "start:coordinator": "node --env-file-if-exists=.env server/dist/server.js",
+    "start:runner": "node runner/dist/server.js",
+    "start:group": "node scripts/start-group.mjs",
     "db:inspect": "node --env-file-if-exists=.env scripts/inspect-database.mjs",
     "test": "npm run test --workspaces --if-present",
     "test:contract": "npm run test -w server -- public-contract.test.ts",
@@ -23,9 +26,14 @@
     "smoke": "node scripts/smoke-production.mjs",
     "smoke:reviews": "node scripts/smoke-reviews.mjs",
     "package": "git archive --format=zip --prefix=relaylab/ -o relaylab-submission.zip HEAD && unzip -l relaylab-submission.zip | tail -1",
-    "verify": "npm test && npm run typecheck && npm run build && npm run smoke && npm audit --omit=dev --audit-level=high"
+    "verify": "npm test && npm run typecheck && npm run build && npm run smoke && npm run smoke:reviews && npm run smoke:grpc && npm audit --omit=dev --audit-level=high",
+    "smoke:grpc": "node scripts/smoke-grpc.mjs"
   },
   "devDependencies": {
     "concurrently": "^10.0.4"
+  },
+  "dependencies": {
+    "@grpc/grpc-js": "1.14.5",
+    "@grpc/proto-loader": "0.8.1"
   }
 }
