@@ -372,3 +372,34 @@ The browser now mints one id per click and sends it as both the exchange id and 
 A public-HTTP regression pass exposed three false-success cases in the submitted revision: reusing an idempotency key across experiments returned the first experiment's payload; a correlated reply naming the wrong experiment was accepted; and a response containing both result and error was accepted. All three new tests failed before the fix. The downstream cache now uses an experiment/key pair, and the coordinator checks the result's experiment and mutually exclusive envelope fields. The full local gate passes 71 tests, type checks, builds, restart-persistence smoke and the production dependency audit. The optional live MySQL test is skipped in this credential-free run.
 
 Expanded the report to 1,965 main-body words under the current 2,000-word Canvas limit. It now distinguishes uncertain outcomes, attempts and executions, process-local deduplication and durable guarantees, browser clicks and explicit API retries, and current local evidence from historical lecturer-MySQL checks. Exported the DOCX through Pages and visually checked all ten PDF pages. Added a dated verification card to the existing narrated demonstration, preserving the earlier footage's dates and Maxwell's recorded voice. Fresh archive verification and the revised Canvas receipt are checked after packaging; this milestone does not claim they have already completed.
+
+## 8 October: first local group review workflow
+
+Started a provisional Assessment 3 extension on `group-review-workflow` from
+checkout `b410394`. The baseline application source is `360b4db`; existing
+individual submission/report material remains historical baseline evidence.
+
+Added explicit opt-in demo identities, a researcher submission API, reviewer
+queue, required approval/rejection feedback, and a researcher's own persisted
+review list. Execution outcome and review status remain separate. Unique
+submissions and atomic pending-to-decided updates prevent duplicate submissions
+and competing overwrites; submitted evidence is protected from deletion.
+SQLite and MySQL schema/adapters preserve old rows. The native Android and
+meaningful gRPC runner integration are not implemented in this milestone.
+
+Verification: 87 tests passed, one credential-dependent live MySQL test skipped;
+type checks and all builds passed. Baseline and review smoke checks exercised
+built code, actual HTTP/JSON-RPC, SQLite and restart persistence. Two independent
+browser tabs exercised approval and rejection, including required feedback,
+320px reviewer controls, keyboard rejection and expired-session recovery.
+One unchanged downstream test returned a transient 404 in an earlier run; it
+passed the final complete suite and five isolated repeats without source edits.
+Root cause of that isolated failure remains unverified. The current production
+package audit reports an inherited critical `proxy-addr` advisory; no dependency
+or lockfile changes were made and no release-readiness claim is made.
+
+The local handoff is documented in `docs/GROUP_WORKFLOW.md` and OpenAPI 1.1.0.
+Private logs/screenshots remain ignored under `outputs/group-review-2026-10-08/`.
+This records today's real milestone only: it does not backfill development,
+prove three weeks of new work, establish teammate contribution, or author an
+individual reflection. No remote push, publication or assessment submission.

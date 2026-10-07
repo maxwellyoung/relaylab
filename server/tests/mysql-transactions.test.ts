@@ -36,7 +36,13 @@ const runRow = {
   created_at: "2026-09-17 06:00:01",
 };
 
-function fakeMySql({ failOn }: { failOn?: RegExp } = {}) {
+const reviewRow = {
+  ...runRow, review_id: 7, researcher_id: "researcher-a", status: "pending",
+  feedback: null, reviewer_id: null, submitted_at: "2026-10-08 00:00:00", decided_at: null,
+  experiment_name: "Checkout",
+};
+
+function fakeMySql({ failOn, affectedRows = 1 }: { failOn?: RegExp; affectedRows?: number } = {}) {
   const calls: string[] = [];
   const connection = {
     beginTransaction: vi.fn(async () => { calls.push("BEGIN"); }),
@@ -45,7 +51,8 @@ function fakeMySql({ failOn }: { failOn?: RegExp } = {}) {
       calls.push(verb);
       if (failOn?.test(sql)) throw new Error("Connection lost");
       if (verb === "INSERT") return [{ insertId: 7 }];
-      return [[sql.includes("experiment_runs") ? runRow : experimentRow]];
+      if (verb === "UPDATE") return [{ affectedRows }];
+      return [[sql.includes("run_reviews") ? reviewRow : sql.includes("experiment_runs") ? runRow : experimentRow]];
     }),
     commit: vi.fn(async () => { calls.push("COMMIT"); }),
     rollback: vi.fn(async () => { calls.push("ROLLBACK"); }),
@@ -72,6 +79,27 @@ const runInput = {
 };
 
 describe("MySQL writes", () => {
+  it("submits review evidence atomically and rolls it back when read-back fails", async () => {
+    const success = fakeMySql();
+    expect(await success.database.createReview(11, "researcher-a")).toMatchObject({ id: 7, runId: 11, status: "pending", run: { outcome: "success" } });
+    expect(success.calls).toEqual(["BEGIN", "INSERT", "SELECT", "COMMIT", "RELEASE"]);
+    const failure = fakeMySql({ failOn: /^\s*SELECT/ });
+    await expect(failure.database.createReview(11, "researcher-a")).rejects.toThrow("Connection lost");
+    expect(failure.calls).toEqual(["BEGIN", "INSERT", "SELECT", "ROLLBACK", "RELEASE"]);
+  });
+
+  it("does not read back or overwrite a review when another decision has won", async () => {
+    const { database, calls, connection } = fakeMySql({ affectedRows: 0 });
+    expect(await database.decideReview(7, "approved", "Evidence verified", "reviewer")).toBeUndefined();
+    expect(calls).toEqual(["BEGIN", "UPDATE", "COMMIT", "RELEASE"]);
+    expect(connection.execute).toHaveBeenCalledWith(expect.stringContaining("AND status = 'pending'"), ["approved", "Evidence verified", "reviewer", 7]);
+  });
+
+  it("rolls a decision back when its read-back is unavailable", async () => {
+    const { database, calls } = fakeMySql({ failOn: /^\s*SELECT/ });
+    await expect(database.decideReview(7, "rejected", "Rerun needed", "reviewer")).rejects.toThrow("Connection lost");
+    expect(calls).toEqual(["BEGIN", "UPDATE", "SELECT", "ROLLBACK", "RELEASE"]);
+  });
   it("commits an insert and its read-back on one pooled connection", async () => {
     const { database, calls, pool } = fakeMySql();
 
@@ -110,8 +138,9 @@ describe("MySQL writes", () => {
 
     const script = schemaStatements(readSchema("schema.mysql.sql"));
     expect(schema.slice(0, script.length)).toEqual(script);
-    expect(script).toHaveLength(2);
+    expect(script).toHaveLength(3);
     expect(script[1]).toContain("FOREIGN KEY (experiment_id)");
+    expect(script[2]).toContain("REFERENCES experiment_runs(id) ON DELETE RESTRICT");
     // Then the migration check for databases created before rpc_error_code.
     expect(schema[script.length]).toContain("information_schema.COLUMNS");
   });

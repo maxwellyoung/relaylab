@@ -525,3 +525,64 @@ a:focus-visible {
   font-size: 13px;
   color: #6b6d74;
 }
+
+.review-workspace {
+  margin-top: 28px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 24px;
+  font-size: 0.85rem;
+}
+.review-heading, .review-row > header, .review-accounts, .review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.review-heading, .review-row > header { justify-content: space-between; }
+.review-heading h1, .review-heading h2 { margin: 0; font-size: 1.2rem; }
+.review-workspace button {
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--ink);
+  padding: 8px 12px;
+}
+.review-workspace button[aria-pressed="true"] { border-color: var(--primary); color: var(--primary); }
+.review-workspace button:disabled { opacity: 0.65; cursor: default; }
+.review-workspace button:focus-visible, .review-workspace textarea:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+.review-demo-note, .review-identity, .review-row > p { color: var(--muted); line-height: 1.5; }
+.review-notice { min-height: 1.4em; margin: 10px 0; }
+.review-submit { margin-top: 12px; }
+.review-row { border-top: 1px solid var(--line); margin-top: 18px; padding-top: 18px; overflow-wrap: anywhere; }
+.review-row h2, .review-row h3 { margin: 0; font-size: 1rem; }
+.review-status.pending { color: var(--warn); }
+.review-status.approved { color: var(--good); }
+.review-status.rejected { color: var(--bad); }
+.review-row pre {
+  max-height: 200px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: 12px;
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.review-decision { display: grid; gap: 8px; margin-top: 14px; }
+.review-decision textarea {
+  width: 100%;
+  min-height: 90px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  resize: vertical;
+}
+.review-feedback { white-space: pre-wrap; }
+@media (max-width: 400px) {
+  .review-accounts { display: grid; grid-template-columns: 1fr; }
+  .review-heading { align-items: start; }
+}

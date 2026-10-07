@@ -46,6 +46,12 @@ export type ExperimentInput = Pick<
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
 
+export class ApiError extends Error {
+  constructor(message: string, public readonly status: number) {
+    super(message);
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${apiBaseUrl}${path}`, {
     ...init,
@@ -59,10 +65,44 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const body = (await response.json().catch(() => null)) as {
       error?: string;
     } | null;
-    throw new Error(body?.error ?? `Request failed with ${response.status}`);
+    throw new ApiError(body?.error ?? `Request failed with ${response.status}`, response.status);
   }
 
-  return response.json() as Promise<T>;
+  return response.status === 204 ? undefined as T : response.json() as Promise<T>;
+}
+
+export type DemoActorId = "researcher-a" | "researcher-b" | "reviewer";
+export type DemoSession = {
+  token: string;
+  actor: { id: DemoActorId; name: string; role: "researcher" | "reviewer" };
+};
+export type RunReview = {
+  id: number;
+  runId: number;
+  researcherId: string;
+  status: "pending" | "approved" | "rejected";
+  feedback: string | null;
+  reviewerId: string | null;
+  submittedAt: string;
+  decidedAt: string | null;
+  experimentName: string;
+  run: ExperimentRun;
+};
+
+export function createDemoSession(actorId: DemoActorId): Promise<DemoSession> {
+  return request("/api/demo-sessions", { method: "POST", body: JSON.stringify({ actorId }) });
+}
+export function endDemoSession(token: string): Promise<void> {
+  return request("/api/demo-sessions/current", { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+}
+export function listReviews(token: string): Promise<RunReview[]> {
+  return request("/api/reviews", { headers: { Authorization: `Bearer ${token}` } });
+}
+export function submitReview(token: string, runId: number): Promise<RunReview> {
+  return request(`/api/runs/${runId}/reviews`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+}
+export function decideReview(token: string, reviewId: number, status: "approved" | "rejected", feedback: string): Promise<RunReview> {
+  return request(`/api/reviews/${reviewId}`, { method: "PATCH", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ status, feedback }) });
 }
 
 export type CoordinatorHealth = {

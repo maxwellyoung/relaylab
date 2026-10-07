@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import ReviewWorkspace from "./ReviewWorkspace";
 import {
   createExperiment,
   getExperiment,
@@ -111,6 +112,7 @@ function rpcSignal(run: ExperimentRun) {
 }
 
 export default function App() {
+  const [reviewerMode, setReviewerMode] = useState(false);
   const [behavior, setBehavior] = useState<ExperimentBehavior>("healthy");
   const [payloadText, setPayloadText] = useState(defaultPayload);
   const [experiments, setExperiments] = useState<Experiment[]>([]);
@@ -255,7 +257,9 @@ export default function App() {
         <p>Distributed communication demo</p>
       </header>
 
-      <section
+      <ReviewWorkspace latestRun={latestRun} runBusy={isBusy} onRoleChange={(role) => setReviewerMode(role === "reviewer")} />
+
+      {!reviewerMode && <section
         className={`lab ${isRunning ? "running" : ""}`}
         aria-labelledby="lab-title"
       >
@@ -464,7 +468,7 @@ export default function App() {
             </div>
           )}
         </details>
-      </section>
+      </section>}
     </main>
   );
 }

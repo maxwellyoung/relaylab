@@ -31,3 +31,19 @@ CREATE TABLE IF NOT EXISTS experiment_runs (
     REFERENCES experiments(id)
     ON DELETE CASCADE
 ) ENGINE=InnoDB;
+
+-- The coordinator owns reviews. Preserve submitted run evidence on deletion.
+CREATE TABLE IF NOT EXISTS run_reviews (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  run_id BIGINT UNSIGNED NOT NULL UNIQUE,
+  researcher_id VARCHAR(32) NOT NULL,
+  status VARCHAR(16) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  feedback VARCHAR(2000) NULL,
+  reviewer_id VARCHAR(32) NULL,
+  submitted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  decided_at TIMESTAMP NULL,
+  KEY idx_run_reviews_researcher (researcher_id, id),
+  CONSTRAINT fk_run_reviews_run FOREIGN KEY (run_id) REFERENCES experiment_runs(id) ON DELETE RESTRICT,
+  CHECK ((status = 'pending' AND feedback IS NULL AND reviewer_id IS NULL AND decided_at IS NULL)
+    OR (status <> 'pending' AND feedback IS NOT NULL AND CHAR_LENGTH(TRIM(feedback)) > 0 AND reviewer_id IS NOT NULL AND decided_at IS NOT NULL))
+) ENGINE=InnoDB;

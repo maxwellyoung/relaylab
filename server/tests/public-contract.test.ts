@@ -13,7 +13,7 @@ async function readJson(relativePath: string): Promise<unknown> {
 }
 
 describe("browser-facing REST contract", () => {
-  it("documents only the five frozen resource operations and their status codes", async () => {
+  it("documents the retained resource operations and the group-review extension", async () => {
     const document = await readJson("docs/openapi.json") as {
       openapi: string;
       paths: Record<string, Record<string, { responses: Record<string, unknown> }>>;
@@ -24,15 +24,21 @@ describe("browser-facing REST contract", () => {
       "/api/experiments",
       "/api/experiments/{experimentId}",
       "/api/experiments/{experimentId}/runs",
-    ]);
+      "/api/demo-sessions",
+      "/api/demo-sessions/current",
+      "/api/reviews",
+      "/api/reviews/{reviewId}",
+      "/api/runs/{runId}/reviews",
+    ].sort());
     expect(Object.keys(document.paths["/api/experiments"]).sort()).toEqual(["get", "post"]);
     expect(Object.keys(document.paths["/api/experiments"].post.responses).sort()).toEqual(["201", "400", "503"]);
     expect(Object.keys(document.paths["/api/experiments"].get.responses).sort()).toEqual(["200", "503"]);
     expect(Object.keys(document.paths["/api/experiments/{experimentId}"]).sort()).toEqual(["delete", "get"]);
-    expect(Object.keys(document.paths["/api/experiments/{experimentId}"].delete.responses).sort()).toEqual(["204", "404", "503"]);
+    expect(Object.keys(document.paths["/api/experiments/{experimentId}"].delete.responses).sort()).toEqual(["204", "404", "409", "503"]);
     expect(Object.keys(document.paths["/api/experiments/{experimentId}"].get.responses).sort()).toEqual(["200", "404", "503"]);
     expect(Object.keys(document.paths["/api/experiments/{experimentId}/runs"]).sort()).toEqual(["post"]);
     expect(Object.keys(document.paths["/api/experiments/{experimentId}/runs"].post.responses).sort()).toEqual(["200", "201", "404", "503"]);
+    expect(Object.keys(document.paths["/api/reviews/{reviewId}"].patch.responses).sort()).toEqual(["200", "400", "401", "403", "404", "409", "503"]);
   });
 
   it("keeps an old client compatible with an additive response field", async () => {

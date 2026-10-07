@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "RelayLab Coordinator API",
-    "version": "1.0.0",
-    "description": "The browser-facing REST contract. Coordinator, JSON-RPC, repository, and database details remain private implementation concerns."
+    "version": "1.1.0",
+    "description": "The browser-facing REST contract. Coordinator, JSON-RPC, repository, and database details remain private implementation concerns. Group extension: opt-in local demo sessions and independent run-review decisions. Demo identities are selectable by anyone and are not production authentication."
   },
   "servers": [
     {
@@ -119,6 +119,16 @@
           },
           "503": {
             "description": "Persistence temporarily unavailable"
+          },
+          "409": {
+            "description": "Duplicate submission, already-decided review or protected evidence",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         }
       }
@@ -171,6 +181,389 @@
           },
           "503": {
             "$ref": "#/components/responses/PersistenceUnavailable"
+          }
+        }
+      }
+    },
+    "/api/demo-sessions": {
+      "post": {
+        "operationId": "createDemoSession",
+        "summary": "Select an opt-in local demo identity",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DemoSessionInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Demo token and actor; Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemoSession"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role not allowed or demo account selection disabled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Demo session limit reached",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/demo-sessions/current": {
+      "delete": {
+        "operationId": "endDemoSession",
+        "summary": "Revoke the current demo session",
+        "security": [
+          {
+            "DemoSession": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Session revoked"
+          },
+          "401": {
+            "description": "Missing, invalid or expired demo session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reviews": {
+      "get": {
+        "operationId": "listReviews",
+        "summary": "Reviewer sees all submissions; researcher sees only their own. Pending first, then newest ID. Refresh explicitly.",
+        "security": [
+          {
+            "DemoSession": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Visible reviews; Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RunReview"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid or expired demo session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Persistence temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runs/{runId}/reviews": {
+      "post": {
+        "operationId": "submitReview",
+        "summary": "Researcher submits shared-lab run evidence exactly once; identity comes from the demo session",
+        "parameters": [
+          {
+            "name": "runId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 999999999999999
+            }
+          }
+        ],
+        "security": [
+          {
+            "DemoSession": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Pending review with Location header",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunReview"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid or expired demo session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role not allowed or demo account selection disabled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found or not visible to this researcher",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Duplicate submission, already-decided review or protected evidence",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Persistence temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reviews/{reviewId}": {
+      "get": {
+        "operationId": "getReview",
+        "summary": "Get one visible review and preserved run evidence",
+        "parameters": [
+          {
+            "name": "reviewId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 999999999999999
+            }
+          }
+        ],
+        "security": [
+          {
+            "DemoSession": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Review",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunReview"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid or expired demo session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found or not visible to this researcher",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Persistence temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "decideReview",
+        "summary": "Reviewer makes a final pending-to-approved/rejected decision. Competing/repeated decisions cannot overwrite it.",
+        "parameters": [
+          {
+            "name": "reviewId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 999999999999999
+            }
+          }
+        ],
+        "security": [
+          {
+            "DemoSession": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewDecision"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Persisted decision; execution outcome unchanged",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunReview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid or expired demo session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role not allowed or demo account selection disabled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found or not visible to this researcher",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Duplicate submission, already-decided review or protected evidence",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Persistence temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         }
       }
@@ -395,6 +788,154 @@
             }
           }
         ]
+      },
+      "DemoSessionInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "actorId"
+        ],
+        "properties": {
+          "actorId": {
+            "type": "string",
+            "enum": [
+              "researcher-a",
+              "researcher-b",
+              "reviewer"
+            ]
+          }
+        }
+      },
+      "DemoSession": {
+        "type": "object",
+        "required": [
+          "token",
+          "actor"
+        ],
+        "properties": {
+          "token": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "actor": {
+            "type": "object",
+            "required": [
+              "id",
+              "name",
+              "role"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "role": {
+                "type": "string",
+                "enum": [
+                  "researcher",
+                  "reviewer"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "ReviewDecision": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "feedback"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "approved",
+              "rejected"
+            ]
+          },
+          "feedback": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "description": "Trimmed, nonempty feedback is required for either decision."
+          }
+        }
+      },
+      "RunReview": {
+        "type": "object",
+        "required": [
+          "id",
+          "runId",
+          "researcherId",
+          "status",
+          "feedback",
+          "reviewerId",
+          "submittedAt",
+          "decidedAt",
+          "experimentName",
+          "run"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "runId": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "researcherId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "approved",
+              "rejected"
+            ]
+          },
+          "feedback": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reviewerId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "submittedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "decidedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "experimentName": {
+            "type": "string"
+          },
+          "run": {
+            "$ref": "#/components/schemas/ExperimentRun"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "DemoSession": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Token from POST /api/demo-sessions. Selectable local demo accounts only; sessions expire after one hour or coordinator restart."
       }
     }
   }

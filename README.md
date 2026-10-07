@@ -5,6 +5,23 @@ Option A individual project. It runs a saved request experiment through a
 separate downstream service, classifies what happened, and keeps the result as
 reproducible evidence.
 
+## Local group-workflow extension
+
+The `group-review-workflow` branch adds a provisional researcher/reviewer
+extension. Selectable demo identities submit persisted run evidence, inspect a
+review queue, and approve or reject it with feedback. Execution outcome remains
+separate from review status. See [the group workflow](docs/GROUP_WORKFLOW.md)
+for setup, the shared HTTP contract, verification and remaining integration work.
+
+```bash
+npm ci
+RELAYLAB_REVIEW_DEMO=true npm run dev
+```
+
+Demo account selection is disabled by default. In demo mode the coordinator
+binds to loopback. These accounts are not production authentication. Android,
+mobile notifications and gRPC are not implemented by this extension.
+
 ## Architecture
 
 ```text

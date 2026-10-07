@@ -67,6 +67,45 @@ export type ExperimentDetails = Experiment & {
   runs: ExperimentRun[];
 };
 
+export type RunReview = {
+  id: number;
+  runId: number;
+  researcherId: string;
+  status: "pending" | "approved" | "rejected";
+  feedback: string | null;
+  reviewerId: string | null;
+  submittedAt: string;
+  decidedAt: string | null;
+  experimentName: string;
+  run: ExperimentRun;
+};
+
+type ReviewRow = ExperimentRunRow & {
+  review_id: number;
+  researcher_id: string;
+  status: RunReview["status"];
+  feedback: string | null;
+  reviewer_id: string | null;
+  submitted_at: string | Date;
+  decided_at: string | Date | null;
+  experiment_name: string;
+};
+
+const reviewQuery = `SELECT r.*, v.id AS review_id, v.researcher_id, v.status,
+  v.feedback, v.reviewer_id, v.submitted_at, v.decided_at, e.name AS experiment_name
+  FROM run_reviews v JOIN experiment_runs r ON r.id = v.run_id
+  JOIN experiments e ON e.id = r.experiment_id`;
+
+function toReview(row: ReviewRow): RunReview {
+  return {
+    id: row.review_id, runId: row.id, researcherId: row.researcher_id,
+    status: row.status, feedback: row.feedback, reviewerId: row.reviewer_id,
+    submittedAt: normalizeTimestamp(row.submitted_at),
+    decidedAt: row.decided_at === null ? null : normalizeTimestamp(row.decided_at),
+    experimentName: row.experiment_name, run: toExperimentRun(row),
+  };
+}
+
 type ExperimentRow = {
   id: number;
   name: string;
@@ -152,6 +191,11 @@ export type RelayLabDatabase = {
   /** The newest run recorded for a caller's idempotency key, if any. */
   findRunByKey(experimentId: number, idempotencyKey: string): Promise<ExperimentRun | undefined>;
   deleteExperiment(experimentId: number): Promise<boolean>;
+  getRun(runId: number): Promise<ExperimentRun | undefined>;
+  createReview(runId: number, researcherId: string): Promise<RunReview>;
+  listReviews(researcherId?: string): Promise<RunReview[]>;
+  getReview(reviewId: number): Promise<RunReview | undefined>;
+  decideReview(reviewId: number, status: "approved" | "rejected", feedback: string, reviewerId: string): Promise<RunReview | undefined>;
   close(): Promise<void>;
 };
 
@@ -311,6 +355,39 @@ export function openDatabase(databasePath: string): RelayLabDatabase {
     async deleteExperiment(experimentId: number): Promise<boolean> {
       // Foreign keys are on, so the experiment's runs cascade with it.
       return deleteExperiment.run(experimentId).changes > 0;
+    },
+    async getRun(runId) {
+      const row = database.prepare<[number], ExperimentRunRow>("SELECT * FROM experiment_runs WHERE id = ?").get(runId);
+      return row ? toExperimentRun(row) : undefined;
+    },
+    async createReview(runId, researcherId) {
+      const insert = database.transaction(() => {
+        const result = database.prepare("INSERT INTO run_reviews (run_id, researcher_id) VALUES (?, ?)").run(runId, researcherId);
+        const row = database.prepare<[number], ReviewRow>(`${reviewQuery} WHERE v.id = ?`).get(Number(result.lastInsertRowid));
+        if (!row) throw new Error("SQLite did not return the submitted review");
+        return toReview(row);
+      });
+      return insert();
+    },
+    async listReviews(researcherId) {
+      const filter = researcherId ? " WHERE v.researcher_id = ?" : "";
+      const query = database.prepare<string[], ReviewRow>(`${reviewQuery}${filter} ORDER BY CASE WHEN v.status = 'pending' THEN 0 ELSE 1 END, v.id DESC`);
+      return query.all(...(researcherId ? [researcherId] : [])).map(toReview);
+    },
+    async getReview(reviewId) {
+      const row = database.prepare<[number], ReviewRow>(`${reviewQuery} WHERE v.id = ?`).get(reviewId);
+      return row ? toReview(row) : undefined;
+    },
+    async decideReview(reviewId, status, feedback, reviewerId) {
+      // Only one pending-to-decided transition may win, even with two clients.
+      const decide = database.transaction(() => {
+        const result = database.prepare(`UPDATE run_reviews SET status = ?, feedback = ?, reviewer_id = ?, decided_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'pending'`).run(status, feedback, reviewerId, reviewId);
+        if (!result.changes) return undefined;
+        const row = database.prepare<[number], ReviewRow>(`${reviewQuery} WHERE v.id = ?`).get(reviewId);
+        if (!row) throw new Error("SQLite did not return the review decision");
+        return toReview(row);
+      });
+      return decide();
     },
     async close() {
       database.close();
@@ -535,6 +612,39 @@ export function createMySqlDatabase(pool: Pool): RelayLabDatabase {
         [experimentId],
       );
       return result.affectedRows > 0;
+    },
+    async getRun(runId) {
+      await initialized;
+      const [rows] = await pool.execute<MySqlExperimentRunRow[]>("SELECT * FROM experiment_runs WHERE id = ?", [runId]);
+      return rows[0] ? toExperimentRun(rows[0]) : undefined;
+    },
+    createReview(runId, researcherId) {
+      return inTransaction(async (connection) => {
+        const [result] = await connection.execute<ResultSetHeader>("INSERT INTO run_reviews (run_id, researcher_id) VALUES (?, ?)", [runId, researcherId]);
+        const [rows] = await connection.execute<(ReviewRow & RowDataPacket)[]>(`${reviewQuery} WHERE v.id = ?`, [result.insertId]);
+        if (!rows[0]) throw new Error("MySQL did not return the submitted review");
+        return toReview(rows[0]);
+      });
+    },
+    async listReviews(researcherId) {
+      await initialized;
+      const filter = researcherId ? " WHERE v.researcher_id = ?" : "";
+      const [rows] = await pool.execute<(ReviewRow & RowDataPacket)[]>(`${reviewQuery}${filter} ORDER BY CASE WHEN v.status = 'pending' THEN 0 ELSE 1 END, v.id DESC`, researcherId ? [researcherId] : []);
+      return rows.map(toReview);
+    },
+    async getReview(reviewId) {
+      await initialized;
+      const [rows] = await pool.execute<(ReviewRow & RowDataPacket)[]>(`${reviewQuery} WHERE v.id = ?`, [reviewId]);
+      return rows[0] ? toReview(rows[0]) : undefined;
+    },
+    decideReview(reviewId, status, feedback, reviewerId) {
+      return inTransaction(async (connection) => {
+        const [result] = await connection.execute<ResultSetHeader>(`UPDATE run_reviews SET status = ?, feedback = ?, reviewer_id = ?, decided_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'pending'`, [status, feedback, reviewerId, reviewId]);
+        if (!result.affectedRows) return undefined;
+        const [rows] = await connection.execute<(ReviewRow & RowDataPacket)[]>(`${reviewQuery} WHERE v.id = ?`, [reviewId]);
+        if (!rows[0]) throw new Error("MySQL did not return the review decision");
+        return toReview(rows[0]);
+      });
     },
     async close() {
       await initialized.catch(() => undefined);

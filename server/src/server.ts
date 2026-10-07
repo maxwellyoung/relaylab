@@ -28,11 +28,15 @@ const application = buildApplication({
   downstreamUrl,
   timeoutMs,
   databaseDriver: driver,
+  reviewDemoEnabled: process.env.RELAYLAB_REVIEW_DEMO === "true",
   clientDirectory,
   log: (line) => console.log(`[coordinator ${new Date().toTimeString().slice(0, 8)}] ${line}`),
 });
 
-const server = application.app.listen(port, () => {
+// Selectable demo accounts must stay on the local machine; the unchanged
+// baseline server can still use its deployment listener when the demo is off.
+const host = process.env.RELAYLAB_REVIEW_DEMO === "true" ? "127.0.0.1" : "0.0.0.0";
+const server = application.app.listen(port, host, () => {
   console.log(`RelayLab coordinator listening on http://localhost:${port}`);
 });
 

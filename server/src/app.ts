@@ -6,6 +6,7 @@ import {
   type RelayLabDatabase,
 } from "./database.js";
 import { experimentInputSchema } from "./public-contract.js";
+import { installReviewRoutes } from "./review-routes.js";
 import {
   buildDownstreamRpcRequest,
   classifyDownstreamRpcResponse,
@@ -33,6 +34,7 @@ export function buildApplication({
   databaseDriver = "sqlite",
   clientDirectory,
   log = () => {},
+  reviewDemoEnabled = false,
 }: {
   databasePath: string;
   database?: RelayLabDatabase;
@@ -41,6 +43,7 @@ export function buildApplication({
   databaseDriver?: string;
   clientDirectory?: string;
   log?: (line: string) => void;
+  reviewDemoEnabled?: boolean;
 }): RelayLabApplication {
   const database = suppliedDatabase ?? openDatabase(databasePath);
   const app = express();
@@ -196,6 +199,8 @@ export function buildApplication({
     response.status(204).end();
   });
 
+  installReviewRoutes(app, database, reviewDemoEnabled);
+
   app.use("/api", (_request, response) => {
     response.status(404).json({ error: "Not found" });
   });
@@ -212,6 +217,15 @@ export function buildApplication({
   }
 
   app.use((error: unknown, _request: express.Request, response: express.Response, _next: express.NextFunction) => {
+    const code = error && typeof error === "object" && "code" in error ? error.code : undefined;
+    if (code === "SQLITE_CONSTRAINT_UNIQUE" || code === "ER_DUP_ENTRY") {
+      response.status(409).json({ error: "This run has already been submitted for review" });
+      return;
+    }
+    if (code === "SQLITE_CONSTRAINT_FOREIGNKEY" || code === "SQLITE_CONSTRAINT_TRIGGER" || code === "ER_ROW_IS_REFERENCED_2" || code === "ER_NO_REFERENCED_ROW_2") {
+      response.status(409).json({ error: "Submitted run evidence must be preserved. Refresh to see current state." });
+      return;
+    }
     // The JSON parser runs before our handlers; its failures are input errors.
     if (error instanceof SyntaxError && "type" in error && error.type === "entity.parse.failed") {
       response.status(400).json({ error: "Invalid JSON body" });

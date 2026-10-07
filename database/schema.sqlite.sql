@@ -38,3 +38,19 @@ CREATE INDEX IF NOT EXISTS idx_experiment_runs_outcome
 -- A repeated request carries the same key; the coordinator looks it up here.
 CREATE INDEX IF NOT EXISTS idx_experiment_runs_key
   ON experiment_runs (experiment_id, idempotency_key);
+
+-- Review decisions are independent of execution outcomes. Submitted evidence
+-- cannot be deleted through the baseline experiment-delete operation.
+CREATE TABLE IF NOT EXISTS run_reviews (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  run_id INTEGER NOT NULL UNIQUE REFERENCES experiment_runs(id) ON DELETE RESTRICT,
+  researcher_id TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  feedback TEXT,
+  reviewer_id TEXT,
+  submitted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  decided_at TEXT,
+  CHECK ((status = 'pending' AND feedback IS NULL AND reviewer_id IS NULL AND decided_at IS NULL)
+    OR (status <> 'pending' AND feedback IS NOT NULL AND length(trim(feedback)) > 0 AND reviewer_id IS NOT NULL AND decided_at IS NOT NULL))
+);
+CREATE INDEX IF NOT EXISTS idx_run_reviews_researcher ON run_reviews (researcher_id, id);
