@@ -92,12 +92,17 @@ def tap(node):
     adb('shell', 'input', 'tap', str((x1 + x2) // 2), str((y1 + y2) // 2))
 
 
+def scroll_bounds(tree):
+    scroller = next((n for n in tree if n.attrib.get('class') == 'android.widget.ScrollView'), tree[0])
+    return scroller, list(map(int, re.findall(r'\d+', scroller.attrib['bounds'])))
+
+
 def swipe(direction='down'):
     tree = nodes()
-    x1, y1, x2, y2 = map(int, re.findall(r'\d+', tree[0].attrib['bounds']))
-    high, low = int(y2 * .8), int(y2 * .3)
+    _, (x1, y1, x2, y2) = scroll_bounds(tree)
+    high, low = int(y1 + (y2-y1) * .8), int(y1 + (y2-y1) * .3)
     start, end = (high, low) if direction == 'down' else (low, high)
-    adb('shell', 'input', 'swipe', str(x2 // 2), str(start), str(x2 // 2), str(end), '250')
+    adb('shell', 'input', 'swipe', str((x1+x2) // 2), str(start), str((x1+x2) // 2), str(end), '250')
 
 
 def find_visible(**query):
@@ -105,14 +110,14 @@ def find_visible(**query):
         tree = nodes()
         node = match(tree=tree, **query)
         if node is not None:
-            _, _, width, height = map(int, re.findall(r'\d+', tree[0].attrib['bounds']))
+            scroller, (_, y1, _, y2) = scroll_bounds(tree)
             _, top_y, _, bottom_y = map(int, re.findall(r'\d+', node.attrib['bounds']))
             center = (top_y + bottom_y) // 2
-            # Accessibility can report a partly visible control underneath the
-            # navigation bar. Bring its center into the content before tapping.
-            if height * .08 <= center <= height * .90:
+            # Scroll content is clipped above the fixed navigation. Navigation
+            # controls themselves already sit within the app's safe area.
+            if node not in list(scroller.iter('node')) or y1 + 12 <= center <= y2 - 12:
                 return node
-            swipe('up' if center < height * .08 else 'down')
+            swipe('up' if center < y1 + 12 else 'down')
         else:
             swipe()
     raise AssertionError('Control not found: ' + str(query))
@@ -124,7 +129,7 @@ def find_and_tap(**query):
 
 def top():
     for _ in range(15):
-        if match(text='RELAYLAB / REVIEWER') is not None:
+        if match(text='RelayLab') is not None:
             return
         swipe('up')
     raise AssertionError('Queue top not reached')
@@ -186,17 +191,28 @@ try:
     wait_for(text='Queue updated just now.')
     capture('queue')
 
+    find_and_tap(text='Settings')
     find_and_tap(text='Enable notifications')
     tap(wait_for(resource='permission_deny_button'))
     find_visible(text='Notification permission denied. The review queue remains available.')
     check('permission denial leaves native review usable')
+    find_and_tap(text='Queue')
     top()
     find_and_tap(starts='Android checkpoint ' + suffix)
     find_and_tap(text='Approve run')
     wait_for(text='Enter feedback (1–2000 characters) before deciding.')
     feedback = 'Android evidence checked after rotation.'
     write_feedback(feedback)
-    adb('shell', 'settings', 'put', 'system', 'accelerometer_rotation', '0')
+    tap(wait_for(desc='Review feedback'))
+    arrival = seed(researcher, 'Android queue arrival ' + suffix)
+    time.sleep(12)  # A foreground polling cycle must observe the new queue item.
+    editor = wait_for(desc='Review feedback')
+    assert editor.attrib.get('focused') == 'true', 'A new queue item interrupted the focused editor'
+    assert editor.attrib.get('text') == feedback
+    check('new queue arrivals preserve the active feedback draft and input focus')
+    adb('shell', 'input', 'keyevent', '111')
+    capture('pending-review')
+    adb('shell', 'settings' , 'put', 'system', 'accelerometer_rotation', '0')
     adb('shell', 'settings', 'put', 'system', 'user_rotation', '1')
     time.sleep(1)
     find_visible(text=feedback)
@@ -211,6 +227,7 @@ try:
     check('native approval and feedback visible through researcher HTTP API')
 
     find_and_tap(text='Back to queue')
+    find_and_tap(text='Settings')
     find_and_tap(text='Enable notifications')
     tap(wait_for(resource='permission_allow_button'))
     find_visible(text='Disable notifications')
@@ -255,11 +272,13 @@ try:
     adb('shell', 'am', 'force-stop', package)
     launch()
     wait_for(text='Queue updated just now.')
+    find_and_tap(text='History')
     find_and_tap(starts='Android notification ' + suffix)
     wait_for(text=second_feedback)
     capture('restored-decision')
     check('app process recreation reconnects and reloads the persisted decision')
     find_and_tap(text='Back to queue')
+    find_and_tap(text='Settings')
     find_and_tap(text='Disable notifications')
     assert not notification_record(second['id'])
     end = time.monotonic() + 5
@@ -274,6 +293,7 @@ try:
 
     # A competing reviewer wins before the stale Android detail is submitted.
     third = seed(researcher, 'Android conflict ' + suffix)
+    find_and_tap(text='Queue')
     top()
     find_and_tap(text='Refresh queue')
     wait_for(text='Queue updated just now.')
@@ -290,7 +310,7 @@ try:
     capture('conflict-recovered')
     check('competing decision converges to the winning feedback without overwriting it')
     result = {'result': 'passed', 'serial': args.serial, 'avd': 'RelayLabReviewerQA', 'androidApi': adb('shell', 'getprop', 'ro.build.version.sdk'),
-              'checks': checked, 'reviews': [first['id'], second['id'], third['id']],
+              'checks': checked, 'reviews': [first['id'], second['id'], third['id'], arrival['id']],
               'limits': ['synthetic local demo identities', 'emulator proof only', 'debug receiver requests the real worker for deterministic background verification; natural periodic delivery timing not measured']}
     (out / 'smoke-result.json').write_text(json.dumps(result, indent=2) + '\n')
     print(json.dumps(result, indent=2))

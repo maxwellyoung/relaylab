@@ -17,7 +17,8 @@ final class ReviewerModel {
     String origin, draft = "", validation = "", message = "Connect to load the review queue.";
     List<Review> reviews = new ArrayList<>();
     long selected = -1;
-    boolean connected, busy, decisionNeedsRefresh, showEvidence;
+    int page;
+    boolean connected, busy, saving, decisionNeedsRefresh, showEvidence;
     private int generation;
     ReviewerModel(Context context) {
         this.context = context.getApplicationContext();
@@ -37,10 +38,10 @@ final class ReviewerModel {
         }
         generation++; origin = next; connected = true;
         ReviewNotifications.preferences(context).edit().putString("origin", origin).apply();
-        busy = false; refresh();
+        busy = false; saving = false; refresh();
     }
     void disconnect() {
-        generation++; connected = false; busy = false;
+        generation++; connected = false; busy = false; saving = false;
         ReviewNotifications.enable(context, false);
         ReviewNotifications.preferences(context).edit().remove("origin").apply();
         reviews = new ArrayList<>(); selected = -1; draft = "";
@@ -70,14 +71,14 @@ final class ReviewerModel {
             validation = "Enter feedback (1–2000 characters) before deciding."; message = validation; notifyChanged(); return;
         }
         int job = generation; String endpoint = origin;
-        validation = ""; busy = true; message = "Saving decision…"; notifyChanged();
+        validation = ""; busy = true; saving = true; message = "Saving decision…"; notifyChanged();
         executor.execute(() -> {
             try (ApiClient api = new ApiClient(endpoint)) {
                 Review updated = api.decide(review.id, status, feedback);
                 main.post(() -> {
                     if (job != generation) return;
                     for (int i = 0; i < reviews.size(); i++) if (reviews.get(i).id == updated.id) reviews.set(i, updated);
-                    draft = ""; busy = false; message = "Decision saved. The researcher can now see your feedback."; notifyChanged();
+                    draft = ""; busy = false; saving = false; message = "Decision saved. The researcher can now see your feedback."; notifyChanged();
                 });
             } catch (Exception error) { fail(job, error, true); }
         });
@@ -85,7 +86,7 @@ final class ReviewerModel {
     private void fail(int job, Exception error, boolean decision) {
         main.post(() -> {
             if (job != generation) return;
-            busy = false; decisionNeedsRefresh = true;
+            busy = false; saving = false; decisionNeedsRefresh = true;
             message = error instanceof ApiClient.Failure ? error.getMessage()
                     : (decision ? "Could not confirm the decision. Refresh before retrying; your feedback is kept." : "Could not reach the API. Showing the last retrieved queue; tap Refresh to retry.");
             notifyChanged();

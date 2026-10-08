@@ -103,3 +103,48 @@ it("blocks submission and identity changes while the selected experiment is chan
   expect(screen.getByRole("button", { name: "Submit run #7 for review" })).toBeDisabled();
   expect(screen.getByRole("button", { name: "Reviewer" })).toBeDisabled();
 });
+
+it("keeps each run's feedback draft while switching focused receipts", async () => {
+  const user = userEvent.setup();
+  const second = { ...review, id: 2, runId: 8, experimentName: "Healthy execution", run: { ...review.run, id: 8 } };
+  vi.mocked(listReviews).mockResolvedValue([review, second]);
+  render(<ReviewWorkspace latestRun={null} runBusy={false} onRoleChange={() => {}} />);
+  await user.click(screen.getByRole("button", { name: "Reviewer" }));
+  await user.type(await screen.findByLabelText("Feedback for run #7 (required)"), "Keep this draft with run seven.");
+  await user.click(screen.getByRole("button", { name: /Run #8.*Healthy execution/ }));
+  expect(screen.getByLabelText("Feedback for run #8 (required)")).toHaveValue("");
+  await user.click(screen.getByRole("button", { name: /Run #7.*Unavailable dependency/ }));
+  expect(screen.getByLabelText("Feedback for run #7 (required)")).toHaveValue("Keep this draft with run seven.");
+  expect(decideReview).not.toHaveBeenCalled();
+});
+
+it("preserves the focused receipt when a refresh reorders the queue", async () => {
+  const user = userEvent.setup();
+  const second = { ...review, id: 2, runId: 8, experimentName: "Healthy execution", run: { ...review.run, id: 8 } };
+  vi.mocked(listReviews).mockResolvedValueOnce([review, second]).mockResolvedValueOnce([second, review]);
+  render(<ReviewWorkspace latestRun={null} runBusy={false} onRoleChange={() => {}} />);
+  await user.click(screen.getByRole("button", { name: "Reviewer" }));
+  await user.type(await screen.findByLabelText("Feedback for run #7 (required)"), "Continue reviewing the same receipt.");
+  await user.click(screen.getByRole("button", { name: "Refresh reviews" }));
+  await screen.findByText("Reviews refreshed.");
+  expect(screen.getByLabelText("Feedback for run #7 (required)")).toHaveValue("Continue reviewing the same receipt.");
+  expect(screen.queryByLabelText("Feedback for run #8 (required)")).toBeNull();
+});
+
+it("keeps drafts editable but requires a successful refresh before deciding from stale evidence", async () => {
+  const user = userEvent.setup();
+  vi.mocked(listReviews).mockResolvedValueOnce([review]).mockRejectedValueOnce(new TypeError("Failed to fetch")).mockResolvedValueOnce([review]);
+  render(<ReviewWorkspace latestRun={null} runBusy={false} onRoleChange={() => {}} />);
+  await user.click(screen.getByRole("button", { name: "Reviewer" }));
+  const feedback = await screen.findByLabelText("Feedback for run #7 (required)");
+  await user.type(feedback, "Keep my draft during the outage.");
+  await user.click(screen.getByRole("button", { name: "Refresh reviews" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("last retrieved reviews");
+  expect(feedback).toBeEnabled();
+  expect(feedback).toHaveValue("Keep my draft during the outage.");
+  expect(screen.getByRole("button", { name: "Approve run #7" })).toBeDisabled();
+  await user.click(screen.getByRole("button", { name: "Refresh reviews" }));
+  await screen.findByText("Reviews refreshed.");
+  expect(screen.getByRole("button", { name: "Approve run #7" })).toBeEnabled();
+  expect(feedback).toHaveValue("Keep my draft during the outage.");
+});

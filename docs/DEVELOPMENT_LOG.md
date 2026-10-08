@@ -486,3 +486,34 @@ and native Android build/unit/lint checks. A source push is distinct from CI
 success, merge, deployment, team agreement, a three-week development record,
 personal reflection and assessment submission. None of those is inferred from
 this same-day working checkpoint.
+
+## 8 October: reviewer interface revision
+
+Replaced the rejected stacked interface with a focused review workspace. Native
+Android now separates the next pending run, quieter queue rows, decision history
+and settings. A run's title, recorded execution receipt and feedback lead the
+review screen; approval/rejection share one action row. The web client uses a
+bounded queue beside one selected receipt, with a queue/detail route at phone
+widths. Role selection remains explicitly a demo. Both clients use restrained
+neutral surfaces, teal actions and a three-node mark for the distributed path.
+
+The design reasoning came from inspected public captures of Maxwell's Holdspace,
+Afterlight and Liner: one current object, subordinate metadata, controls close to
+work and stable interaction. No application code or assets were copied. This
+records the proposed direction and observed checks, not Maxwell's visual approval.
+
+Drafts remain attached to their web receipts across selection/reordering. Native
+queue arrivals no longer rebuild the focused editor; background refresh and API
+loss leave its draft editable while unconfirmed decisions remain disabled. Web
+network errors label the last retrieved data and require refresh before deciding.
+Long native evidence is bounded in its own scroll area. Queue title spans respect
+Android font scaling. Pointer/keyboard focus follows the phone queue/detail path.
+
+Verification: 19 focused web tests; five Android units, debug/release builds and
+lint; ten real emulator checks, including a new queue arrival while editing.
+Browser checks covered 320px queue/detail navigation, draft/focus continuity and
+no horizontal overflow. Native checks included 320dp width with 1.3 font scaling,
+long content, notification delivery/tap, permissions and an actual API outage.
+Local logs, captures and design decisions stay outside version control. CI,
+source push and human visual acceptance are separate evidence layers; this
+entry does not fabricate contribution history.

@@ -274,8 +274,8 @@ export default function App() {
   return (
     <main id="main-content">
       <header className="topbar">
-        <span className="brand">RelayLab</span>
-        <p>Distributed communication demo</p>
+        <span className="brand"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" d="M5 16 12 8 19 16"/><circle cx="5" cy="16" r="2"/><circle cx="12" cy="8" r="2"/><circle cx="19" cy="16" r="2"/></svg>RelayLab</span>
+        <p>Experiment workspace</p>
       </header>
 
       <ReviewWorkspace latestRun={latestRun} runBusy={isBusy} onRoleChange={(role) => setReviewerMode(role === "reviewer")} />

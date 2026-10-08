@@ -116,3 +116,17 @@ checks Node verification, a real disposable MySQL adapter and Android
 unit/build/lint tasks on branch pushes. Local emulator success is not physical
 hardware proof, CI success, production authentication, a measured large-data
 performance result, teammate agreement or three weeks of new development.
+
+## Reviewer interface revision, 8 October
+
+The reviewer now starts with one next run and a quieter waiting list. **History**
+contains completed decisions and their feedback; **Settings** holds API and
+notification controls. A selected receipt keeps execution outcome separate from
+its review decision. Large raw evidence is scrollable within a bounded panel.
+The web counterpart uses a focused list/detail workspace with a phone back path.
+
+Foreground refresh no longer replaces an active feedback editor when another
+run arrives. Drafts stay editable during API loss, while a successful refresh
+is required before an uncertain decision can be attempted again. The native
+smoke now includes this queue-arrival/focus case and follows the Settings and
+History navigation. New visual/runtime proof is kept outside version control.
