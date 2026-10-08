@@ -86,7 +86,7 @@ try {
   assert.equal((await http('/api/reviews', { token: researcher }))[0].feedback, 'Actual gRPC result verified.');
   assert.deepEqual(tables(path.join(directory, 'coordinator', 'relaylab.sqlite')), ['experiment_runs', 'experiments', 'run_reviews']);
   assert.deepEqual(tables(path.join(directory, 'runner', 'runner.sqlite')), ['executions']);
-  console.log(JSON.stringify({ checkedAt: new Date().toISOString(), result: 'passed', executionId: run.response.execution.executionId, evidence: ['two independent built processes', 'real gRPC protobuf calls', 'separate SQLite stores', 'researcher/reviewer handoff', 'deadline=4 and same-key recovery', 'unavailable=14 with coordinator still usable', 'runner restart retains results and review feedback'], gates: ['selectable local demo identities', 'native Android not yet implemented', 'live MySQL not tested'] }, null, 2));
+  console.log(JSON.stringify({ checkedAt: new Date().toISOString(), result: 'passed', executionId: run.response.execution.executionId, evidence: ['two independent built processes', 'real gRPC protobuf calls', 'separate SQLite stores', 'researcher/reviewer handoff', 'deadline=4 and same-key recovery', 'unavailable=14 with coordinator still usable', 'runner restart retains results and review feedback'], gates: ['selectable local demo identities', 'native Android exercised separately on emulator', 'live MySQL not tested'] }, null, 2));
 } finally {
   await stop(replacement); await stop(group); await rm(directory, { recursive: true, force: true });
 }

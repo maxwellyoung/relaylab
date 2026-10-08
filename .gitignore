@@ -28,3 +28,10 @@ relaylab-submission.zip
 
 # Vercel linkage
 .vercel
+
+# Android local SDK, IDE state and generated builds
+android/.gradle/
+android/.idea/
+android/local.properties
+android/**/build/
+*.apk

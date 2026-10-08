@@ -27,7 +27,9 @@ verifies the built processes and failure paths.
 
 Demo account selection is disabled in the baseline lane and enabled by the
 group launcher, which binds both services to loopback. These accounts are not
-production authentication. Android and mobile notifications remain team work.
+production authentication. The [native Android reviewer](docs/ANDROID_REVIEWER.md)
+now connects to this same API and supports approval, rejection, feedback and
+polled system notifications. Its Android Studio project is in `android/`.
 
 ## Architecture
 

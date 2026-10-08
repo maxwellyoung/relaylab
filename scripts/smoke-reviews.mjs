@@ -63,7 +63,7 @@ try {
   console.log(JSON.stringify({
     checkedAt: new Date().toISOString(), result: "passed", integration: "built web API -> JSON-RPC downstream -> SQLite review decision; actual HTTP; restart",
     refresh: { targetMs: 500, samples: durations.length, reviews: 1, p95Ms: Number(durations[18].toFixed(2)), maximumMs: Number(maximumMs.toFixed(2)), conditions: "warm local loopback, sequential, SQLite, no concurrent test load" },
-    gates: ["demo identities only", "Android not implemented", "gRPC not exercised by this JSON-RPC smoke", "live MySQL not tested"],
+    gates: ["demo identities only", "Android not exercised by this HTTP smoke", "gRPC not exercised by this JSON-RPC smoke", "live MySQL not tested"],
   }, null, 2));
 } finally {
   if (application) await stop();

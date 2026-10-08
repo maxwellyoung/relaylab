@@ -448,3 +448,41 @@ team agreement, production deployment, three-week history claim, personal
 reflection, public push or assessment submission. Raw proof stays ignored under
 `outputs/grpc-runner-2026-10-08/`; setup and constraints are in
 `docs/GRPC_RUNNER.md`.
+
+## 8 October: native Android review checkpoint
+
+Added an importable Android Studio Java project with native queue/detail views,
+review evidence, required approval/rejection feedback, bounded HTTP jobs,
+rotation retention and stale/uncertain decision recovery. Each job obtains and
+revokes a demo reviewer session; tokens never enter app preferences or logs.
+Notifications compare successful pending-ID snapshots, seed a quiet baseline,
+respect permission denial/channel blocking, and open the matching review.
+Foreground checks and scheduled WorkManager polling are explicitly labelled;
+this is local periodic notification delivery, not instant cloud push.
+
+Five unit tests, debug and unsigned-release builds and lint passed. Two lint
+warnings concern newer SDK/dependency versions. The full npm verification passed
+103 tests (one live MySQL credential skip), types, builds, three smokes and the
+production audit. A dedicated API-36 emulator passed the real HTTP/gRPC-backed
+researcher-to-Android approval/rejection flow, feedback validation, rotation,
+permission denial, notification baseline, actual background worker and system
+notification tap, process recreation, API-loss labelling, system Back and notification disable and competing-decision
+recovery. The researcher browser displayed Android feedback. Physical hardware,
+natural periodic delivery timing and larger-data performance remain unverified.
+
+During verification, the permission-denial explanation was made persistent in
+notification settings and the landscape test learned to scroll using actual
+viewport bounds. A regression test covers overlapping snapshot delivery: seen
+IDs are retained so an older response cannot cause repeat notifications. Notification
+intents carry unique review data URIs to prevent request-code collisions. Immediate baseline and delayed periodic jobs are separated.
+A debug-only shell-permission receiver requests the real background worker for
+repeatable tests; release manifest inspection verifies its absence and confirms
+HTTPS-only policy. The wrapper checksum and Gradle dependency lock are checked in.
+Raw logs/captures/APK remain ignored under outputs/android-reviewer-2026-10-08/.
+
+At Maxwell's explicit request the prior verified web and gRPC commits were
+pushed to the existing group-review-workflow branch. CI now includes this branch
+and native Android build/unit/lint checks. A source push is distinct from CI
+success, merge, deployment, team agreement, a three-week development record,
+personal reflection and assessment submission. None of those is inferred from
+this same-day working checkpoint.

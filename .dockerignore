@@ -20,3 +20,4 @@ output
 outputs
 .playwright-cli
 .DS_Store
+android

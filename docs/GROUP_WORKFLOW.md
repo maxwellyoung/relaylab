@@ -2,8 +2,10 @@
 
 This local extension starts from the submitted RelayLab baseline, application
 commit `360b4db` and checkout `b410394` (the latter changes only `.gitignore`).
-It does not establish team agreement, teammate ownership, Android completion,
-or three weeks of Assessment 3 development. The gRPC execution lane is now
+The extension includes a native Android reviewer and polled system notifications;
+[Android setup and verification](ANDROID_REVIEWER.md) describe the emulator checkpoint.
+It does not establish team agreement, teammate ownership, physical-device proof
+or three weeks of Assessment 3 development. The gRPC execution lane is
 implemented and verified locally; [runner notes](GRPC_RUNNER.md) describe its
 scope and recovery limits.
 
@@ -107,7 +109,9 @@ the ignored `outputs/group-review-2026-10-08/` directory.
 - Agree the baseline, real account/ownership requirements and each member's
   technical responsibility. Record genuine contributions and AI-assisted
   changes accurately; individual investigation/reflection remains personal work.
-- Build the native Android reviewer and event-driven notification capability.
+- Review and integrate the native Android client with the team. Decide whether
+  periodic notification delivery meets the agreed product requirement; instant
+  remote push would require a separate service and delivery setup.
 - Integrate the verified gRPC lane with the team's agreed workflow and Android.
   The original JSON-RPC simulator remains available for baseline regression;
   the group launcher uses the runner-owned execution ledger.
@@ -116,8 +120,9 @@ the ignored `outputs/group-review-2026-10-08/` directory.
 - The inherited `proxy-addr` advisory was cleared with its compatible patch
   update during the gRPC milestone. The production dependency audit passes;
   development-tool advisories remain outside that production audit.
-- Team reports/demo, independent individual reports, public repository
-  publication and final submission remain separate work and approval gates.
+- Team reports/demo, independent individual reports, merge, deployment and
+  final submission remain separate work and approval gates.
 
-WebSocket bonus work remains optional. No team message, remote push,
-deployment, publication or assessment submission is performed by this slice.
+WebSocket bonus work remains optional. Source milestones are pushed to the
+existing repository at Maxwell's request. No team message, merge, deployment
+or assessment submission is performed.
