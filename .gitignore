@@ -8,7 +8,7 @@ __pycache__/
 *.pyc
 
 # Local database and runtime files
-data/
+/data/
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
@@ -35,3 +35,8 @@ android/.idea/
 android/local.properties
 android/**/build/
 *.apk
+
+# .NET generated output and local IDE state
+**/bin/
+**/obj/
+.vs/

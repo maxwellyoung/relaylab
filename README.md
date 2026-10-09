@@ -15,15 +15,19 @@ for setup, the shared HTTP contract, verification and remaining integration work
 
 ```bash
 npm ci
-npm run build
+npm run build:group
 npm run start:group
 ```
 
 Open http://localhost:3000 in two tabs and select Researcher A / Reviewer.
-The group launcher starts a real gRPC runner and coordinator with separate
-SQLite stores. The [runner notes](docs/GRPC_RUNNER.md) explain ownership,
-deadlines, restart recovery and the two RPC methods. `npm run smoke:grpc`
-verifies the built processes and failure paths.
+The group launcher starts an ASP.NET Core 10 coordinator and the separate Node
+gRPC runner, each with its own SQLite store. Install the SDK pinned in
+`global.json`; [the .NET setup notes](docs/DOTNET_COORDINATOR.md) explain the
+architecture and transition from the Node coordinator. The
+[runner notes](docs/GRPC_RUNNER.md) explain ownership,
+deadlines, restart recovery and the two RPC methods. `npm run verify:group`
+checks both coordinator implementations, HTTP compatibility, runner recovery
+and dependency audits. `npm run start:group:node` retains the Node group lane.
 
 Demo account selection is disabled in the baseline lane and enabled by the
 group launcher, which binds both services to loopback. These accounts are not
@@ -31,7 +35,7 @@ production authentication. The [native Android reviewer](docs/ANDROID_REVIEWER.m
 now connects to this same API and supports approval, rejection, feedback and
 polled system notifications. Its Android Studio project is in `android/`.
 
-## Architecture
+## Individual baseline architecture
 
 ```text
 React browser client (port 5173)

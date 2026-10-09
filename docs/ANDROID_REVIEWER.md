@@ -10,11 +10,13 @@ cloud notification service or API key is needed for this local demo.
 Prerequisites: Android Studio / Android SDK platform 35, build tools 34.0.0,
 and JDK 17 or 21. The checked-in Gradle 8.7 wrapper verifies its distribution
 checksum; Android Gradle Plugin 8.6.1 and the dependency lock pin this build.
-Use the existing root npm lockfile for the services.
+Use the existing root npm lockfile for the services and install the .NET SDK
+pinned in `global.json` for the group coordinator. See
+[.NET coordinator setup](DOTNET_COORDINATOR.md).
 
 ```bash
 npm ci
-npm run build
+npm run build:group
 PORT=3118 RUNNER_PORT=50118 npm run start:group
 ```
 
@@ -85,7 +87,7 @@ for the OS constraints.
 ## Reproducible emulator checkpoint
 
 The smoke script accepts only an explicit emulator serial whose AVD name is
-**RelayLabReviewerQA**, and only the local port-3118 group API. It resets this
+**RelayLabReviewerQA**, and only the local port-3118 or port-3128 group API. It resets this
 app's data on that dedicated AVD and creates synthetic review evidence. It
 refuses physical serials and writes raw proof only under ignored `outputs/`.
 The installed debug APK must match the current source.
@@ -130,3 +132,22 @@ run arrives. Drafts stay editable during API loss, while a successful refresh
 is required before an uncertain decision can be attempted again. The native
 smoke now includes this queue-arrival/focus case and follows the Settings and
 History navigation. New visual/runtime proof is kept outside version control.
+
+## .NET compatibility checkpoint, 10 October
+
+The unchanged debug APK passed all ten native smoke scenarios against the
+ASP.NET coordinator on port 3128: approval/rejection and researcher feedback,
+validation, focus/draft continuity during queue arrivals, rotation, permissions,
+notification baseline, actual background worker and notification tap, process
+recreation, disable and competing-decision recovery. This used the dedicated
+API-36 emulator and synthetic data. Natural periodic delivery timing and physical
+hardware remain unverified.
+
+```bash
+PORT=3128 RUNNER_PORT=50128 npm run start:group
+python3 scripts/smoke-android.py --serial emulator-5570 --api http://127.0.0.1:3128 --output outputs/dotnet-android
+```
+
+The smoke switches the emulator app to `http://10.0.2.2:3128` through Settings
+after clearing only the dedicated QA app. Local proof is ignored under
+`outputs/dotnet-transition-2026-10-10/android/`.

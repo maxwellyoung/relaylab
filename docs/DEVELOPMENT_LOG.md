@@ -517,3 +517,43 @@ long content, notification delivery/tap, permissions and an actual API outage.
 Local logs, captures and design decisions stay outside version control. CI,
 source push and human visual acceptance are separate evidence layers; this
 entry does not fabricate contribution history.
+
+
+## 10 October: ASP.NET group coordinator
+
+Implemented an original ASP.NET Core 10 coordinator for the group lane while
+preserving the existing browser/Android HTTP contract and shared SQLite schema.
+Thin controllers delegate validation and workflow rules to services; the SQL
+adapter owns persistence and atomic review transitions. The generated C# client
+calls the existing independent Node gRPC runner using the shared protobuf. Each
+service retains its own database. The original Node baseline remains available.
+The supplied task-app README is contextual evidence; its actual repository has
+not been integrated or claimed as the source of this implementation.
+
+The implementation progressed through public HTTP red/green slices: missing
+coordinator build, experiment CRUD and persistence; absent execution route,
+real gRPC result/deadline/same-key recovery; absent session/review routes,
+role visibility and persisted decisions. Synthetic Node-origin SQLite rows were
+then read through .NET, including historical JSON-RPC evidence and feedback.
+Concurrent decisions permit one winner and submitted evidence resists deletion.
+Malformed JSON and oversized requests retain the public error shape.
+
+The supervisor smoke exposed gRPC connection backoff consuming the next deadline
+after a runner restart. The gateway now replaces an unavailable channel when
+active calls finish, preserving concurrent calls and permitting prompt recovery.
+The real two-process restart smoke passed after this fix.
+
+Final local verification passed: 106 Node/client/runner/downstream tests with one
+credential-dependent MySQL skip, all types/builds, original integration smokes,
+locked .NET restore/build with zero warnings/errors, .NET public-HTTP compatibility
+and gRPC supervisor recovery. The production npm audit and direct/transitive
+NuGet audit reported no vulnerabilities. CI gains a separate .NET job; local
+results do not themselves establish remote CI success.
+
+The unchanged debug Android APK passed all ten dedicated API-36 emulator
+scenarios against .NET, including notifications, draft continuity and competing
+decisions. Browser interaction completed run → submit → reviewer approval →
+researcher feedback through the .NET API. Local logs, databases and captures are
+ignored under `outputs/dotnet-transition-2026-10-10/`. Physical hardware, natural
+periodic notification timing, real authentication, team-source integration,
+ownership agreement, merge, deployment and submission remain separate gates.

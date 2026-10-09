@@ -47,7 +47,7 @@ function tables(file) {
   const rows = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name <> 'sqlite_sequence' ORDER BY name").all(); db.close(); return rows.map((row) => row.name);
 }
 try {
-  group = spawn(process.execPath, ['scripts/start-group.mjs'], { cwd: root, env: { ...process.env, PORT: String(publicPort), RUNNER_PORT: String(runnerPort), RELAYLAB_GROUP_DATA_DIR: directory, DOWNSTREAM_TIMEOUT_MS: '300', RUNNER_SLOW_DELAY_MS: '900' }, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] });
+  group = spawn(process.execPath, [process.argv.includes('--dotnet') ? 'scripts/start-group-dotnet.mjs' : 'scripts/start-group.mjs'], { cwd: root, env: { ...process.env, PORT: String(publicPort), RUNNER_PORT: String(runnerPort), RELAYLAB_GROUP_DATA_DIR: directory, DOWNSTREAM_TIMEOUT_MS: '300', RUNNER_SLOW_DELAY_MS: '900' }, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] });
   group.on('message', (message) => { if (message.type === 'runner-ready') runnerPid = message.pid; if (message.type === 'coordinator-ready') coordinatorReady = true; });
   for (const stream of [group.stdout, group.stderr]) stream.on('data', (value) => { output.push(value.toString()); if (output.length > 100) output.shift(); });
   await wait(async () => coordinatorReady && runnerPid && (await fetch(base + '/health')).ok, 'Group startup failed');

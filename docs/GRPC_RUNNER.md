@@ -4,16 +4,16 @@ The group lane separates **experiment and review coordination** from **durable
 execution**. It retains the original JSON-RPC lane for baseline checks.
 
 ```text
-Web client / future Android reviewer
+Web client / native Android reviewer
                  | HTTP/JSON
-         Coordinator API
+         ASP.NET Core coordinator API
           |             |
           |             +-- coordinator/relaylab.sqlite
           |                 experiments, immutable attempt receipts, reviews
           |
           | gRPC: ExecuteRun / GetExecution, explicit deadline
           v
-         Runner
+         Node gRPC runner
           |
           +-- runner/runner.sqlite
               execution requests, operation identity, state and result
@@ -29,11 +29,13 @@ observed attempt even if the runner later finishes a timed-out execution.
 
 ```bash
 npm ci
-npm run build
+npm run build:group
 npm run start:group
 ```
 
-Open http://localhost:3000 in two tabs for researcher/reviewer. The launcher
+Install the SDK in `global.json`; [the .NET setup](DOTNET_COORDINATOR.md)
+explains how to configure its executable. Open http://localhost:3000 in two tabs
+for researcher/reviewer. The launcher
 binds both services to loopback, uses SQLite, and stores data under
 `data/group/coordinator/` and `data/group/runner/`. `PORT`, `RUNNER_PORT` and
 `RELAYLAB_GROUP_DATA_DIR` override these local settings. It waits for runner
@@ -45,13 +47,15 @@ For independent terminals:
 
 ```bash
 RUNNER_DATA_DIR=/absolute/path/to/runner-data npm run start:runner
-RELAYLAB_REVIEW_DEMO=true RELAYLAB_RUNNER_TARGET=127.0.0.1:50051 npm run start:coordinator
+RELAYLAB_REVIEW_DEMO=true RELAYLAB_RUNNER_TARGET=127.0.0.1:50051 CLIENT_DIST_DIR="$PWD/client/dist" node scripts/dotnet.mjs coordinator-dotnet/bin/Release/net10.0/RelayLab.Coordinator.dll
 ```
 
 The coordinator uses `RELAYLAB_RUNNER_NAMESPACE` (default `relaylab`) to scope
 operation and experiment references. Keep it stable across restarts and use a
-distinct namespace for another coordinator. Unset `RELAYLAB_RUNNER_TARGET` to
-retain JSON-RPC behaviour. No credentials or local databases are packaged.
+distinct namespace for another coordinator. The .NET coordinator always uses
+gRPC. `npm run start:group:node` retains the Node group lane; the original
+baseline launcher retains JSON-RPC behaviour. No credentials or local databases
+are packaged.
 
 ## Contract and responsibilities
 
@@ -69,8 +73,10 @@ retain JSON-RPC behaviour. No credentials or local databases are packaged.
 
 The Node implementation uses the official runtime-loaded protobuf descriptor
 approach: [Node gRPC guide](https://grpc.io/docs/languages/node/basics/).
-Types describe that shared descriptor without another code-generation build
-step. JSON payload/result fields keep the experiment's arbitrary object data
+Runner types describe that shared descriptor without another code-generation
+build step. The .NET coordinator generates its C# client from this same
+`.proto` during the locked build using Grpc.Tools and Grpc.Net.Client. JSON
+payload/result fields keep the experiment's arbitrary object data
 inside an otherwise explicit request/execution contract.
 
 The coordinator validates execution UUID, operation/experiment identity,
@@ -123,7 +129,7 @@ implemented. Do not present this local setup as production deployment.
 ## Reproducible verification
 
 ```bash
-npm run verify
+npm run verify:group
 ```
 
 The gate runs all workspace tests/types/builds, baseline and review smoke
@@ -134,6 +140,13 @@ recovery. The runner suite additionally kills an owned disposable runner
 process abruptly and verifies interrupted-state recovery and refusal to
 re-execute. The MySQL live test remains credential-dependent.
 
-Evidence is in the ignored `outputs/grpc-runner-2026-10-08/` directory. Native
-Android, notifications, team ownership, genuine three-week history, reports,
-publication and submission remain separate work/gates.
+The .NET smoke additionally proves the supervisor and immediate gRPC channel
+recovery after runner restart. HTTP compatibility checks read synthetic
+Node-created coordinator records through .NET. The .NET checkpoint is under
+ignored `outputs/dotnet-transition-2026-10-10/`.
+
+Earlier Node evidence is in the ignored `outputs/grpc-runner-2026-10-08/`
+directory. Web and native Android workflows were verified against .NET on
+10 October. Physical devices, natural notification timing, team ownership,
+genuine three-week history, reports, publication and submission remain separate
+work/gates.

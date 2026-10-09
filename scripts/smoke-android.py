@@ -25,8 +25,8 @@ parser.add_argument('--output', default='outputs/android-reviewer-2026-10-08')
 args = parser.parse_args()
 if not re.fullmatch(r'emulator-\d+', args.serial):
     parser.error('Only a dedicated emulator serial is accepted; no physical-device actions.')
-if args.api != 'http://127.0.0.1:3118':
-    parser.error('This destructive test fixture is restricted to the local port-3118 demo.')
+if args.api not in ('http://127.0.0.1:3118', 'http://127.0.0.1:3128'):
+    parser.error('This destructive test fixture is restricted to the local Node/.NET demos on ports 3118/3128.')
 out = Path(args.output).resolve()
 if 'outputs' not in out.parts:
     parser.error('Keep raw proof inside an ignored outputs/ directory.')
@@ -187,6 +187,12 @@ try:
     first = seed(researcher, 'Android checkpoint ' + suffix)
     assert adb('shell', 'pm', 'clear', package) == 'Success'
     launch()
+    if args.api.endswith(':3128'):
+        tap(wait_for(desc='Coordinator API origin'))
+        adb('shell', 'input', 'keyevent', '123')  # End of the dedicated fixture's default URL.
+        adb('shell', 'input', 'keyevent', *(['67'] * 40))
+        adb('shell', 'input', 'text', 'http://10.0.2.2:3128')
+        adb('shell', 'input', 'keyevent', '111')
     tap(wait_for(text='Connect as demo reviewer'))
     wait_for(text='Queue updated just now.')
     capture('queue')

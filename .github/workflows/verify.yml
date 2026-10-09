@@ -9,6 +9,25 @@ permissions:
   contents: read
 
 jobs:
+  dotnet:
+    name: .NET coordinator HTTP compatibility and gRPC recovery
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: npm ci
+      - run: npm run build:group
+      - run: npm run smoke:dotnet
+      - run: npm run smoke:grpc:dotnet
+      - name: Audit locked .NET dependencies
+        run: npm run audit:dotnet
+
   gate:
     name: tests, types, builds, smoke, audit
     runs-on: ubuntu-latest

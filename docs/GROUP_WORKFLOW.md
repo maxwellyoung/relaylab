@@ -11,18 +11,21 @@ scope and recovery limits.
 
 ## Run and exercise the handoff
 
-Use the existing lockfile and Node prerequisites from the root README:
+The primary group coordinator uses ASP.NET Core 10 with the SDK pinned in
+`global.json`. The existing Node runner, browser and Android API are retained.
+See [the .NET coordinator](DOTNET_COORDINATOR.md) for setup and compatibility.
+Use the existing npm lockfile and Node prerequisites from the root README:
 
 ```bash
 npm ci
-npm run build
+npm run build:group
 npm run start:group
 ```
 
 Open http://localhost:3000 in two tabs. Choose **Researcher A** in the first and
 **Reviewer** in the second. In the researcher tab:
 
-1. Run an experiment through the existing coordinator/downstream path.
+1. Run an experiment through the .NET coordinator and separate gRPC runner.
 2. Submit the selected run for review; its review status starts as pending.
 3. In the reviewer tab, refresh the queue, inspect the run evidence, enter
    feedback, then approve or reject it.
@@ -80,19 +83,14 @@ an atomic update conditioned on `status = 'pending'`; only one competing
 reviewer request can succeed. Write/read-back pairs run in transactions.
 Foreign-key RESTRICT preserves submitted evidence during deletion races.
 
-Both SQLite and MySQL adapter code are maintained. SQLite is the verified
-local persistence lane; mocked MySQL transaction tests do not establish a
-successful live MySQL connection.
+The .NET coordinator uses SQLite. The original Node coordinator and its
+SQLite/MySQL adapters remain available for baseline regression and the optional
+Node group lane. A MySQL connection is not implemented in the .NET coordinator.
 
 ## Verification
 
 ```bash
-npm test
-npm run typecheck
-npm run build
-npm run smoke
-npm run smoke:reviews
-npm run smoke:grpc
+npm run verify:group
 ```
 
 The review smoke uses built code, real loopback HTTP and the actual JSON-RPC
@@ -104,8 +102,19 @@ This is a reproducible small local check, not an Android, network-load or
 production performance claim. Logs and browser evidence for 8 October live in
 the ignored `outputs/group-review-2026-10-08/` directory.
 
+The .NET public-HTTP smoke checks Node-created SQLite compatibility, persisted
+feedback across coordinator restart, role visibility, competing decisions,
+gRPC deadlines and same-key recovery, runner restart and unavailable responses.
+The unchanged browser and native Android client were also exercised against
+.NET on 10 October. Raw local evidence is ignored under
+`outputs/dotnet-transition-2026-10-10/`; emulator proof does not establish
+physical-device behaviour.
+
 ## Remaining team work
 
+- Obtain and assess the actual task-app repository before claiming integration
+  with that source. The .NET coordinator here is an original compatible
+  implementation; the supplied task-app README is not its source code.
 - Agree the baseline, real account/ownership requirements and each member's
   technical responsibility. Record genuine contributions and AI-assisted
   changes accurately; individual investigation/reflection remains personal work.
