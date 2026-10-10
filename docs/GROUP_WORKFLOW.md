@@ -11,7 +11,7 @@ scope and recovery limits.
 
 ## Run and exercise the handoff
 
-The primary group coordinator uses ASP.NET Core 10 with the SDK pinned in
+The primary group coordinator uses ASP.NET Core 10 and EF Core SQLite, with the SDK pinned in
 `global.json`. The existing Node runner, browser and Android API are retained.
 See [the .NET coordinator](DOTNET_COORDINATOR.md) for setup and compatibility.
 Use the existing npm lockfile and Node prerequisites from the root README:
@@ -103,7 +103,7 @@ production performance claim. Logs and browser evidence for 8 October live in
 the ignored `outputs/group-review-2026-10-08/` directory.
 
 The .NET public-HTTP smoke checks Node-created SQLite compatibility, persisted
-feedback across coordinator restart, role visibility, competing decisions,
+feedback across coordinator restart, role visibility, competing decisions, EF/SQL adapter roundtrips and concurrent writes,
 gRPC deadlines and same-key recovery, runner restart and unavailable responses.
 The unchanged browser and native Android client were also exercised against
 .NET on 10 October. Raw local evidence is ignored under
@@ -112,9 +112,11 @@ physical-device behaviour.
 
 ## Remaining team work
 
-- Obtain and assess the actual task-app repository before claiming integration
-  with that source. The .NET coordinator here is an original compatible
-  implementation; the supplied task-app README is not its source code.
+- Review the EF adaptation through `ICoordinatorRepository`;
+  [the adapter notes](DOTNET_COORDINATOR.md#ef-persistence-adapter) document the
+  existing schema, context lifetimes and acceptance checks. EF is the default
+  adapter, with direct SQL retained and tested. Private teammate source has not
+  been imported.
 - Agree the baseline, real account/ownership requirements and each member's
   technical responsibility. Record genuine contributions and AI-assisted
   changes accurately; individual investigation/reflection remains personal work.
@@ -129,9 +131,10 @@ physical-device behaviour.
 - The inherited `proxy-addr` advisory was cleared with its compatible patch
   update during the gRPC milestone. The production dependency audit passes;
   development-tool advisories remain outside that production audit.
-- Team reports/demo, independent individual reports, merge, deployment and
+- Team reports/demo, independent individual reports, deployment and
   final submission remain separate work and approval gates.
 
-WebSocket bonus work remains optional. Source milestones are pushed to the
-existing repository at Maxwell's request. No team message, merge, deployment
-or assessment submission is performed.
+WebSocket bonus work remains optional. See [the team handoff](TEAM_HANDOFF.md)
+for proposed contribution lanes and remaining decisions. Source integration does
+not establish team agreement, member contributions, deployment or assessment
+submission.

@@ -151,3 +151,14 @@ python3 scripts/smoke-android.py --serial emulator-5570 --api http://127.0.0.1:3
 The smoke switches the emulator app to `http://10.0.2.2:3128` through Settings
 after clearing only the dedicated QA app. Local proof is ignored under
 `outputs/dotnet-transition-2026-10-10/android/`.
+
+
+## EF persistence checkpoint, 11 October
+
+The unchanged debug APK passed the same ten dedicated API-36 emulator scenarios
+against the EF-backed coordinator. The preview health reported
+`persistenceAdapter: "ef"`; prior preview records were retained before the
+new synthetic checks. Native approval/rejection and researcher feedback,
+notifications, draft/rotation continuity and stale-decision recovery passed.
+The browser separately completed submission, approval and feedback against EF.
+Private proof is ignored under `outputs/ef-integration-2026-10-11/`.

@@ -557,3 +557,106 @@ researcher feedback through the .NET API. Local logs, databases and captures are
 ignored under `outputs/dotnet-transition-2026-10-10/`. Physical hardware, natural
 periodic notification timing, real authentication, team-source integration,
 ownership agreement, merge, deployment and submission remain separate gates.
+
+## 11 October: teammate backend integration preparation
+
+Reviewed the newly accessible task-app source privately at its pinned head.
+It uses ASP.NET Core 10, EF Core and SQLite with controllers/services/data
+separation. Its editable task/list domain needs adaptation to experiments,
+immutable attempts and final review decisions. Source inspection does not prove
+that application runs. No private source, database, executable or configuration
+was copied into the tracked project, and no teammate repository was modified.
+
+Added ICoordinatorRepository as a bounded persistence replacement point, with
+the existing SQL adapter registered once and experiment/review services consuming
+the interface. This prepares an EF-backed contribution while preserving the
+current HTTP contract, database and gRPC service boundary. The backend handoff
+specifies entity/table mapping, safe DbContext lifetimes, existing-data support,
+atomic decisions and acceptance checks. EF persistence is not implemented by
+this preparation; proposed teammate responsibilities remain unassigned.
+
+
+Validation passed on this branch: `npm run verify:group`, including 106 tests
+and one credential-dependent MySQL skip, all types/builds, original integration
+smokes, locked .NET build, public HTTP compatibility, gRPC restart recovery and
+both dependency audits. Local source assessment and raw test evidence remain
+ignored under `outputs/teammate-integration-2026-10-11/`. No new browser/native
+runtime claim is made for this internal dependency-registration change.
+
+
+## 11 October: EF Core SQLite adaptation
+
+Implemented an original EF Core SQLite adapter behind ICoordinatorRepository,
+adapting the teammate backend's persistence approach to RelayLab's existing
+experiment/run/review domain. Explicit entity and column mappings preserve the
+canonical SQLite schema, serialized JSON and UTC API timestamps. A factory
+creates and disposes one context per operation, supporting concurrent requests
+without capturing a scoped DbContext in singleton demo-session services.
+The group coordinator now defaults to EF; direct SQL remains selectable.
+
+Public-HTTP red/green slices covered adapter selection plus CRUD/restart,
+missing EF run persistence through the actual gRPC runner, then historical
+reviews and transactional decisions. Review submission and conditional
+pending-only decisions share transactions with their read-back. Duplicate
+submissions and protected deletion keep 409 responses. The shared startup
+initializer applies the existing SQL schema and adds older missing columns;
+it does not recreate tables or run automatic EF migrations.
+
+Both adapter smokes pass concurrent writes and an EF/SQL roundtrip over the
+same disposable history. Historical Node-origin schema, receipts and feedback
+survive startup; the alternate adapter writes new evidence that the original
+adapter reads and replays. Real gRPC failure/restart checks also pass. A local
+preview restart retained its four experiments, five receipts and five reviews;
+a private backup was retained before the switch. No teammate source, database,
+executable, raw messages or configuration was added to tracked source.
+
+The integration branch now triggers CI, including both EF and SQL HTTP smokes.
+Local raw proof is ignored under outputs/ef-integration-2026-10-11/. This is a
+new implementation and dated checkpoint, not an import of teammate history or
+an assignment of team ownership. Merge, deployment, physical devices, team
+reports/reflections and assessment submission remain separate gates.
+
+
+Final local verification passed: 106 tests plus one credential-dependent MySQL
+skip, all types/builds, EF and SQL public-HTTP compatibility, gRPC supervisor
+recovery, and zero reported npm production/NuGet vulnerabilities. The Release
+build produced zero warnings/errors. The unchanged debug Android APK passed all
+ten API-36 emulator scenarios against EF, including actual background worker
+notifications and competing-decision recovery. Browser interaction completed
+run/submit/approve/researcher feedback through the EF preview. Emulator proof
+does not establish physical hardware or natural periodic-delivery timing.
+
+## 11 October: workspace navigation and illustrated system guide
+
+Replaced the tall combined browser page with a compact dark workspace: stable
+sidebar, separate experiment/review views, searchable status-filtered rows and
+a focused receipt pane. Filters choose a visible receipt; feedback drafts stay
+attached to their review when changing filters, opening the guide or returning
+from it. Mobile list/detail navigation restores focus to the selected row.
+The HTTP workflow and execution/review distinction remain unchanged.
+
+Added a canonical explanation with 13 diagrams covering objects, service/data
+ownership, both handoffs, independent lifecycles, layers, schema, deadlines,
+retry identity, competing decisions, Android polling and verification. A first-run
+walkthrough and proposed team handoff add a contribution-flow diagram. The app
+renders the explanation and walkthrough from those Markdown files, with the
+reader and Mermaid loaded only when opened. Markdown is rendered as React
+nodes; Mermaid uses strict sanitization. The new transitive KaTeX dependency is
+pinned to its patched 0.18.2 release through an override. The production npm
+audit reports no vulnerabilities; development-tool advisories are separate.
+
+Local whole-system verification passed workspace tests/types/builds, baseline
+HTTP/review/gRPC smokes, both .NET adapters, gRPC supervisor recovery and NuGet
+checks. Focused final browser tests pass 22 cases, including three new navigation,
+filtering and draft-retention checks. Real browser interaction submitted a slow
+run, approved its useful timeout evidence and read saved researcher feedback;
+the timeout outcome stayed unchanged. All 13 app diagrams rendered. Final
+assets were also checked at 320 CSS pixels for overflow, decision controls,
+queue focus return and filtered empty state. Native Android source is unchanged;
+this checkpoint adds no physical-device or natural-notification timing claim.
+
+The proposed backend, workflow/integration and browser lanes are explicitly
+unassigned until the team agrees. The Android owner is also undecided. The next
+technical work should be member-owned small PRs with another member's review,
+rather than completing every remaining lane in the integration checkout.
+Commit timestamps represent actual work; no history is fabricated or backdated.

@@ -5,7 +5,7 @@ using RelayLab.Coordinator.Models;
 
 namespace RelayLab.Coordinator.Services;
 
-public sealed class ExperimentService(SqliteRepository repository, RunnerGateway runner)
+public sealed class ExperimentService(ICoordinatorRepository repository, RunnerGateway runner)
 {
     public Experiment Create(JsonElement input)
     {

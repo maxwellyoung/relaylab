@@ -1,17 +1,26 @@
 # RelayLab
 
-RelayLab is a deliberately small API reliability workbench for the COMP713
-Option A individual project. It runs a saved request experiment through a
-separate downstream service, classifies what happened, and keeps the result as
-reproducible evidence.
+RelayLab is a small experiment-and-review workspace. A researcher runs an
+experiment, submits its saved evidence, and a reviewer approves or rejects it
+with feedback. Execution outcome and review status stay separate.
 
-## Local group-workflow extension
+The shared group lane uses a React browser, an ASP.NET Core coordinator with
+EF Core SQLite persistence, an independent Node gRPC runner with its own store,
+and a native Android reviewer. The original individual JSON-RPC baseline is
+preserved at the `individual-baseline` tag and remains available for regression
+checks.
 
-The `group-review-workflow` branch adds a provisional researcher/reviewer
-extension. Selectable demo identities submit persisted run evidence, inspect a
-review queue, and approve or reject it with feedback. Execution outcome remains
-separate from review status. See [the group workflow](docs/GROUP_WORKFLOW.md)
-for setup, the shared HTTP contract, verification and remaining integration work.
+## Start here
+
+- [Get one review through the system](docs/GETTING_STARTED.md): install, run,
+  submit, decide and inspect persistence.
+- [How it works](docs/HOW_IT_WORKS.md): illustrated walkthrough of objects,
+  requests, layers, storage, deadlines, retries and concurrency. The same guide
+  is available under **How it works** in the browser workspace.
+- [Team handoff](docs/TEAM_HANDOFF.md): proposed contribution lanes, open
+  decisions and small reviewable PRs. Member agreement remains outstanding.
+
+## Run locally
 
 ```bash
 npm ci
@@ -20,7 +29,8 @@ npm run start:group
 ```
 
 Open http://localhost:3000 in two tabs and select Researcher A / Reviewer.
-The group launcher starts an ASP.NET Core 10 coordinator and the separate Node
+The group launcher starts an ASP.NET Core 10 coordinator using EF Core SQLite
+persistence and the separate Node
 gRPC runner, each with its own SQLite store. Install the SDK pinned in
 `global.json`; [the .NET setup notes](docs/DOTNET_COORDINATOR.md) explain the
 architecture and transition from the Node coordinator. The
@@ -35,7 +45,7 @@ production authentication. The [native Android reviewer](docs/ANDROID_REVIEWER.m
 now connects to this same API and supports approval, rejection, feedback and
 polled system notifications. Its Android Studio project is in `android/`.
 
-## Individual baseline architecture
+## Original individual baseline architecture
 
 ```text
 React browser client (port 5173)

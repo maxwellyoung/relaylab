@@ -10,6 +10,8 @@
     "build": "tsc -b && vite build"
   },
   "dependencies": {
+    "marked": "18.1.0",
+    "mermaid": "12.1.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
