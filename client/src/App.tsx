@@ -32,12 +32,14 @@ const behaviorCopy: Record<
   unavailable: {
     label: "Unavailable",
     signal: "RPC error −32001",
-    description: "The transport succeeds, but the RPC method returns an application error.",
+    description:
+      "The transport succeeds, but the RPC method returns an application error.",
   },
   malformed: {
     label: "Malformed",
     signal: "Invalid RPC result",
-    description: "The dependency returns a JSON-RPC result with the wrong method shape.",
+    description:
+      "The dependency returns a JSON-RPC result with the wrong method shape.",
   },
 };
 
@@ -47,27 +49,32 @@ const outcomeCopy: Record<
 > = {
   success: {
     label: "Request completed",
-    explanation: "The JSON-RPC result matched the method contract and correlation id.",
+    explanation:
+      "The JSON-RPC result matched the method contract and correlation id.",
     tone: "good",
   },
   downstream_error: {
     label: "RPC method failed",
-    explanation: "HTTP transport succeeded; the dependency returned a correlated RPC error.",
+    explanation:
+      "HTTP transport succeeded; the dependency returned a correlated RPC error.",
     tone: "bad",
   },
   timeout: {
     label: "Deadline exceeded",
-    explanation: "The coordinator stopped waiting, classified the timeout, and kept the attempt.",
+    explanation:
+      "The coordinator stopped waiting, classified the timeout, and kept the attempt.",
     tone: "warn",
   },
   invalid_response: {
     label: "Contract rejected",
-    explanation: "The service answered, but its RPC envelope or method result failed validation.",
+    explanation:
+      "The service answered, but its RPC envelope or method result failed validation.",
     tone: "warn",
   },
   unreachable: {
     label: "Dependency unreachable",
-    explanation: "The TCP connection failed without taking down the coordinator.",
+    explanation:
+      "The TCP connection failed without taking down the coordinator.",
     tone: "bad",
   },
 };
@@ -78,10 +85,30 @@ const defaultPayload = `{
 }`;
 
 const grpcBehaviorCopy: typeof behaviorCopy = {
-  healthy: { label: "Healthy", signal: "Valid execution", description: "The runner executes the payload and persists valid result evidence." },
-  slow: { label: "Slow", signal: "Deadline exceeded", description: "The accepted execution continues after the coordinator's deadline; inspect its eventual result." },
-  unavailable: { label: "Dependency failure", signal: "Execution failure", description: "The runner records a simulated dependency failure while the gRPC call itself succeeds." },
-  malformed: { label: "Malformed", signal: "Invalid result", description: "The runner returns result evidence that the coordinator rejects." },
+  healthy: {
+    label: "Healthy",
+    signal: "Valid execution",
+    description:
+      "The runner executes the payload and persists valid result evidence.",
+  },
+  slow: {
+    label: "Slow",
+    signal: "Deadline exceeded",
+    description:
+      "The accepted execution continues after the coordinator's deadline; inspect its eventual result.",
+  },
+  unavailable: {
+    label: "Dependency failure",
+    signal: "Execution failure",
+    description:
+      "The runner records a simulated dependency failure while the gRPC call itself succeeds.",
+  },
+  malformed: {
+    label: "Malformed",
+    signal: "Invalid result",
+    description:
+      "The runner returns result evidence that the coordinator rejects.",
+  },
 };
 
 function formatTimestamp(value: string) {
@@ -101,8 +128,14 @@ function responseText(run: ExperimentRun) {
 }
 
 function rpcSignal(run: ExperimentRun) {
-  if (run.response && typeof run.response === "object" && run.response.transport === "grpc") {
-    return typeof run.response.grpcStatus === "number" ? `gRPC ${run.response.grpcStatus}` : "gRPC";
+  if (
+    run.response &&
+    typeof run.response === "object" &&
+    run.response.transport === "grpc"
+  ) {
+    return typeof run.response.grpcStatus === "number"
+      ? `gRPC ${run.response.grpcStatus}`
+      : "gRPC";
   }
   // The coordinator classifies and stores the code; do not re-derive it.
   if (typeof run.rpcErrorCode === "number") {
@@ -134,23 +167,57 @@ export default function App() {
   const isBusy = isRunning || isLoading;
   const [error, setError] = useState("");
 
-  const [executionTransport, setExecutionTransport] = useState<"json-rpc" | "grpc">("json-rpc");
-  const isGrpc = latestRun?.response && typeof latestRun.response === "object" ? latestRun.response.transport === "grpc" : executionTransport === "grpc";
-  const displayedBehaviors = executionTransport === "grpc" ? grpcBehaviorCopy : behaviorCopy;
+  const [executionTransport, setExecutionTransport] = useState<
+    "json-rpc" | "grpc"
+  >("json-rpc");
+  const isGrpc =
+    latestRun?.response && typeof latestRun.response === "object"
+      ? latestRun.response.transport === "grpc"
+      : executionTransport === "grpc";
+  const displayedBehaviors =
+    executionTransport === "grpc" ? grpcBehaviorCopy : behaviorCopy;
   const grpcCopy: Record<RunOutcome, { label: string; explanation: string }> = {
-    success: { label: "Execution completed", explanation: "The runner persisted its execution and returned validated evidence for this experiment." },
-    downstream_error: { label: "Runner execution failed", explanation: "The runner reported an execution failure or refused the request; inspect the preserved evidence." },
-    timeout: { label: "Deadline exceeded", explanation: "The coordinator stopped waiting. An accepted job may still complete; check its runner state." },
-    invalid_response: { label: "Contract rejected", explanation: "The runner answered, but its execution identity or result failed validation." },
-    unreachable: { label: "Runner unavailable", explanation: "The gRPC call could not reach the runner. Restore it and retry or inspect execution status." },
+    success: {
+      label: "Execution completed",
+      explanation:
+        "The runner persisted its execution and returned validated evidence for this experiment.",
+    },
+    downstream_error: {
+      label: "Runner execution failed",
+      explanation:
+        "The runner reported an execution failure or refused the request; inspect the preserved evidence.",
+    },
+    timeout: {
+      label: "Deadline exceeded",
+      explanation:
+        "The coordinator stopped waiting. An accepted job may still complete; check its runner state.",
+    },
+    invalid_response: {
+      label: "Contract rejected",
+      explanation:
+        "The runner answered, but its execution identity or result failed validation.",
+    },
+    unreachable: {
+      label: "Runner unavailable",
+      explanation:
+        "The gRPC call could not reach the runner. Restore it and retry or inspect execution status.",
+    },
   };
-  const currentOutcome = latestRun ? { ...outcomeCopy[latestRun.outcome], ...(isGrpc ? grpcCopy[latestRun.outcome] : {}) } : null;
+  const currentOutcome = latestRun
+    ? {
+        ...outcomeCopy[latestRun.outcome],
+        ...(isGrpc ? grpcCopy[latestRun.outcome] : {}),
+      }
+    : null;
   const runCount = selected?.runs.length ?? 0;
   // Read the configured deadline from the coordinator rather than hardcoding it.
   const [deadlineMs, setDeadlineMs] = useState<number | null>(null);
   useEffect(() => {
     getHealth()
-      .then((health) => { setDeadlineMs(health.downstreamTimeoutMs); setExecutionTransport(health.executionTransport ?? "json-rpc"); })
+      .then((health) => {
+        setDeadlineMs(health.downstreamTimeoutMs);
+        setExecutionTransport(health.executionTransport ?? "json-rpc");
+      })
       .catch(() => setDeadlineMs(null));
   }, []);
 
@@ -222,7 +289,9 @@ export default function App() {
       }
     } catch (reason) {
       setError(
-        reason instanceof Error ? reason.message : "Unable to delete experiment",
+        reason instanceof Error
+          ? reason.message
+          : "Unable to delete experiment",
       );
     } finally {
       setIsLoading(false);
@@ -272,225 +341,267 @@ export default function App() {
   }
 
   return (
-    <main id="main-content">
-      <header className="topbar">
-        <span className="brand"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" d="M5 16 12 8 19 16"/><circle cx="5" cy="16" r="2"/><circle cx="12" cy="8" r="2"/><circle cx="19" cy="16" r="2"/></svg>RelayLab</span>
-        <p>Experiment workspace</p>
-      </header>
-
-      <ReviewWorkspace latestRun={latestRun} runBusy={isBusy} onRoleChange={(role) => setReviewerMode(role === "reviewer")} />
-
-      {!reviewerMode && <section
-        className={`lab ${isRunning ? "running" : ""}`}
-        aria-labelledby="lab-title"
-      >
-        <header className="lab-heading">
-          <h1 id="lab-title">{executionTransport === "grpc" ? "Run an execution experiment" : "Run a dependency failure experiment"}</h1>
-          <p>
-            {executionTransport === "grpc" ? "Send an experiment to a separate gRPC runner. The runner owns its execution ledger; the coordinator preserves the attempt for review."
-              : "Send one request through an Express coordinator to a separate service. The result is stored in the configured relational database."}
-          </p>
-        </header>
-
-        {error ? (
-          <div className="error-message" role="alert">
-            <strong>Couldn’t run that.</strong>
-            <span>{error}</span>
-          </div>
-        ) : null}
-
-        <div className="experiment-controls">
-          <label className="behavior-control">
-            <span>Dependency behavior</span>
-            <select
-              disabled={isBusy}
-              value={behavior}
-              onChange={(event) =>
-                chooseBehavior(event.target.value as ExperimentBehavior)
-              }
+    <ReviewWorkspace
+      latestRun={latestRun}
+      runBusy={isBusy}
+      onRoleChange={(role) => setReviewerMode(role === "reviewer")}
+      experimentPanel={
+        <>
+          {!reviewerMode && (
+            <section
+              className={`lab ${isRunning ? "running" : ""}`}
+              aria-labelledby="lab-title"
             >
-              {(Object.keys(behaviorCopy) as ExperimentBehavior[]).map(
-                (option) => (
-                  <option key={option} value={option}>
-                    {displayedBehaviors[option].label} —{" "}
-                    {displayedBehaviors[option].signal}
-                  </option>
-                ),
-              )}
-            </select>
-          </label>
-
-          <details className="request-details">
-            <summary>Edit request payload</summary>
-            <label>
-              <span className="sr-only">JSON request payload</span>
-              <textarea
-                disabled={isBusy}
-                aria-label="JSON request payload"
-                value={payloadText}
-                onChange={(event) => {
-                  setPayloadText(event.target.value);
-                  setSelected(null);
-                  setLatestRun(null);
-                  setError("");
-                }}
-                spellCheck="false"
-              />
-            </label>
-          </details>
-
-          <button
-            className="run-button"
-            disabled={isBusy}
-            onClick={() => void execute()}
-            type="button"
-          >
-            {isLoading ? "Loading…" : isRunning ? "Running…" : selected ? "Run again" : "Run experiment"}
-          </button>
-
-          {!selected && experiments.length > 0 ? (
-            <p className="fork-hint">
-              Nothing is selected, so running saves a new experiment.
-            </p>
-          ) : null}
-        </div>
-
-        <p className="behavior-description">
-          {displayedBehaviors[behavior].description}
-        </p>
-
-        <section className="trace" aria-label="Distributed request trace">
-          <h2>Request path</h2>
-          <ol
-            className={`route ${latestRun?.outcome ?? ""}`}
-            aria-label="Distributed request path"
-          >
-            <li className="route-node browser-node">
-              <div>
-                <strong>Browser</strong>
-                <small>POST experiment run</small>
-              </div>
-            </li>
-            <li className="route-line" aria-hidden="true">
-              →
-            </li>
-            <li className="route-node coordinator-node">
-              <div>
-                <strong>Coordinator</strong>
-                <small>{executionTransport === "grpc" ? "gRPC" : "JSON-RPC 2.0"} · {deadlineMs === null ? "bounded" : `${deadlineMs} ms`} deadline</small>
-              </div>
-            </li>
-            <li className="route-line" aria-hidden="true">
-              →
-            </li>
-            <li className="route-node dependency-node">
-              <div>
-                <strong>{executionTransport === "grpc" ? "Runner" : "Dependency"}</strong>
-                <small>{displayedBehaviors[behavior].signal}</small>
-              </div>
-            </li>
-          </ol>
-
-          <div className="result-slot" aria-live="polite">
-            {isLoading ? (
-              <div className="pending-result"><p>Loading saved experiment…</p></div>
-            ) : isRunning ? (
-              <div className="pending-result">
-                <p>Waiting at the coordinator boundary…</p>
-              </div>
-            ) : latestRun && currentOutcome ? (
-              <article
-                className={`result-card ${currentOutcome.tone}`}
-                key={latestRun.id}
-              >
-                <header>
-                  <h3>{currentOutcome.label}</h3>
-                  <dl>
-                    <div>
-                      <dt>{isGrpc ? "HTTP downstream" : "HTTP"}</dt>
-                      <dd>{latestRun.httpStatus ?? "—"}</dd>
-                    </div>
-                    <div>
-                      <dt>RPC</dt>
-                      <dd>{rpcSignal(latestRun)}</dd>
-                    </div>
-                    <div>
-                      <dt>Time</dt>
-                      <dd>{latestRun.durationMs} ms</dd>
-                    </div>
-                    {latestRun.correlationId ? (
-                      <div>
-                        <dt>Correlation</dt>
-                        <dd title={latestRun.correlationId}>
-                          {latestRun.correlationId.slice(0, 8)}
-                        </dd>
-                      </div>
-                    ) : null}
-                  </dl>
-                </header>
-                <p>{currentOutcome.explanation}</p>
-                <details>
-                  <summary>Response evidence</summary>
-                  <pre>{responseText(latestRun)}</pre>
-                </details>
-                {isGrpc && <RunnerExecutionStatus key={latestRun.id} runId={latestRun.id} disabled={isBusy} />}
-              </article>
-            ) : (
-              <div className="ready-state">
+              <header className="lab-heading">
+                <h1 id="lab-title">
+                  {executionTransport === "grpc"
+                    ? "Run an execution experiment"
+                    : "Run a dependency failure experiment"}
+                </h1>
                 <p>
-                  Run the request to see its outcome, timing, and preserved
-                  response.
+                  {executionTransport === "grpc"
+                    ? "Send an experiment to a separate gRPC runner. The runner owns its execution ledger; the coordinator preserves the attempt for review."
+                    : "Send one request through an Express coordinator to a separate service. The result is stored in the configured relational database."}
                 </p>
-              </div>
-            )}
-          </div>
-        </section>
+              </header>
 
-        <details className="evidence">
-          <summary>
-            <span>Saved experiments</span>
-            <span>
-              {experiments.length} saved · {runCount} in selected
-            </span>
-          </summary>
-
-          {experiments.length === 0 ? (
-            <p className="empty-evidence">
-              Your first completed request will be stored here.
-            </p>
-          ) : (
-            <div className="experiment-list">
-              {experiments.map((experiment) => (
-                <div className="experiment-row" key={experiment.id}>
-                  <button
-                    disabled={isBusy}
-                    aria-label={`Open ${experiment.name}`}
-                    aria-pressed={selected?.id === experiment.id}
-                    className={selected?.id === experiment.id ? "selected" : ""}
-                    onClick={() => void openExperiment(experiment.id)}
-                    type="button"
-                  >
-                    <span>
-                      <strong>{experiment.name}</strong>
-                      <small>{formatTimestamp(experiment.createdAt)}</small>
-                    </span>
-                    <span>{displayedBehaviors[experiment.behavior].signal}</span>
-                  </button>
-                  <button
-                    className="delete-experiment"
-                    disabled={isBusy}
-                    aria-label={`Delete ${experiment.name} and its runs`}
-                    onClick={() => void removeExperiment(experiment.id, experiment.name)}
-                    type="button"
-                  >
-                    Delete
-                  </button>
+              {error ? (
+                <div className="error-message" role="alert">
+                  <strong>Couldn’t run that.</strong>
+                  <span>{error}</span>
                 </div>
-              ))}
-            </div>
+              ) : null}
+
+              <div className="experiment-controls">
+                <label className="behavior-control">
+                  <span>Dependency behavior</span>
+                  <select
+                    disabled={isBusy}
+                    value={behavior}
+                    onChange={(event) =>
+                      chooseBehavior(event.target.value as ExperimentBehavior)
+                    }
+                  >
+                    {(Object.keys(behaviorCopy) as ExperimentBehavior[]).map(
+                      (option) => (
+                        <option key={option} value={option}>
+                          {displayedBehaviors[option].label} —{" "}
+                          {displayedBehaviors[option].signal}
+                        </option>
+                      ),
+                    )}
+                  </select>
+                </label>
+
+                <details className="request-details">
+                  <summary>Edit request payload</summary>
+                  <label>
+                    <span className="sr-only">JSON request payload</span>
+                    <textarea
+                      disabled={isBusy}
+                      aria-label="JSON request payload"
+                      value={payloadText}
+                      onChange={(event) => {
+                        setPayloadText(event.target.value);
+                        setSelected(null);
+                        setLatestRun(null);
+                        setError("");
+                      }}
+                      spellCheck="false"
+                    />
+                  </label>
+                </details>
+
+                <button
+                  className="run-button"
+                  disabled={isBusy}
+                  onClick={() => void execute()}
+                  type="button"
+                >
+                  {isLoading
+                    ? "Loading…"
+                    : isRunning
+                      ? "Running…"
+                      : selected
+                        ? "Run again"
+                        : "Run experiment"}
+                </button>
+
+                {!selected && experiments.length > 0 ? (
+                  <p className="fork-hint">
+                    Nothing is selected, so running saves a new experiment.
+                  </p>
+                ) : null}
+              </div>
+
+              <p className="behavior-description">
+                {displayedBehaviors[behavior].description}
+              </p>
+
+              <section className="trace" aria-label="Distributed request trace">
+                <h2>Request path</h2>
+                <ol
+                  className={`route ${latestRun?.outcome ?? ""}`}
+                  aria-label="Distributed request path"
+                >
+                  <li className="route-node browser-node">
+                    <div>
+                      <strong>Browser</strong>
+                      <small>POST experiment run</small>
+                    </div>
+                  </li>
+                  <li className="route-line" aria-hidden="true">
+                    →
+                  </li>
+                  <li className="route-node coordinator-node">
+                    <div>
+                      <strong>Coordinator</strong>
+                      <small>
+                        {executionTransport === "grpc"
+                          ? "gRPC"
+                          : "JSON-RPC 2.0"}{" "}
+                        · {deadlineMs === null ? "bounded" : `${deadlineMs} ms`}{" "}
+                        deadline
+                      </small>
+                    </div>
+                  </li>
+                  <li className="route-line" aria-hidden="true">
+                    →
+                  </li>
+                  <li className="route-node dependency-node">
+                    <div>
+                      <strong>
+                        {executionTransport === "grpc"
+                          ? "Runner"
+                          : "Dependency"}
+                      </strong>
+                      <small>{displayedBehaviors[behavior].signal}</small>
+                    </div>
+                  </li>
+                </ol>
+
+                <div className="result-slot" aria-live="polite">
+                  {isLoading ? (
+                    <div className="pending-result">
+                      <p>Loading saved experiment…</p>
+                    </div>
+                  ) : isRunning ? (
+                    <div className="pending-result">
+                      <p>Waiting at the coordinator boundary…</p>
+                    </div>
+                  ) : latestRun && currentOutcome ? (
+                    <article
+                      className={`result-card ${currentOutcome.tone}`}
+                      key={latestRun.id}
+                    >
+                      <header>
+                        <h3>{currentOutcome.label}</h3>
+                        <dl>
+                          <div>
+                            <dt>{isGrpc ? "HTTP downstream" : "HTTP"}</dt>
+                            <dd>{latestRun.httpStatus ?? "—"}</dd>
+                          </div>
+                          <div>
+                            <dt>RPC</dt>
+                            <dd>{rpcSignal(latestRun)}</dd>
+                          </div>
+                          <div>
+                            <dt>Time</dt>
+                            <dd>{latestRun.durationMs} ms</dd>
+                          </div>
+                          {latestRun.correlationId ? (
+                            <div>
+                              <dt>Correlation</dt>
+                              <dd title={latestRun.correlationId}>
+                                {latestRun.correlationId.slice(0, 8)}
+                              </dd>
+                            </div>
+                          ) : null}
+                        </dl>
+                      </header>
+                      <p>{currentOutcome.explanation}</p>
+                      <details>
+                        <summary>Response evidence</summary>
+                        <pre>{responseText(latestRun)}</pre>
+                      </details>
+                      {isGrpc && (
+                        <RunnerExecutionStatus
+                          key={latestRun.id}
+                          runId={latestRun.id}
+                          disabled={isBusy}
+                        />
+                      )}
+                    </article>
+                  ) : (
+                    <div className="ready-state">
+                      <p>
+                        Run the request to see its outcome, timing, and
+                        preserved response.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              <details className="evidence">
+                <summary>
+                  <span>Saved experiments</span>
+                  <span>
+                    {experiments.length} saved · {runCount} in selected
+                  </span>
+                </summary>
+
+                {experiments.length === 0 ? (
+                  <p className="empty-evidence">
+                    Your first completed request will be stored here.
+                  </p>
+                ) : (
+                  <div className="experiment-list">
+                    {experiments.map((experiment) => (
+                      <div className="experiment-row" key={experiment.id}>
+                        <button
+                          disabled={isBusy}
+                          aria-label={`Open ${experiment.name}`}
+                          aria-pressed={selected?.id === experiment.id}
+                          className={
+                            selected?.id === experiment.id ? "selected" : ""
+                          }
+                          onClick={() => void openExperiment(experiment.id)}
+                          type="button"
+                        >
+                          <span>
+                            <strong>{experiment.name}</strong>
+                            <small>
+                              {formatTimestamp(experiment.createdAt)}
+                            </small>
+                          </span>
+                          <span>
+                            {displayedBehaviors[experiment.behavior].signal}
+                          </span>
+                        </button>
+                        <button
+                          className="delete-experiment"
+                          disabled={isBusy}
+                          aria-label={`Delete ${experiment.name} and its runs`}
+                          onClick={() =>
+                            void removeExperiment(
+                              experiment.id,
+                              experiment.name,
+                            )
+                          }
+                          type="button"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </details>
+            </section>
           )}
-        </details>
-      </section>}
-    </main>
+        </>
+      }
+    />
   );
 }
