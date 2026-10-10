@@ -582,3 +582,46 @@ smokes, locked .NET build, public HTTP compatibility, gRPC restart recovery and
 both dependency audits. Local source assessment and raw test evidence remain
 ignored under `outputs/teammate-integration-2026-10-11/`. No new browser/native
 runtime claim is made for this internal dependency-registration change.
+
+
+## 11 October: EF Core SQLite adaptation
+
+Implemented an original EF Core SQLite adapter behind ICoordinatorRepository,
+adapting the teammate backend's persistence approach to RelayLab's existing
+experiment/run/review domain. Explicit entity and column mappings preserve the
+canonical SQLite schema, serialized JSON and UTC API timestamps. A factory
+creates and disposes one context per operation, supporting concurrent requests
+without capturing a scoped DbContext in singleton demo-session services.
+The group coordinator now defaults to EF; direct SQL remains selectable.
+
+Public-HTTP red/green slices covered adapter selection plus CRUD/restart,
+missing EF run persistence through the actual gRPC runner, then historical
+reviews and transactional decisions. Review submission and conditional
+pending-only decisions share transactions with their read-back. Duplicate
+submissions and protected deletion keep 409 responses. The shared startup
+initializer applies the existing SQL schema and adds older missing columns;
+it does not recreate tables or run automatic EF migrations.
+
+Both adapter smokes pass concurrent writes and an EF/SQL roundtrip over the
+same disposable history. Historical Node-origin schema, receipts and feedback
+survive startup; the alternate adapter writes new evidence that the original
+adapter reads and replays. Real gRPC failure/restart checks also pass. A local
+preview restart retained its four experiments, five receipts and five reviews;
+a private backup was retained before the switch. No teammate source, database,
+executable, raw messages or configuration was added to tracked source.
+
+The integration branch now triggers CI, including both EF and SQL HTTP smokes.
+Local raw proof is ignored under outputs/ef-integration-2026-10-11/. This is a
+new implementation and dated checkpoint, not an import of teammate history or
+an assignment of team ownership. Merge, deployment, physical devices, team
+reports/reflections and assessment submission remain separate gates.
+
+
+Final local verification passed: 106 tests plus one credential-dependent MySQL
+skip, all types/builds, EF and SQL public-HTTP compatibility, gRPC supervisor
+recovery, and zero reported npm production/NuGet vulnerabilities. The Release
+build produced zero warnings/errors. The unchanged debug Android APK passed all
+ten API-36 emulator scenarios against EF, including actual background worker
+notifications and competing-decision recovery. Browser interaction completed
+run/submit/approve/researcher feedback through the EF preview. Emulator proof
+does not establish physical hardware or natural periodic-delivery timing.

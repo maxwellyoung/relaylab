@@ -2,7 +2,7 @@ name: verify
 
 on:
   push:
-    branches: [main, group-review-workflow]
+    branches: [main, group-review-workflow, team-backend-integration]
   pull_request:
 
 permissions:
@@ -24,6 +24,7 @@ jobs:
       - run: npm ci
       - run: npm run build:group
       - run: npm run smoke:dotnet
+      - run: npm run smoke:dotnet:sql
       - run: npm run smoke:grpc:dotnet
       - name: Audit locked .NET dependencies
         run: npm run audit:dotnet

@@ -20,7 +20,8 @@ npm run start:group
 ```
 
 Open http://localhost:3000 in two tabs and select Researcher A / Reviewer.
-The group launcher starts an ASP.NET Core 10 coordinator and the separate Node
+The group launcher starts an ASP.NET Core 10 coordinator using EF Core SQLite
+persistence and the separate Node
 gRPC runner, each with its own SQLite store. Install the SDK pinned in
 `global.json`; [the .NET setup notes](docs/DOTNET_COORDINATOR.md) explain the
 architecture and transition from the Node coordinator. The

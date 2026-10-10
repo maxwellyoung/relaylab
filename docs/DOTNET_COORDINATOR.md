@@ -1,6 +1,7 @@
 # ASP.NET Core group coordinator
 
-The group launcher uses an original ASP.NET Core 10 coordinator with SQLite.
+The group launcher uses an original ASP.NET Core 10 coordinator with EF Core
+SQLite persistence.
 It implements the existing experiment/run/review HTTP contract so the React
 client and native Android reviewer can connect without application changes.
 The independent Node gRPC runner retains its own execution ledger. The original
@@ -21,7 +22,7 @@ npm run start:group
 ```
 
 Open http://localhost:3000. `GET /health` reports `implementation: "dotnet"`,
-`database: "sqlite"` and `executionTransport: "grpc"`. Both services bind only
+`database: "sqlite"`, `executionTransport: "grpc"` and `persistenceAdapter: "ef"`. Both services bind only
 to loopback. Override `PORT`, `RUNNER_PORT` and `RELAYLAB_GROUP_DATA_DIR` when
 another local instance is running. The launcher waits for actual service
 readiness and stops its own runner when the coordinator exits.
@@ -46,10 +47,13 @@ the audit; an incomplete audit fails closed. It requires network access to NuGet
 | `Services/ReviewService.cs` | Demo sessions, role visibility and permitted review transitions |
 | `Services/RunnerGateway.cs` | Generated gRPC client, deadline, transport errors and result validation |
 | `Data/ICoordinatorRepository.cs` | Persistence contract consumed by experiment/review services |
-| `Data/SqliteRepository.cs` | Current parameterised SQL adapter, transactions and atomic pending-to-final decisions |
+| `Data/EfRepository.cs` | Default EF adapter with per-operation contexts and transactional review decisions |
+| `Data/CoordinatorDbContext.cs` | Explicit entity/column/FK mappings to the existing coordinator schema |
+| `Data/CoordinatorDatabase.cs` | Shared non-destructive schema startup |
+| `Data/SqliteRepository.cs` | Optional direct SQL adapter, retained for compatibility checks |
 | Node `runner/` | Durable operation identity, execution state, result and restart recovery |
 
-The coordinator uses Microsoft.Data.Sqlite directly. It reuses
+EF Core SQLite 10.0.12 is pinned alongside Microsoft.Data.Sqlite. The coordinator reuses
 `database/schema.sqlite.sql` and generates its C# gRPC client from
 `protocol/runner.proto`. NuGet dependencies are pinned in `packages.lock.json`;
 restore runs in locked mode. The runner never reads the coordinator database,
@@ -83,8 +87,9 @@ immediately after the runner is restarted.
 The teammate task-app source has now been reviewed privately. It provides an
 ASP.NET/EF Core/SQLite approach for editable tasks and lists; the coordinator
 here remains independently implemented against RelayLab's experiment/review
-contract. No task-app source or history has been imported. See the adapter
-handoff below for the proposed adaptation.
+contract. The EF persistence approach has been adapted to that contract in this branch.
+No task-app source or history has been imported. The adapter notes below explain
+its boundaries and verification.
 
 This lane uses SQLite only; the original Node MySQL adapter remains separate.
 Selectable demo actors model the handoff and are not production authentication.
@@ -93,36 +98,50 @@ team ownership, reports, merge, deployment and submission remain separate work.
 Source commits record their real dates; this checkpoint does not establish
 three weeks of development.
 
-## Backend adapter handoff
+## EF persistence adapter
 
-`ICoordinatorRepository` is the replacement point for an EF Core persistence
-adapter. ExperimentService and ReviewService consume this contract; Program
-registers the current SQL adapter once through that interface. The HTTP routes,
-public records, demo identities, browser and Android API remain the same.
+`ICoordinatorRepository` is implemented by `EfRepository` by default. The original
+`SqliteRepository` can be selected explicitly for compatibility or comparison:
 
-The next backend change should map existing `experiments`, `experiment_runs`
-and `run_reviews` tables rather than rename them to generic tasks. Map columns,
-foreign keys, unique submission and pending-only decision rules explicitly.
-The adapter must preserve historical receipts and protected review evidence.
-Keep execution outcome distinct from review approval, and keep runner-owned
-executions behind gRPC.
+```bash
+RELAYLAB_PERSISTENCE_ADAPTER=sql npm run start:group
+npm run smoke:dotnet:sql
+```
 
-Services currently have singleton lifetimes because demo sessions are held in
-memory. A replacement adapter must support concurrent calls. An EF adapter can
-use a context factory with one disposed context per operation; do not capture
-one scoped DbContext in a singleton service. Review write/read-back must remain
-transactional, and competing decisions must return one winner. Map duplicate or
-protected-evidence conflicts to 409 using ApiFailure at the adapter boundary.
-Database startup must be non-destructive and compatible with existing rows.
+Only `ef` and `sql` are accepted. The health endpoint reports the selected
+adapter. Both adapters use the same coordinator database and shared startup
+schema; switching does not copy, rebuild or delete its tables. EF does not call
+EnsureCreated, EnsureDeleted or automatic EF migrations. The canonical SQL
+retains its existing defaults, checks, indexes and foreign-key constraints.
+Older missing RPC/idempotency columns are added before the shared schema is
+applied. Schema evolution remains an explicit change to the canonical scripts.
 
-Use `npm run verify:group` as the acceptance gate. Its .NET public-HTTP and gRPC
-smokes already exercise the real adapter, existing data, restart persistence,
-role visibility, competing decisions, deletion protection, timeout recovery and
-independent process/database ownership. Run the web and Android handoff when
-an adapter changes their observable responses. Tests should demonstrate the
-same behaviour without inventing a second workflow or resetting user data.
+CoordinatorDbContext maps `experiments`, `experiment_runs` and `run_reviews`
+columns explicitly. Experiment payloads and receipt responses remain serialized
+JSON; stored timestamp text is normalized to the existing UTC HTTP shape. The
+runner's execution database remains behind gRPC and is never mapped by EF.
 
-Proposed contribution split, subject to teammate agreement: backend persistence
-and review API; native Android and notifications; web/gRPC and integration
-verification. This document is a technical handoff, not an ownership assignment
-or a claim that EF persistence has been integrated.
+The adapter uses IDbContextFactory with one disposed context per operation,
+so singleton review/session services never capture a scoped context. Reads use
+AsNoTracking. This follows Microsoft's [DbContext lifetime guidance](https://learn.microsoft.com/en-gb/ef/core/miscellaneous/configuring-dbcontext).
+The current repository methods perform synchronous, bounded local SQLite work;
+this does not claim asynchronous database I/O or production-load performance.
+
+Review creation and decision write/read-back use explicit transactions. A
+pending-only ExecuteUpdate and affected-row check select one winning decision.
+Duplicate submissions and protected deletion become the existing 409 error
+shape. Transactions cover the update plus returned receipt, because
+[ExecuteUpdate does not create a transaction automatically](https://learn.microsoft.com/en-us/ef/core/saving/execute-insert-update-delete).
+
+`npm run verify:group` tests both adapters through real HTTP. It verifies an
+older Node-created schema and historical feedback, concurrent writes, atomic
+review decisions, protected evidence, gRPC deadline/restart recovery and an
+EF-to-SQL-to-EF roundtrip. The alternate adapter reads existing history, writes
+new receipts/feedback, and the original adapter reads them and replays the same
+idempotency key. No user data is used by these disposable tests.
+
+This is an original adaptation of the teammate's EF/SQLite approach. The
+private task-app snapshot stays outside tracked source; no private database or
+executable is imported. The next team checkpoint is review of this adapter,
+agreement on real experiment ownership/accounts and the proposed contribution
+split. WebSockets remain optional after those core requirements are agreed.

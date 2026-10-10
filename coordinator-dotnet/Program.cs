@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using RelayLab.Coordinator.Data;
 using RelayLab.Coordinator.Models;
@@ -9,7 +10,14 @@ var builder = WebApplication.CreateBuilder(args);
 var port = Environment.GetEnvironmentVariable("PORT") ?? "3000";
 builder.WebHost.UseUrls("http://127.0.0.1:" + port);
 builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 100 * 1024);
-builder.Services.AddSingleton<ICoordinatorRepository, SqliteRepository>();
+var persistenceAdapter = Environment.GetEnvironmentVariable("RELAYLAB_PERSISTENCE_ADAPTER") ?? "ef";
+if (persistenceAdapter == "ef")
+{
+    builder.Services.AddDbContextFactory<CoordinatorDbContext>(options => options.UseSqlite(CoordinatorDatabase.ConnectionString()));
+    builder.Services.AddSingleton<ICoordinatorRepository, EfRepository>();
+}
+else if (persistenceAdapter == "sql") builder.Services.AddSingleton<ICoordinatorRepository, SqliteRepository>();
+else throw new InvalidOperationException("Persistence adapter must be ef or sql");
 builder.Services.AddSingleton<RunnerGateway>();
 builder.Services.AddSingleton<ExperimentService>();
 builder.Services.AddSingleton<ReviewService>();
@@ -46,7 +54,7 @@ app.UseCors();
 var clientDirectory = Environment.GetEnvironmentVariable("CLIENT_DIST_DIR");
 if (clientDirectory is not null && Directory.Exists(clientDirectory)) app.UseStaticFiles(new StaticFileOptions { FileProvider = new PhysicalFileProvider(Path.GetFullPath(clientDirectory)) });
 app.MapControllers();
-app.MapGet("/health", (RunnerGateway runner) => new { status = "ok", service = "relaylab-coordinator", database = "sqlite", downstreamTimeoutMs = runner.TimeoutMs, executionTransport = "grpc", implementation = "dotnet" });
+app.MapGet("/health", (RunnerGateway runner) => new { status = "ok", service = "relaylab-coordinator", database = "sqlite", downstreamTimeoutMs = runner.TimeoutMs, executionTransport = "grpc", implementation = "dotnet", persistenceAdapter });
 app.MapFallback(async context =>
 {
     if (context.Request.Method == "GET" && !context.Request.Path.StartsWithSegments("/api") && clientDirectory is not null && File.Exists(Path.Combine(clientDirectory, "index.html")))

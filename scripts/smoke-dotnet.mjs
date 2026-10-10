@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import net from 'node:net';
 import assert from 'node:assert/strict';
+import Database from 'better-sqlite3';
 import { once } from 'node:events';
 import { fileURLToPath } from 'node:url';
 import { dotnetCommand } from './dotnet-command.mjs';
@@ -53,7 +54,7 @@ async function http(resource, { method = 'GET', body, token, key, status = 200 }
   return response.status === 204 ? undefined : response.json();
 }
 const dll = path.join(root, 'coordinator-dotnet/bin/Release/net10.0/RelayLab.Coordinator.dll');
-const environment = { PORT: String(publicPort), RELAYLAB_DATA_DIR: path.join(directory, 'coordinator'), RELAYLAB_REVIEW_DEMO: 'true', CLIENT_DIST_DIR: path.join(root, 'client/dist') };
+const environment = { RELAYLAB_PERSISTENCE_ADAPTER: process.env.RELAYLAB_PERSISTENCE_ADAPTER ?? 'ef', PORT: String(publicPort), RELAYLAB_DATA_DIR: path.join(directory, 'coordinator'), RELAYLAB_REVIEW_DEMO: 'true', CLIENT_DIST_DIR: path.join(root, 'client/dist') };
 if (slice === 'all') Object.assign(environment, { RELAYLAB_RUNNER_TARGET: `127.0.0.1:${runnerPort}`, DOWNSTREAM_TIMEOUT_MS: '300' });
 function coordinator() { return start(dotnet, [dll], environment); }
 try {
@@ -66,6 +67,11 @@ try {
   const legacyReview = await legacy.createReview(legacyRun.id, 'researcher-a');
   await legacy.decideReview(legacyReview.id, 'approved', 'Pre-migration feedback.', 'reviewer');
   await legacy.close();
+  // Reproduce a pre-idempotency coordinator schema using only this fixture.
+  // The API must preserve its records while startup adds the missing columns.
+  const earlierSchema = new Database(path.join(directory, 'legacy.sqlite'));
+  earlierSchema.exec('DROP INDEX idx_experiment_runs_key; ALTER TABLE experiment_runs DROP COLUMN idempotency_key; ALTER TABLE experiment_runs DROP COLUMN rpc_error_code;');
+  earlierSchema.close();
   const { mkdir, copyFile } = await import('node:fs/promises');
   await mkdir(environment.RELAYLAB_DATA_DIR, { recursive: true });
   await copyFile(path.join(directory, 'legacy.sqlite'), path.join(environment.RELAYLAB_DATA_DIR, 'relaylab.sqlite'));
@@ -76,6 +82,7 @@ try {
   }
   let api = coordinator();
   await wait(async () => (await http('/health')).status === 'ok', '.NET coordinator did not become ready');
+  assert.equal((await http('/health')).persistenceAdapter, environment.RELAYLAB_PERSISTENCE_ADAPTER);
   await http('/api/experiments', { method: 'POST', body: { name: ' ', behavior: 'healthy', payload: {} }, status: 400 });
   await http('/api/experiments', { method: 'POST', body: { name: 'Invalid payload', behavior: 'healthy', payload: [] }, status: 400 });
   const item = await http('/api/experiments', { method: 'POST', status: 201, body: { name: ' .NET persistence ', behavior: 'healthy', payload: { sample: 42 } } });
@@ -148,7 +155,37 @@ try {
     await http(`/api/reviews/${negative.id}`, { method: 'PATCH', token: freshReviewer, body: { status: 'rejected', feedback: 'Original deadline retained.' } });
     assert.equal((await http(`/api/reviews/${negative.id}`, { token: researcher })).run.outcome, 'timeout');
     evidence.push('role-scoped handoff, strict input validation, single-winner decisions, evidence protection, session revocation and review restart persistence');
-    evidence.push('Node-created SQLite rows and review feedback read unchanged through .NET HTTP; existing public response schemas pass');
+    evidence.push('older Node-created SQLite schema, rows and review feedback survive additive startup; public response schemas pass');
+    const parallelWrites = await Promise.all(Array.from({ length: 12 }, (_, index) => http('/api/experiments', { method: 'POST', status: 201, body: { name: `Parallel persistence ${index}`, behavior: 'healthy', payload: { index } } })));
+    assert.equal(new Set(parallelWrites.map(row => row.id)).size, parallelWrites.length);
+    for (const row of parallelWrites) assert.deepEqual((await http(`/api/experiments/${row.id}`)).payload, row.payload);
+    evidence.push('concurrent HTTP writes retain distinct rows and payloads');
+
+    const selectedAdapter = environment.RELAYLAB_PERSISTENCE_ADAPTER;
+    const alternateAdapter = selectedAdapter === 'ef' ? 'sql' : 'ef';
+    let expectedHistory = await http(`/api/experiments/${healthy.id}`);
+    let expectedReviews = await http('/api/reviews', { token: researcher });
+    for (const adapter of [alternateAdapter, selectedAdapter]) {
+      await stop(api);
+      environment.RELAYLAB_PERSISTENCE_ADAPTER = adapter;
+      api = coordinator();
+      await wait(async () => (await http('/health')).status === 'ok', 'Adapter switch failed');
+      assert.equal((await http('/health')).persistenceAdapter, adapter);
+      researcher = await session('researcher-a');
+      assert.deepEqual(await http(`/api/experiments/${healthy.id}`), expectedHistory);
+      assert.deepEqual(await http('/api/reviews', { token: researcher }), expectedReviews);
+      if (adapter === alternateAdapter) {
+        const added = await http(`/api/experiments/${healthy.id}/runs`, { method: 'POST', status: 201, key: 'adapter-roundtrip' });
+        const addedReview = await http(`/api/runs/${added.id}/reviews`, { method: 'POST', status: 201, token: researcher });
+        const token = await session('reviewer');
+        await http(`/api/reviews/${addedReview.id}`, { method: 'PATCH', token, body: { status: 'approved', feedback: 'Feedback written by the alternate persistence adapter.' } });
+        expectedHistory = await http(`/api/experiments/${healthy.id}`);
+        expectedReviews = await http('/api/reviews', { token: researcher });
+      } else {
+        assert.equal((await http(`/api/experiments/${healthy.id}/runs`, { method: 'POST', key: 'adapter-roundtrip' })).id, expectedHistory.runs[0].id);
+      }
+    }
+    evidence.push('EF/SQL adapter roundtrip reads and extends the same immutable receipts and feedback');
     const malformed = await fetch(base + '/api/experiments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{bad json' });
     assert.equal(malformed.status, 400); assert.equal(typeof (await malformed.json()).error, 'string');
     const tooLarge = await fetch(base + '/api/experiments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Oversize', behavior: 'healthy', payload: { text: 'x'.repeat(110000) } }) });
@@ -157,7 +194,7 @@ try {
     const page = await fetch(base + '/'); assert.equal(page.status, 200); assert.match(await page.text(), /<title>RelayLab<\/title>/);
     evidence.push('malformed/oversized requests return bounded JSON errors; built web client served');
   }
-  console.log(JSON.stringify({ result: 'passed', slice, evidence }, null, 2));
+  console.log(JSON.stringify({ result: 'passed', slice, adapter: environment.RELAYLAB_PERSISTENCE_ADAPTER, evidence }, null, 2));
 } finally {
   for (const child of children.reverse()) await stop(child);
   await rm(directory, { recursive: true, force: true });

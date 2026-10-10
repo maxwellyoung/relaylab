@@ -14,16 +14,9 @@ public sealed class SqliteRepository : ICoordinatorRepository, IDisposable
     private readonly object gate = new();
     public SqliteRepository()
     {
-        var directory = Environment.GetEnvironmentVariable("RELAYLAB_DATA_DIR") ?? Path.Combine("data", "group", "coordinator");
-        Directory.CreateDirectory(directory);
-        connection = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = Path.Combine(directory, "relaylab.sqlite"), ForeignKeys = true, DefaultTimeout = 5 }.ToString());
+        connection = new SqliteConnection(CoordinatorDatabase.ConnectionString());
         connection.Open();
-        Execute("PRAGMA journal_mode=WAL");
-        var columns = Query("SELECT name FROM pragma_table_info('experiment_runs')", r => r.GetString(0));
-        if (columns.Count > 0)
-            foreach (var (name, type) in new[] { ("rpc_error_code", "INTEGER"), ("idempotency_key", "TEXT") })
-                if (!columns.Contains(name)) Execute($"ALTER TABLE experiment_runs ADD COLUMN {name} {type}");
-        Execute(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "schema.sqlite.sql")));
+        CoordinatorDatabase.Initialize(connection);
     }
     private SqliteCommand Command(string sql, params object?[] values)
     {
