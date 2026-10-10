@@ -94,7 +94,7 @@ its boundaries and verification.
 This lane uses SQLite only; the original Node MySQL adapter remains separate.
 Selectable demo actors model the handoff and are not production authentication.
 Experiment ownership is still shared. WebSockets, physical Android proof,
-team ownership, reports, merge, deployment and submission remain separate work.
+team ownership, reports, deployment and submission remain separate work.
 Source commits record their real dates; this checkpoint does not establish
 three weeks of development.
 

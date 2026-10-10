@@ -625,3 +625,38 @@ ten API-36 emulator scenarios against EF, including actual background worker
 notifications and competing-decision recovery. Browser interaction completed
 run/submit/approve/researcher feedback through the EF preview. Emulator proof
 does not establish physical hardware or natural periodic-delivery timing.
+
+## 11 October: workspace navigation and illustrated system guide
+
+Replaced the tall combined browser page with a compact dark workspace: stable
+sidebar, separate experiment/review views, searchable status-filtered rows and
+a focused receipt pane. Filters choose a visible receipt; feedback drafts stay
+attached to their review when changing filters, opening the guide or returning
+from it. Mobile list/detail navigation restores focus to the selected row.
+The HTTP workflow and execution/review distinction remain unchanged.
+
+Added a canonical explanation with 13 diagrams covering objects, service/data
+ownership, both handoffs, independent lifecycles, layers, schema, deadlines,
+retry identity, competing decisions, Android polling and verification. A first-run
+walkthrough and proposed team handoff add a contribution-flow diagram. The app
+renders the explanation and walkthrough from those Markdown files, with the
+reader and Mermaid loaded only when opened. Markdown is rendered as React
+nodes; Mermaid uses strict sanitization. The new transitive KaTeX dependency is
+pinned to its patched 0.18.2 release through an override. The production npm
+audit reports no vulnerabilities; development-tool advisories are separate.
+
+Local whole-system verification passed workspace tests/types/builds, baseline
+HTTP/review/gRPC smokes, both .NET adapters, gRPC supervisor recovery and NuGet
+checks. Focused final browser tests pass 22 cases, including three new navigation,
+filtering and draft-retention checks. Real browser interaction submitted a slow
+run, approved its useful timeout evidence and read saved researcher feedback;
+the timeout outcome stayed unchanged. All 13 app diagrams rendered. Final
+assets were also checked at 320 CSS pixels for overflow, decision controls,
+queue focus return and filtered empty state. Native Android source is unchanged;
+this checkpoint adds no physical-device or natural-notification timing claim.
+
+The proposed backend, workflow/integration and browser lanes are explicitly
+unassigned until the team agrees. The Android owner is also undecided. The next
+technical work should be member-owned small PRs with another member's review,
+rather than completing every remaining lane in the integration checkout.
+Commit timestamps represent actual work; no history is fabricated or backdated.

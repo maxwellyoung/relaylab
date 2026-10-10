@@ -131,9 +131,10 @@ physical-device behaviour.
 - The inherited `proxy-addr` advisory was cleared with its compatible patch
   update during the gRPC milestone. The production dependency audit passes;
   development-tool advisories remain outside that production audit.
-- Team reports/demo, independent individual reports, merge, deployment and
+- Team reports/demo, independent individual reports, deployment and
   final submission remain separate work and approval gates.
 
-WebSocket bonus work remains optional. Source milestones are pushed to the
-existing repository at Maxwell's request. No team message, merge, deployment
-or assessment submission is performed.
+WebSocket bonus work remains optional. See [the team handoff](TEAM_HANDOFF.md)
+for proposed contribution lanes and remaining decisions. Source integration does
+not establish team agreement, member contributions, deployment or assessment
+submission.
