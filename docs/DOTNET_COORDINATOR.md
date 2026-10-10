@@ -45,7 +45,8 @@ the audit; an incomplete audit fails closed. It requires network access to NuGet
 | `Services/ExperimentService.cs` | Validated experiment input, attempt classification and idempotent replay |
 | `Services/ReviewService.cs` | Demo sessions, role visibility and permitted review transitions |
 | `Services/RunnerGateway.cs` | Generated gRPC client, deadline, transport errors and result validation |
-| `Data/SqliteRepository.cs` | Parameterised SQL, transactions and atomic pending-to-final decisions |
+| `Data/ICoordinatorRepository.cs` | Persistence contract consumed by experiment/review services |
+| `Data/SqliteRepository.cs` | Current parameterised SQL adapter, transactions and atomic pending-to-final decisions |
 | Node `runner/` | Durable operation identity, execution state, result and restart recovery |
 
 The coordinator uses Microsoft.Data.Sqlite directly. It reuses
@@ -79,10 +80,11 @@ immediately after the runner is restarted.
 
 ## Current scope
 
-The supplied task-app README describes another application; its repository has
-not been supplied or integrated. This coordinator is independently implemented
-against RelayLab's existing contract. Source integration needs that repository
-and a review of the actual code before a baseline claim is made.
+The teammate task-app source has now been reviewed privately. It provides an
+ASP.NET/EF Core/SQLite approach for editable tasks and lists; the coordinator
+here remains independently implemented against RelayLab's experiment/review
+contract. No task-app source or history has been imported. See the adapter
+handoff below for the proposed adaptation.
 
 This lane uses SQLite only; the original Node MySQL adapter remains separate.
 Selectable demo actors model the handoff and are not production authentication.
@@ -90,3 +92,37 @@ Experiment ownership is still shared. WebSockets, physical Android proof,
 team ownership, reports, merge, deployment and submission remain separate work.
 Source commits record their real dates; this checkpoint does not establish
 three weeks of development.
+
+## Backend adapter handoff
+
+`ICoordinatorRepository` is the replacement point for an EF Core persistence
+adapter. ExperimentService and ReviewService consume this contract; Program
+registers the current SQL adapter once through that interface. The HTTP routes,
+public records, demo identities, browser and Android API remain the same.
+
+The next backend change should map existing `experiments`, `experiment_runs`
+and `run_reviews` tables rather than rename them to generic tasks. Map columns,
+foreign keys, unique submission and pending-only decision rules explicitly.
+The adapter must preserve historical receipts and protected review evidence.
+Keep execution outcome distinct from review approval, and keep runner-owned
+executions behind gRPC.
+
+Services currently have singleton lifetimes because demo sessions are held in
+memory. A replacement adapter must support concurrent calls. An EF adapter can
+use a context factory with one disposed context per operation; do not capture
+one scoped DbContext in a singleton service. Review write/read-back must remain
+transactional, and competing decisions must return one winner. Map duplicate or
+protected-evidence conflicts to 409 using ApiFailure at the adapter boundary.
+Database startup must be non-destructive and compatible with existing rows.
+
+Use `npm run verify:group` as the acceptance gate. Its .NET public-HTTP and gRPC
+smokes already exercise the real adapter, existing data, restart persistence,
+role visibility, competing decisions, deletion protection, timeout recovery and
+independent process/database ownership. Run the web and Android handoff when
+an adapter changes their observable responses. Tests should demonstrate the
+same behaviour without inventing a second workflow or resetting user data.
+
+Proposed contribution split, subject to teammate agreement: backend persistence
+and review API; native Android and notifications; web/gRPC and integration
+verification. This document is a technical handoff, not an ownership assignment
+or a claim that EF persistence has been integrated.

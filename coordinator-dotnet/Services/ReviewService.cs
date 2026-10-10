@@ -7,7 +7,7 @@ namespace RelayLab.Coordinator.Services;
 
 // Selectable actors are a local workflow demonstration, not password accounts.
 // Tokens are bounded, expiring, revocable and never persisted or logged.
-public sealed class ReviewService(SqliteRepository repository)
+public sealed class ReviewService(ICoordinatorRepository repository)
 {
     private record Session(Actor Actor, DateTimeOffset ExpiresAt);
     private readonly Dictionary<string, Session> sessions = new();

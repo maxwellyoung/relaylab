@@ -8,7 +8,7 @@ namespace RelayLab.Coordinator.Data;
 
 // SQL stays behind this boundary. Reusing the existing schema preserves receipts
 // across coordinator implementations; the runner database is never opened here.
-public sealed class SqliteRepository : IDisposable
+public sealed class SqliteRepository : ICoordinatorRepository, IDisposable
 {
     private readonly SqliteConnection connection;
     private readonly object gate = new();

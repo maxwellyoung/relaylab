@@ -9,7 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 var port = Environment.GetEnvironmentVariable("PORT") ?? "3000";
 builder.WebHost.UseUrls("http://127.0.0.1:" + port);
 builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 100 * 1024);
-builder.Services.AddSingleton<SqliteRepository>();
+builder.Services.AddSingleton<ICoordinatorRepository, SqliteRepository>();
 builder.Services.AddSingleton<RunnerGateway>();
 builder.Services.AddSingleton<ExperimentService>();
 builder.Services.AddSingleton<ReviewService>();
@@ -20,7 +20,7 @@ builder.Services.AddControllers().ConfigureApiBehaviorOptions(options =>
 });
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy => policy.WithOrigins("http://localhost:5173", "http://127.0.0.1:5173").AllowAnyHeader().AllowAnyMethod().WithExposedHeaders("X-Correlation-Id", "X-Idempotent-Replay")));
 var app = builder.Build();
-_ = app.Services.GetRequiredService<SqliteRepository>();
+_ = app.Services.GetRequiredService<ICoordinatorRepository>();
 app.Use(async (context, next) =>
 {
     if (context.Request.Path.StartsWithSegments("/api")) context.Response.Headers.CacheControl = "no-store";

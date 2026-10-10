@@ -557,3 +557,28 @@ researcher feedback through the .NET API. Local logs, databases and captures are
 ignored under `outputs/dotnet-transition-2026-10-10/`. Physical hardware, natural
 periodic notification timing, real authentication, team-source integration,
 ownership agreement, merge, deployment and submission remain separate gates.
+
+## 11 October: teammate backend integration preparation
+
+Reviewed the newly accessible task-app source privately at its pinned head.
+It uses ASP.NET Core 10, EF Core and SQLite with controllers/services/data
+separation. Its editable task/list domain needs adaptation to experiments,
+immutable attempts and final review decisions. Source inspection does not prove
+that application runs. No private source, database, executable or configuration
+was copied into the tracked project, and no teammate repository was modified.
+
+Added ICoordinatorRepository as a bounded persistence replacement point, with
+the existing SQL adapter registered once and experiment/review services consuming
+the interface. This prepares an EF-backed contribution while preserving the
+current HTTP contract, database and gRPC service boundary. The backend handoff
+specifies entity/table mapping, safe DbContext lifetimes, existing-data support,
+atomic decisions and acceptance checks. EF persistence is not implemented by
+this preparation; proposed teammate responsibilities remain unassigned.
+
+
+Validation passed on this branch: `npm run verify:group`, including 106 tests
+and one credential-dependent MySQL skip, all types/builds, original integration
+smokes, locked .NET build, public HTTP compatibility, gRPC restart recovery and
+both dependency audits. Local source assessment and raw test evidence remain
+ignored under `outputs/teammate-integration-2026-10-11/`. No new browser/native
+runtime claim is made for this internal dependency-registration change.

@@ -112,9 +112,10 @@ physical-device behaviour.
 
 ## Remaining team work
 
-- Obtain and assess the actual task-app repository before claiming integration
-  with that source. The .NET coordinator here is an original compatible
-  implementation; the supplied task-app README is not its source code.
+- Adapt the privately reviewed task-app persistence approach through
+  `ICoordinatorRepository`; [the backend handoff](DOTNET_COORDINATOR.md#backend-adapter-handoff)
+  defines the existing schema and acceptance checks. The current SQL adapter
+  remains in use; EF persistence and teammate source have not been imported.
 - Agree the baseline, real account/ownership requirements and each member's
   technical responsibility. Record genuine contributions and AI-assisted
   changes accurately; individual investigation/reflection remains personal work.
