@@ -7,7 +7,9 @@ contexts for its demo identities. It never reuses the normal preview.
 
 ## Run locally
 
-Use the Node and .NET prerequisites from the root README, then:
+Use the Node and .NET prerequisites from the root README. Run the harness on
+macOS, Linux or WSL; service cleanup uses POSIX process groups. From the repo
+root:
 
 ```bash
 npm ci
@@ -78,3 +80,20 @@ from physical Android, performance benchmarking and the teammate queue/draft
 work. Network loss is injected with browser offline mode; it is not proof of a
 server-process crash. A controlled SIGINT check also verified that Playwright
 cancellation stops its service and removes the temporary stores.
+Store removal also runs when writing failure diagnostics throws; a controlled
+attachment failure verified this cleanup path.
+
+## CI
+
+The verification workflow includes a dedicated browser job. It installs the
+pinned Playwright Chromium build and Linux dependencies, builds the group lane
+and runs `npm run test:browser`. The existing Node, .NET, MySQL and Android jobs
+remain separate. The browser job uploads its synthetic report/screenshots and
+failure traces for five days when the run is not cancelled.
+
+This job configuration is source until it has run on a pushed branch or PR.
+The acceptance suite is an explicit command; `verify:group` retains its existing
+non-browser checks. Phone checks are Chromium emulation, separate from native
+Android and other browser engines.
+
+The per-test service/context lifecycle follows [Playwright test fixtures](https://playwright.dev/docs/test-fixtures).

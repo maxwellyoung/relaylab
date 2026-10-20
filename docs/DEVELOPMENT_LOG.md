@@ -721,3 +721,12 @@ the disposable API stops and its stores are removed even when attachment
 writing throws. The abandoned store from the disk-full run was removed.
 This is a test-harness cleanup fix; repeatability remains unverified until a
 clean run completes with sufficient disk space.
+
+A separate CI browser job now installs Chromium with Linux dependencies and
+runs the documented build-and-test command. It retains the synthetic report
+and results for five days. The workflow parses with its existing four jobs
+preserved, and the README links the acceptance guide. This is CI configuration
+only; the branch has not been pushed or run remotely. Final group verification
+and a clean five-repeat browser run are pending host disk capacity. The earlier
+11-check browser matrix, workspace tests and type checks passed before the
+disk-full event; those results do not establish the final verification gate.

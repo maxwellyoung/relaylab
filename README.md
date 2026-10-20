@@ -20,6 +20,9 @@ checks.
 - [Team handoff](docs/TEAM_HANDOFF.md): proposed contribution lanes, open
   decisions and small reviewable PRs. Member agreement remains outstanding.
 
+For repeatable desktop and phone browser checks, see
+[browser acceptance tests](docs/BROWSER_ACCEPTANCE.md).
+
 ## Run locally
 
 ```bash
