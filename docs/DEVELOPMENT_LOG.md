@@ -683,3 +683,11 @@ timeout evidence and separate researcher review lists. Three isolated browser
 contexts show that the reviewer can see both researchers' submissions without
 making one researcher's submission visible in the other's queue. Both added
 cases pass against the existing product; no backend behavior changed.
+
+Browser recovery coverage now exercises an explicitly simulated client network
+outage, editable per-review drafts, refresh-before-decision protection and guide
+navigation continuity. A separate test uses two live reviewer sessions to
+produce a real 409 conflict and verifies the winning feedback for both the
+stale reviewer and researcher. Successful operations still reach the real API;
+there are no stubbed approval/rejection responses. Both scenarios pass without
+changing product code.

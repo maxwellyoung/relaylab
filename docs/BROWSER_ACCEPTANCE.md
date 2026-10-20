@@ -42,6 +42,10 @@ npx playwright test
   timeout outcome and displays the saved explanation to the researcher.
 - Researcher review lists remain separate, while the reviewer sees both
   submissions. Experiment recipes remain shared as documented.
+- Browser network loss keeps draft feedback editable and decisions disabled
+  until a successful refresh; receipt changes and guide navigation retain drafts.
+- A real competing reviewer decision produces a conflict and loads the saved
+  winner instead of overwriting it.
 
 ## Evidence and limits
 
@@ -58,4 +62,5 @@ Evidence contains synthetic data and temporary demo sessions. Keep raw traces,
 databases and logs outside Git; run this suite only against its disposable
 fixture, not private accounts or shared data. Browser automation is separate
 from physical Android, performance benchmarking and the teammate queue/draft
-work. CI integration and additional acceptance cases follow in separate slices.
+work. Network loss is injected with browser offline mode; it is not proof of a
+server-process crash. CI integration and phone checks follow in another slice.
