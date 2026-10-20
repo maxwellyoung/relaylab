@@ -660,3 +660,20 @@ unassigned until the team agrees. The Android owner is also undecided. The next
 technical work should be member-owned small PRs with another member's review,
 rather than completing every remaining lane in the integration checkout.
 Commit timestamps represent actual work; no history is fabricated or backdated.
+
+## 20 October: browser acceptance handoff
+
+Added a Playwright acceptance test for the researcher run/submit, reviewer
+approval and researcher feedback path. It opens separate browser contexts and
+uses the real built web client, .NET/EF API and gRPC runner. Every test starts
+with new temporary stores and owns the supervisor/service process group that
+it later stops. The fixture refuses an unexpected health identity or nonempty
+experiment store; it never reuses the normal preview.
+
+The initial browser attempt exposed an overly strict label locator in the new
+test helper: the native select's enclosing label includes option text. Using
+its accessible combobox role made the handoff pass without a product change.
+This is new acceptance coverage of existing behavior, not an implemented API
+or Android feature. Setup, cleanup and local evidence commands are documented
+in BROWSER_ACCEPTANCE.md. Issue #4 tracks this browser scope separately from
+the teammate issues #2 and #3.
