@@ -704,3 +704,10 @@ page width and reachable decision controls are covered without product edits.
 A controlled SIGINT probe confirmed exit 130, a stopped disposable API and
 removed temporary stores. Slow-run delay and coordinator deadline are pinned
 within the fixture so local environment overrides cannot change the scenario.
+
+The first five-repeat browser run finished with 54 passes and one failure in
+the outage recovery test. That test refreshed the researcher immediately after
+clicking Approve, before confirming the reviewer's asynchronous save. It now
+waits for the visible saved approval before switching actors, matching the
+other decision tests. Browser type checking passes; a fresh five-repeat run
+will verify this test correction. No product code changed.

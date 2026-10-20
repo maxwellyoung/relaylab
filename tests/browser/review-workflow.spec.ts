@@ -108,7 +108,7 @@ test("reviewer keeps per-run drafts and requires a successful refresh after a br
   const researcher = await actor("Researcher A");
   const first = await submitRun(researcher);
   const reviewer = await actor("Reviewer");
-  await openReview(reviewer, first.id);
+  const firstReceipt = await openReview(reviewer, first.id);
   const firstFeedback = reviewer.getByLabel(
     `Feedback for run #${first.id} (required)`,
     { exact: true },
@@ -170,6 +170,9 @@ test("reviewer keeps per-run drafts and requires a successful refresh after a br
     .click();
   await expect(firstFeedback).toHaveValue(feedback);
   await approve.click();
+  await expect(
+    firstReceipt.getByText("Approved", { exact: true }),
+  ).toBeVisible();
   const researcherReceipt = await openReview(researcher, first.id);
   await expect(
     researcherReceipt.getByText(feedback, { exact: true }),
