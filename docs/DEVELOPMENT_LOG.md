@@ -711,3 +711,13 @@ clicking Approve, before confirming the reviewer's asynchronous save. It now
 waits for the visible saved approval before switching actors, matching the
 other decision tests. Browser type checking passes; a fresh five-repeat run
 will verify this test correction. No product code changed.
+
+The next repeat run passed 54 checks, including all repeats of the corrected
+outage case. One phone setup failed with HTTP 503 while the host exhausted
+disk space; Playwright also reported ENOSPC writing diagnostics. A failed
+diagnostic attachment skipped temporary-store removal. Store removal now runs
+in its own finally block. A controlled diagnostic-write failure confirmed that
+the disposable API stops and its stores are removed even when attachment
+writing throws. The abandoned store from the disk-full run was removed.
+This is a test-harness cleanup fix; repeatability remains unverified until a
+clean run completes with sufficient disk space.

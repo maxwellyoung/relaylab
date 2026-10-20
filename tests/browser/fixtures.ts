@@ -129,13 +129,16 @@ export const test = base.extend<{
           }
           await Promise.race([exit, delay(2_000, undefined, { ref: false })]);
         }
-        if (testInfo.status !== testInfo.expectedStatus) {
-          await testInfo.attach("disposable-services.log", {
-            body: contextsLog.join(""),
-            contentType: "text/plain",
-          });
+        try {
+          if (testInfo.status !== testInfo.expectedStatus) {
+            await testInfo.attach("disposable-services.log", {
+              body: contextsLog.join(""),
+              contentType: "text/plain",
+            });
+          }
+        } finally {
+          await rm(directory, { recursive: true, force: true });
         }
-        await rm(directory, { recursive: true, force: true });
       }
     },
     { timeout: 30_000 },
