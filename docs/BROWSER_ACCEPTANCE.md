@@ -32,7 +32,7 @@ For another run after a successful build:
 npx playwright test
 ```
 
-## Covered so far
+## Covered workflows
 
 - Researcher creates, executes and submits a run through the web UI.
 - Reviewer approves with required feedback in another browser context.
@@ -46,6 +46,19 @@ npx playwright test
   until a successful refresh; receipt changes and guide navigation retain drafts.
 - A real competing reviewer decision produces a conflict and loads the saved
   winner instead of overwriting it.
+
+Both desktop (1280 x 800) and phone (320 x 740) Chromium projects run the five
+workflow scenarios. A phone-only case also checks invalid JSON, keyboard
+selection, focus return, filtered empty state, page overflow and reachable
+44-pixel decision controls. There are 11 acceptance checks in one normal run.
+The desktop and phone contexts use reduced motion.
+
+To select one viewport or check repeatability after a build:
+
+```bash
+npx playwright test --project=phone
+npx playwright test --repeat-each=5
+```
 
 ## Evidence and limits
 
@@ -63,4 +76,5 @@ databases and logs outside Git; run this suite only against its disposable
 fixture, not private accounts or shared data. Browser automation is separate
 from physical Android, performance benchmarking and the teammate queue/draft
 work. Network loss is injected with browser offline mode; it is not proof of a
-server-process crash. CI integration and phone checks follow in another slice.
+server-process crash. A controlled SIGINT check also verified that Playwright
+cancellation stops its service and removes the temporary stores.

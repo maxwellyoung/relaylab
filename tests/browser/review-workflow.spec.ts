@@ -1,4 +1,4 @@
-import { test, expect, submitRun, openReview } from "./fixtures";
+import { test, expect, submitRun, openReview, refreshQueue } from "./fixtures";
 
 test("researcher receives the reviewer's saved approval in a separate browser session", async ({
   actor,
@@ -81,10 +81,7 @@ test("researcher review lists stay separate while the reviewer can inspect both 
     secondResearcher.getByText("No submitted runs yet.", { exact: true }),
   ).toBeVisible();
   const second = await submitRun(secondResearcher);
-  const ownQueue = secondResearcher.getByRole("navigation", {
-    name: "Submitted runs",
-    exact: true,
-  });
+  const ownQueue = await refreshQueue(secondResearcher);
   await expect(
     ownQueue.getByRole("button", { name: new RegExp(`Run #${first.id}\\b`) }),
   ).toHaveCount(0);
@@ -94,16 +91,14 @@ test("researcher review lists stay separate while the reviewer can inspect both 
   const reviewer = await actor("Reviewer");
   await openReview(reviewer, first.id);
   await openReview(reviewer, second.id);
-  await firstResearcher
-    .getByRole("button", { name: "Refresh reviews", exact: true })
-    .click();
+  const firstQueue = await refreshQueue(firstResearcher);
   await expect(
-    firstResearcher.getByText("Reviews refreshed.", { exact: true }),
-  ).toBeVisible();
+    firstQueue.getByRole("button", { name: new RegExp(`Run #${first.id}\\b`) }),
+  ).toHaveCount(1);
   await expect(
-    firstResearcher
-      .getByRole("navigation", { name: "Submitted runs", exact: true })
-      .getByRole("button", { name: new RegExp(`Run #${second.id}\\b`) }),
+    firstQueue.getByRole("button", {
+      name: new RegExp(`Run #${second.id}\\b`),
+    }),
   ).toHaveCount(0);
 });
 

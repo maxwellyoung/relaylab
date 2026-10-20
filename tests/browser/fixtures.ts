@@ -45,6 +45,8 @@ export const test = base.extend<{
             RUNNER_PORT: String(runnerPort),
             RELAYLAB_GROUP_DATA_DIR: directory,
             RELAYLAB_PERSISTENCE_ADAPTER: "ef",
+            DOWNSTREAM_TIMEOUT_MS: "400",
+            RUNNER_SLOW_DELAY_MS: "800",
           },
         });
         const log = (chunk: Buffer) => {
@@ -99,7 +101,9 @@ export const test = base.extend<{
           executionTransport: "grpc",
         });
         // Fresh stores are mandatory; never silently attach to a user's preview.
-        const experiments = await fetch(`${url}/api/experiments`);
+        const experiments = await fetch(`${url}/api/experiments`, {
+          signal: AbortSignal.timeout(5_000),
+        });
         expect(await experiments.json()).toEqual([]);
         await use({ url });
       } finally {
@@ -187,6 +191,7 @@ export async function submitRun(page: Page, behavior = "healthy") {
   await page
     .getByRole("button", { name: "Open run reviews", exact: true })
     .click();
+  if (behavior === "healthy") expect(run.outcome).toBe("success");
   await page
     .getByRole("button", {
       name: `Submit run #${run.id} for review`,
@@ -199,16 +204,23 @@ export async function submitRun(page: Page, behavior = "healthy") {
   return run;
 }
 
-export async function openReview(page: Page, runId: number) {
+export async function refreshQueue(page: Page) {
+  const back = page.getByRole("button", { name: "← All reviews", exact: true });
+  if (await back.isVisible()) await back.click();
   await page
     .getByRole("button", { name: "Refresh reviews", exact: true })
     .click();
   await expect(
     page.getByText("Reviews refreshed.", { exact: true }),
   ).toBeVisible();
-  const row = page
-    .getByRole("navigation", { name: "Submitted runs", exact: true })
-    .getByRole("button", { name: new RegExp(`Run #${runId}\\b`) });
+  return page.getByRole("navigation", { name: "Submitted runs", exact: true });
+}
+
+export async function openReview(page: Page, runId: number) {
+  const queue = await refreshQueue(page);
+  const row = queue.getByRole("button", {
+    name: new RegExp(`Run #${runId}\\b`),
+  });
   await row.click();
   const receipt = page.getByRole("article", {
     name: new RegExp(` · Run #${runId}$`),

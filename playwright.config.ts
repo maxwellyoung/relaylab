@@ -13,6 +13,17 @@ export default defineConfig({
     ["list"],
     ["html", { outputFolder: "output/playwright/report", open: "never" }],
   ],
+  projects: [
+    { name: "desktop", testIgnore: /phone-navigation\.spec\.ts/ },
+    {
+      name: "phone",
+      use: {
+        viewport: { width: 320, height: 740 },
+        isMobile: true,
+        hasTouch: true,
+      },
+    },
+  ],
   use: {
     browserName: "chromium",
     actionTimeout: 5_000,

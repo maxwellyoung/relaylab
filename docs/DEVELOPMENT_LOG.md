@@ -691,3 +691,16 @@ produce a real 409 conflict and verifies the winning feedback for both the
 stale reviewer and researcher. Successful operations still reach the real API;
 there are no stubbed approval/rejection responses. Both scenarios pass without
 changing product code.
+
+The browser suite now runs all five workflow scenarios at desktop and 320-pixel
+phone widths, plus a phone keyboard/navigation case: 11 acceptance checks pass.
+The first phone attempt correctly exposed a desktop-only assumption in the new
+test helper: the queue is hidden while a receipt is open. The helper now takes
+the visible mobile Back path before selecting another receipt. Visibility
+assertions explicitly open the queue, avoiding false passes against a hidden
+list. Keyboard activation, focus return, invalid JSON, empty filters, contained
+page width and reachable decision controls are covered without product edits.
+
+A controlled SIGINT probe confirmed exit 130, a stopped disposable API and
+removed temporary stores. Slow-run delay and coordinator deadline are pinned
+within the fixture so local environment overrides cannot change the scenario.
