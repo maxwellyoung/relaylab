@@ -730,3 +730,19 @@ only; the branch has not been pushed or run remotely. Final group verification
 and a clean five-repeat browser run are pending host disk capacity. The earlier
 11-check browser matrix, workspace tests and type checks passed before the
 disk-full event; those results do not establish the final verification gate.
+
+After host disk capacity recovered, final local verification completed:
+
+- `npm run verify:group` passed 109 workspace tests, type checks, builds,
+  production/review/gRPC smokes, both .NET persistence adapters and dependency
+  audits. The credential-dependent MySQL test was skipped; live MySQL and
+  physical Android are outside this browser checkpoint.
+- `npm run test:browser -- --repeat-each=5` rebuilt the group lane and passed
+  all 55 desktop/phone checks with zero retries. The corrected outage case
+  passed every repetition, and there were no disk-full errors in this run.
+- Browser type checking and workflow YAML parsing pass. Controlled SIGINT
+  and diagnostic-write failure probes both verified service/store cleanup.
+
+Issue #4 remains open for integration and review. All changes are local on
+`test/web-browser-acceptance`; remote browser CI is still unverified until a
+push and CI run. Teammate queue API and Android draft work remain separate.
