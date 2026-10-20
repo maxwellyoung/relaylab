@@ -38,6 +38,10 @@ npx playwright test
 - Reviewer approves with required feedback in another browser context.
 - Researcher refreshes and sees the saved decision and the same execution
   outcome. This models selectable local demo identities, not password accounts.
+- Empty reviewer feedback is rejected; rejection of a slow run retains its
+  timeout outcome and displays the saved explanation to the researcher.
+- Researcher review lists remain separate, while the reviewer sees both
+  submissions. Experiment recipes remain shared as documented.
 
 ## Evidence and limits
 

@@ -677,3 +677,9 @@ This is new acceptance coverage of existing behavior, not an implemented API
 or Android feature. Setup, cleanup and local evidence commands are documented
 in BROWSER_ACCEPTANCE.md. Issue #4 tracks this browser scope separately from
 the teammate issues #2 and #3.
+
+The next browser slice verifies required feedback, rejection of actual gRPC
+timeout evidence and separate researcher review lists. Three isolated browser
+contexts show that the reviewer can see both researchers' submissions without
+making one researcher's submission visible in the other's queue. Both added
+cases pass against the existing product; no backend behavior changed.
