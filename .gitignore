@@ -40,3 +40,5 @@ android/**/build/
 **/bin/
 **/obj/
 .vs/
+
+.fake
