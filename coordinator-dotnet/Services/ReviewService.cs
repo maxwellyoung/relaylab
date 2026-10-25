@@ -42,7 +42,8 @@ public sealed class ReviewService(ICoordinatorRepository repository)
         }
     }
     public void Revoke(string authorization) { _ = ActorFor(authorization); lock (gate) sessions.Remove(authorization[7..]); }
-    public IReadOnlyList<Review> List(Actor actor) => repository.ListReviews(actor.Role == "researcher" ? actor.Id : null);
+    public IReadOnlyList<Review> List(Actor actor, ReviewListOptions options) =>
+        repository.ListReviews(actor.Role == "researcher" ? actor.Id : null, options);
     public Review Get(Actor actor, long id)
     {
         var review = repository.GetReview(id);

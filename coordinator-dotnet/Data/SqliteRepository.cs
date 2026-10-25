@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Data.Sqlite;
@@ -70,9 +71,34 @@ public sealed class SqliteRepository : ICoordinatorRepository, IDisposable
             transaction.Commit(); return row;
         }
     }
-    public IReadOnlyList<Review> ListReviews(string? researcher)
+    public IReadOnlyList<Review> ListReviews(string? researcher, ReviewListOptions options)
     {
-        lock (gate) return Query(ReviewQuery + (researcher is null ? "" : " WHERE v.researcher_id=$0") + " ORDER BY CASE WHEN v.status='pending' THEN 0 ELSE 1 END,v.id DESC", MapReview, researcher is null ? [] : [researcher]);
+        lock (gate)
+        {
+            var sql = new StringBuilder(ReviewQuery);
+            var values = new List<object?>();
+            if (researcher is not null)
+            {
+                sql.Append(" WHERE v.researcher_id=$").Append(values.Count);
+                values.Add(researcher);
+            }
+            if (options.Status is not null)
+            {
+                sql.Append(values.Count == 0 ? " WHERE " : " AND ");
+                sql.Append("v.status=$").Append(values.Count);
+                values.Add(options.Status);
+            }
+            sql.Append(" ORDER BY CASE WHEN v.status='pending' THEN 0 ELSE 1 END,v.id DESC");
+            if (options.IsPaged)
+            {
+                // Only SQL constants are assembled here; request values remain parameters.
+                sql.Append(" LIMIT $").Append(values.Count);
+                values.Add(options.PageSize!.Value);
+                sql.Append(" OFFSET $").Append(values.Count);
+                values.Add(options.Offset);
+            }
+            return Query(sql.ToString(), MapReview, values.ToArray());
+        }
     }
     public Review? GetReview(long id) { lock (gate) return Query(ReviewQuery + " WHERE v.id=$0", MapReview, id).SingleOrDefault(); }
     public Review? DecideReview(long id, string status, string feedback, string actor)

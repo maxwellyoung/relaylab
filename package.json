@@ -35,7 +35,9 @@
     "smoke:reviews": "node scripts/smoke-reviews.mjs",
     "package": "git archive --format=zip --prefix=relaylab/ -o relaylab-submission.zip HEAD && unzip -l relaylab-submission.zip | tail -1",
     "verify": "npm test && npm run typecheck && npm run build && npm run smoke && npm run smoke:reviews && npm run smoke:grpc && npm audit --omit=dev --audit-level=high",
-    "smoke:grpc": "node scripts/smoke-grpc.mjs"
+    "smoke:grpc": "node scripts/smoke-grpc.mjs",
+    "smoke:dotnet:queue": "node scripts/smoke-dotnet-queue.mjs",
+    "bench:dotnet:queue": "node scripts/benchmark-dotnet-queue.mjs"
   },
   "devDependencies": {
     "concurrently": "^10.0.4"
