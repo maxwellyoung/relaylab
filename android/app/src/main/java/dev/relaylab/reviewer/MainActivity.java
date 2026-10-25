@@ -55,19 +55,20 @@ public final class MainActivity extends Activity {
         Object retained = getLastNonConfigurationInstance();
         model = retained instanceof ReviewerModel ? (ReviewerModel) retained : new ReviewerModel(this);
         if (saved != null && retained == null) {
-            model.selected = saved.getLong("selected", -1); model.draft = saved.getString("draft", ""); model.page = saved.getInt("page", 0);
+            // After process recreation the stored draft is authoritative, not the saved bundle.
+            model.open(saved.getLong("selected", -1)); model.page = saved.getInt("page", 0);
         }
         ReviewNotifications.channel(this); model.changed = this::render;
-        if (saved == null) model.selected = getIntent().getLongExtra("reviewId", model.selected);
+        if (saved == null && getIntent().getLongExtra("reviewId", -1) > 0) model.open(getIntent().getLongExtra("reviewId", -1));
         render();
     }
     @Override public Object onRetainNonConfigurationInstance() { model.changed = null; return model; }
     @Override protected void onSaveInstanceState(Bundle out) {
-        out.putLong("selected", model.selected); out.putString("draft", model.draft); out.putInt("page", model.page); super.onSaveInstanceState(out);
+        out.putLong("selected", model.selected); out.putInt("page", model.page); super.onSaveInstanceState(out);
     }
     @Override protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent); setIntent(intent);
-        model.selected = intent.getLongExtra("reviewId", -1); model.page = 0; model.draft = ""; screenSignature = ""; render(); model.refresh();
+        model.open(intent.getLongExtra("reviewId", -1)); model.page = 0; screenSignature = ""; render(); model.refresh();
     }
     @Override protected void onResume() {
         super.onResume(); resumed = true; screenSignature = ""; render(); handler.removeCallbacks(poll); poll.run();
@@ -77,7 +78,7 @@ public final class MainActivity extends Activity {
         handler.removeCallbacks(poll); model.changed = null; if (!isChangingConfigurations()) model.close(); super.onDestroy();
     }
     @Override public void onBackPressed() {
-        if (model.selected > 0 || model.page != 0) { model.selected = -1; model.page = 0; model.draft = ""; screenSignature = ""; render(); }
+        if (model.selected > 0 || model.page != 0) { model.leave(); screenSignature = ""; render(); }
         else super.onBackPressed();
     }
     private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }
@@ -132,7 +133,7 @@ public final class MainActivity extends Activity {
         gap(22);
         if (!model.connected) { text("Connect to RelayLab", 27, true); gap(8); muted("Inspect the run. Leave useful feedback. Keep the evidence.", 15); gap(28); state = muted(model.message, 13); connectionForm(); return; }
         if (model.selected > 0) {
-            Button back = button("Back to queue", false, () -> { model.selected = -1; model.page = 0; model.draft = ""; screenSignature = ""; render(); }); back.setGravity(Gravity.START | Gravity.CENTER_VERTICAL); back.setPadding(0, 0, 0, 0); back.setTextColor(ACCENT); back.setBackgroundColor(Color.TRANSPARENT);
+            Button back = button("Back to queue", false, () -> { model.leave(); screenSignature = ""; render(); }); back.setGravity(Gravity.START | Gravity.CENTER_VERTICAL); back.setPadding(0, 0, 0, 0); back.setTextColor(ACCENT); back.setBackgroundColor(Color.TRANSPARENT);
             Review selected = model.selection(); state = muted(model.message, 12); gap(20);
             if (selected == null) text(model.busy ? "Loading selected review…" : "This review is absent from the last retrieved queue. Refresh or return to the queue.", 15, false);
             else detail(selected);
@@ -171,7 +172,7 @@ public final class MainActivity extends Activity {
             SpannableString label = new SpannableString(value); label.setSpan(new StyleSpan(Typeface.BOLD), 0, review.name.length(), 0); label.setSpan(new RelativeSizeSpan(focus ? 21f / 13f : 16f / 13f), 0, review.name.length(), 0);
             label.setSpan(new ForegroundColorSpan(MUTED), review.name.length() + 1, review.name.length() + 1 + detail.length(), 0);
             int start = value.lastIndexOf('\n') + 1; label.setSpan(new ForegroundColorSpan(focus ? ACCENT : MUTED), start, value.length(), 0);
-            Button row = control("", false, () -> { model.selected = review.id; model.draft = ""; model.validation = ""; model.showEvidence = false; screenSignature = ""; render(); });
+            Button row = control("", false, () -> { model.open(review.id); screenSignature = ""; render(); });
             row.setText(label); row.setTypeface(Typeface.create("sans-serif", Typeface.NORMAL)); row.setTextSize(13); row.setLineSpacing(dp(focus ? 10 : 6), 1f); row.setGravity(Gravity.START | Gravity.CENTER_VERTICAL); row.setPadding(focus ? dp(20) : 0, dp(focus ? 24 : 18), focus ? dp(20) : 0, dp(focus ? 24 : 18));
             if (focus) row.setBackground(new RippleDrawable(ColorStateList.valueOf(0x15127183), shape(SURFACE, 18), null));
             else row.setBackground(new RippleDrawable(ColorStateList.valueOf(0x15127183), shape(Color.TRANSPARENT, 0), null));
@@ -207,7 +208,7 @@ public final class MainActivity extends Activity {
             text("Your feedback", 18, true); gap(6); muted("What does this run tell the researcher?", 13); gap(14);
             feedback = new EditText(this); feedback.setTextSize(15); feedback.setMinLines(3); feedback.setGravity(Gravity.TOP); feedback.setTextColor(INK); feedback.setPadding(dp(16), dp(14), dp(16), dp(14)); feedback.setBackground(shape(SURFACE, 12));
             feedback.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE | android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES); feedback.setFilters(new InputFilter[]{new InputFilter.LengthFilter(2000)}); feedback.setHint("Leave a useful note…"); feedback.setContentDescription("Review feedback"); feedback.setText(model.draft); column.addView(feedback);
-            feedback.addTextChangedListener(new TextWatcher() { public void beforeTextChanged(CharSequence s, int start, int count, int after) { } public void afterTextChanged(Editable s) { } public void onTextChanged(CharSequence s, int start, int before, int count) { model.draft = s.toString(); if (!model.draft.trim().isEmpty()) { model.validation = ""; updateState(); } } });
+            feedback.addTextChangedListener(new TextWatcher() { public void beforeTextChanged(CharSequence s, int start, int count, int after) { } public void afterTextChanged(Editable s) { } public void onTextChanged(CharSequence s, int start, int before, int count) { model.edit(s.toString()); if (!model.draft.trim().isEmpty()) { model.validation = ""; updateState(); } } });
             gap(8); validation = text(model.validation, 13, false); validation.setTextColor(BAD); validation.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE); gap(14);
             LinearLayout actions = new LinearLayout(this); column.addView(actions);
             reject = control("Reject run", false, () -> model.decide("rejected")); approve = control("Approve run", true, () -> model.decide("approved"));
