@@ -10,7 +10,7 @@ import Database from 'better-sqlite3';
 import { once } from 'node:events';
 import { fileURLToPath } from 'node:url';
 import { dotnetCommand } from './dotnet-command.mjs';
-import { captureChild, stopChild, waitForHealth } from './smoke-support.mjs';
+import { captureChild, stopChild, waitForHealth, waitForUnreachable } from './smoke-support.mjs';
 import { openDatabase } from '../server/dist/database.js';
 import { experimentRunResponseV1Schema, experimentDetailsResponseV1Schema } from '../server/dist/public-contract.js';
 
@@ -43,8 +43,8 @@ async function wait(check, label) {
   }
   throw new Error(`${label}\n${output.join('')}`);
 }
-async function http(resource, { method = 'GET', body, token, key, status = 200 } = {}) {
-  const response = await fetch(base + resource, { method, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(key ? { 'Idempotency-Key': key } : {}) }, body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(6000) });
+async function http(resource, { method = 'GET', body, token, key, status = 200, signal } = {}) {
+  const response = await fetch(base + resource, { method, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(key ? { 'Idempotency-Key': key } : {}) }, body: body === undefined ? undefined : JSON.stringify(body), signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(6000)]) : AbortSignal.timeout(6000) });
   assert.equal(response.status, status, `${method} ${resource}: ${await response.clone().text()}`);
   return response.status === 204 ? undefined : response.json();
 }
@@ -110,7 +110,8 @@ try {
       assert.equal((await http(`/api/experiments/${item.id}/runs`, { method: 'POST', status: 201 })).outcome, outcome);
     }
     await stop(runner);
-    assert.equal((await http(`/api/experiments/${healthy.id}/runs`, { method: 'POST', status: 201, key: 'runner-down' })).outcome, 'unreachable');
+    const unavailable = await waitForUnreachable(signal => http(`/api/experiments/${healthy.id}/runs`, { method: 'POST', status: 201, key: 'runner-down', signal }));
+    assert.equal(unavailable.outcome, 'unreachable'); assert.equal(unavailable.rpcErrorCode, 14);
     await http(`/api/runs/${run.id}/execution`, { status: 503 });
     runner = start(process.execPath, ['runner/dist/server.js'], { RUNNER_PORT: String(runnerPort), RUNNER_DATA_DIR: path.join(directory, 'runner') }, true);
     await wait(() => runner.runnerReady, 'Restarted runner did not become ready');

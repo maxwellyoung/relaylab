@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import SqliteDatabase from 'better-sqlite3';
 import { fileURLToPath } from 'node:url';
-import { captureChild, stopChild, waitForHealth } from './smoke-support.mjs';
+import { captureChild, stopChild, waitForHealth, waitForUnreachable } from './smoke-support.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const directory = await mkdtemp(path.join(tmpdir(), 'relaylab-grpc-smoke-'));
@@ -33,8 +33,8 @@ async function wait(check, message) {
   }
   throw new Error(`${message}\n${output.join('')}`);
 }
-async function http(resource, { method = 'GET', body, token, key, status = 200 } = {}) {
-  const response = await fetch(base + resource, { method, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(key ? { 'Idempotency-Key': key } : {}) }, body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(6000) });
+async function http(resource, { method = 'GET', body, token, key, status = 200, signal } = {}) {
+  const response = await fetch(base + resource, { method, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(key ? { 'Idempotency-Key': key } : {}) }, body: body ? JSON.stringify(body) : undefined, signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(6000)]) : AbortSignal.timeout(6000) });
   assert.equal(response.status, status, `${method} ${resource}`); return response.status === 204 ? undefined : response.json();
 }
 async function experiment(behavior) { return http('/api/experiments', { method: 'POST', status: 201, body: { name: `gRPC smoke ${behavior}`, behavior, payload: { sample: 'grpc-smoke' } } }); }
@@ -73,7 +73,7 @@ try {
     group.send({ type: 'relaylab-stop-runner' });
     await wait(() => runnerStopped, 'Runner shutdown did not complete');
   } finally { group.off('message', receive); }
-  const missing = await execute(healthy.id, 'runner-unavailable');
+  const missing = await waitForUnreachable(signal => http(`/api/experiments/${healthy.id}/runs`, { method: 'POST', status: 201, key: 'runner-unavailable', signal }));
   assert.equal(missing.outcome, 'unreachable'); assert.equal(missing.rpcErrorCode, 14);
   assert.equal((await http('/health')).status, 'ok');
   replacement = spawn(process.execPath, ['runner/dist/server.js'], { cwd: root, env: { ...process.env, RUNNER_PORT: String(runnerPort), RUNNER_DATA_DIR: path.join(directory, 'runner') }, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] });

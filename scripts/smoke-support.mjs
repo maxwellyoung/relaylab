@@ -61,3 +61,29 @@ export async function waitForHealth(url, {
   }
   throw diagnostic(`readiness budget ${timeoutMs}ms expired`);
 }
+
+// A stopped runner and a 300 ms RPC deadline are different observations.
+// Some TCP stacks report the closed service after an in-flight RPC has already
+// exceeded its deadline. Retain every real deadline classification and require
+// a genuine code-14 response within a separate bounded observation window.
+export async function waitForUnreachable(probe, { timeoutMs = 10000, intervalMs = 50 } = {}) {
+  const controller = new AbortController();
+  let last = 'no attempt';
+  let rejectBudget;
+  const budget = new Promise((_, reject) => { rejectBudget = reject; });
+  const timer = setTimeout(() => {
+    const error = new Error(`Runner did not report unreachable/code 14 within ${timeoutMs}ms; last: ${last}`);
+    controller.abort(error); rejectBudget(error);
+  }, timeoutMs);
+  try {
+    while (true) {
+      const result = await Promise.race([probe(controller.signal), budget]);
+      last = `${result.outcome}/code ${result.rpcErrorCode}`;
+      if (result.outcome === 'unreachable' && result.rpcErrorCode === 14) return result;
+      if (result.outcome !== 'timeout' || result.rpcErrorCode !== 4) {
+        throw new Error(`Unexpected stopped-runner response: ${last}`);
+      }
+      await Promise.race([delay(intervalMs), budget]);
+    }
+  } finally { clearTimeout(timer); }
+}

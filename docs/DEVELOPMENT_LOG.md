@@ -773,3 +773,18 @@ The new windows-latest CI job exercises verify:group. Its result at the current
 commit, rather than macOS checks, establishes actual Windows validation. Native
 Windows browser-fixture support remains outside this change. No teammate code,
 API contract or final assessment package is changed here.
+
+### Windows CI follow-up: distinguish RPC deadline from outage observation
+
+The first published Windows job passed the portable command, all unit checks,
+builds and Node gRPC smoke, then reproduced timeout instead of unreachable at
+the .NET outage assertion. The runner had exited; the first 300 ms call still
+expired before the client/TCP stack reported unavailable. Linux checks passed.
+
+Added four regression tests and a separate bounded outage-observation helper.
+It requires correctly classified code-4 interim timeouts and eventually a real
+code-14 unreachable result within 10 seconds; success, misclassified codes,
+perpetual timeouts and stalled probes all fail. Existing 300 ms RPC deadlines,
+strict final unavailable assertions and same-key recovery remain. This records
+the observed CI failure and local correction, not a claim that the updated
+Windows run has passed before its current result is available.

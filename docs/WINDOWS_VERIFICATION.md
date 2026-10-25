@@ -21,6 +21,16 @@ The deliberate slow-run deadline remains 300 ms in both smoke fixtures, with a
 900 ms slow job. Code 4 must still be classified as timeout; code 14 must still be
 classified as unreachable. The assertions and same-key recovery checks remain.
 
+The first Windows CI run reproduced a code-4 timeout on the first RPC after the
+runner's graceful exit. Process exit does not mean every client/TCP stack has
+already observed unavailable. The outage fixtures now use a separate 10 second
+observation window. Every intermediate response must be timeout/code 4; the
+fixture still strictly requires unreachable/code 14, rejects success or any
+mismatched outcome/code, and fails if code 14 never arrives. HTTP probes are
+aborted at the overall observation bound. Same-key recovery then proves the
+runner can restart without duplicating work. This does not widen the 300 ms
+execution deadline or relabel real timeouts as unavailable.
+
 Owned Node processes accept a relaylab-shutdown IPC request. The group launcher
 also accepts relaylab-stop-runner, so the outage scenario requests the real
 runner's graceful shutdown and waits for its actual exit. This makes shutdown
@@ -40,7 +50,7 @@ This changes startup diagnostics, not the RPC deadline.
 
 ## Validation status
 
-Six child-process/HTTP regression tests, the existing 109 workspace tests, types,
+Ten child-process/HTTP/observation regression tests, the existing 109 workspace tests, types,
 builds, real HTTP/review/gRPC smokes, both .NET adapters and .NET audit passed on
 macOS. Eleven desktop/phone browser acceptance checks passed headlessly.
 
