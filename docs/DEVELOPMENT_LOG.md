@@ -746,3 +746,45 @@ After host disk capacity recovered, final local verification completed:
 Issue #4 remains open for integration and review. All changes are local on
 `test/web-browser-acceptance`; remote browser CI is still unverified until a
 push and CI run. Teammate queue API and Android draft work remain separate.
+
+## 25 October: portable npm commands and smoke-process reliability
+
+Prepared with assistant support in an isolated checkout based on the browser
+acceptance head. This records technical work and real local checks, not student
+review, teammate contributions or assessment submission.
+
+Pinned cross-env for npm environment assignments on cmd.exe and POSIX shells.
+Added bounded process/health helpers and graceful IPC shutdown for owned Node
+fixtures, the group supervisor and the Node coordinator. Supervisors have more
+time to stop children than each child's fallback bound. Readiness fails promptly
+on spawn or exit and retains last-probe/startup diagnostics. Intentional 300 ms
+RPC deadlines, code 4 versus code 14 assertions, durable receipts and same-key
+recovery remain intact.
+
+Six new process/HTTP tests, the 109 existing workspace tests (one separate
+credential-dependent MySQL skip), types/builds, Node HTTP/review/gRPC smokes,
+both .NET adapters, .NET gRPC recovery and locked .NET audit passed on macOS.
+Eleven headless desktop/phone browser acceptance checks passed. Compatible
+locked dependency updates cleared the blocking production audit advisories.
+The existing KaTeX override is preserved; no forced broad dependency upgrade
+was used.
+
+The new windows-latest CI job exercises verify:group. Its result at the current
+commit, rather than macOS checks, establishes actual Windows validation. Native
+Windows browser-fixture support remains outside this change. No teammate code,
+API contract or final assessment package is changed here.
+
+### Windows CI follow-up: distinguish RPC deadline from outage observation
+
+The first published Windows job passed the portable command, all unit checks,
+builds and Node gRPC smoke, then reproduced timeout instead of unreachable at
+the .NET outage assertion. The runner had exited; the first 300 ms call still
+expired before the client/TCP stack reported unavailable. Linux checks passed.
+
+Added four regression tests and a separate bounded outage-observation helper.
+It requires correctly classified code-4 interim timeouts and eventually a real
+code-14 unreachable result within 10 seconds; success, misclassified codes,
+perpetual timeouts and stalled probes all fail. Existing 300 ms RPC deadlines,
+strict final unavailable assertions and same-key recovery remain. This records
+the observed CI failure and local correction, not a claim that the updated
+Windows run has passed before its current result is available.

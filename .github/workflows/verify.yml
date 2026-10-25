@@ -9,6 +9,21 @@ permissions:
   contents: read
 
 jobs:
+  windows:
+    name: Windows Node and .NET smoke compatibility
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: npm ci
+      - run: npm run verify:group
+
   dotnet:
     name: .NET coordinator HTTP compatibility and gRPC recovery
     runs-on: ubuntu-latest
