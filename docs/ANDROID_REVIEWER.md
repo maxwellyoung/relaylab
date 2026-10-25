@@ -52,12 +52,35 @@ lab remains shared; researcher experiment ownership is not established.
 
 The model survives rotation with the selected review, feedback draft and
 in-flight decision. Process recreation reloads the persisted queue; saved
-instance state retains the selected ID/draft when Android supplies it. Drafts
-are not persisted across force-stop or dismissal of the task. An offline
+instance state retains the selected ID when Android supplies it, and its draft
+comes from the draft store described below. An offline
 queue is labelled as last retrieved; decisions remain disabled after an
 uncertain request until a successful refresh confirms current state. Network
 work runs away from the UI thread with bounded connect/read times and response
 size. Changing API/disconnecting clears private rows and notification state.
+
+## Per-review feedback drafts
+
+Each pending review keeps its own unsent feedback, keyed by the normalized API
+origin and review ID, so the same review number on two servers never shares
+text. `ReviewDrafts` stores them in a private SharedPreferences file that the
+existing backup and device-transfer rules exclude; demo-session tokens are
+never stored. Returning to the queue, opening another receipt, rotation,
+following a notification and closing or reopening the app keep each draft.
+Queue rows with a saved draft show **draft saved**.
+
+| Event | Stored draft |
+| --- | --- |
+| Typing in a pending review | Saved for that origin and review; blank text removes it |
+| Failed or uncertain decision | Kept; the reviewer refreshes before retrying |
+| Successful approve/reject | Cleared for that review only, even if another review is now open |
+| **Discard draft** | Cleared for that review |
+| Review decided by another client | Saved server decision is shown; the leftover text appears read-only as an unsent note with its own discard action and is never submitted |
+| Disconnect | All drafts for that origin are removed; Settings states this |
+
+`ReviewDraftsTest` covers per-review separation, origin scoping including a
+similar port, blank text, discard and origin removal. Screen behaviour is
+verified on an emulator against the real API; see the 25 October checkpoint.
 
 ## Notifications and timing
 
@@ -162,3 +185,16 @@ new synthetic checks. Native approval/rejection and researcher feedback,
 notifications, draft/rotation continuity and stale-decision recovery passed.
 The browser separately completed submission, approval and feedback against EF.
 Private proof is ignored under `outputs/ef-integration-2026-10-11/`.
+
+## Per-review draft checkpoint, 25 October
+
+Hansith Perera checked the draft behaviour by hand on an API-35 x86_64 emulator
+against the local .NET group API on port 3118, with web submissions from
+Researcher A. All six checks passed: separate drafts on two reviews after
+navigating back and reopening; rotation; swiping the app away and relaunching;
+a failed approval with the backend stopped kept the draft, and a successful
+approval after restart cleared it; a web reviewer decision shown with the
+leftover unsent note and its discard action; and disconnect removing the
+saved drafts. The same build passed 11 unit tests, debug build and lint.
+`scripts/smoke-android.py` was not re-run for this change because it needs the
+dedicated `RelayLabReviewerQA` emulator; physical hardware remains unverified.

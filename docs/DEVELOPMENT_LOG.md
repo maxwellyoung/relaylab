@@ -660,3 +660,29 @@ unassigned until the team agrees. The Android owner is also undecided. The next
 technical work should be member-owned small PRs with another member's review,
 rather than completing every remaining lane in the integration checkout.
 Commit timestamps represent actual work; no history is fabricated or backdated.
+
+## 25 October: Android per-review feedback drafts (Hansith Perera, issue #3)
+
+Set up the project on Windows 11. Android builds needed the Gradle JDK set to
+21, because Android Studio's bundled Java 25 is newer than Gradle 8.7 supports;
+no project build files changed. The Windows verification run also surfaced
+Windows-only failures in the .NET smoke scripts (an env-var script syntax that
+cmd.exe cannot run, and a killed runner recorded as `timeout` rather than
+`unreachable` because the .NET gRPC client took about 2 s to fail against a
+300 ms deadline). These were reported to the backend owners and are not
+changed on this branch.
+
+The Android reviewer previously kept one in-memory draft, cleared whenever the
+reviewer went back, opened another receipt or followed a notification. Added
+`ReviewDrafts`, an origin- and review-scoped store in private SharedPreferences,
+test-first: six unit tests failed to compile before the class existed and pass
+now. The reviewer screen loads, saves and discards through it. A successful
+decision clears only the decided review's draft; failures keep it. Notes left
+on a review decided elsewhere are shown read-only as unsent and never
+submitted. Disconnect removes that origin's drafts.
+
+Verification: 11 Android unit tests, debug build and lint pass. Six manual
+emulator checks against the real API passed (see the Android reviewer guide).
+Commits `880a224`, `c159e97` and `5ba4916` were written with AI assistance;
+each passed the unit tests, build and lint before it was pushed, and Hansith
+then ran the emulator checks above against the pushed branch.
