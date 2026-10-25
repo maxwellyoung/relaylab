@@ -1,5 +1,8 @@
 # RelayLab
 
+See [Windows smoke verification](docs/WINDOWS_VERIFICATION.md) for the portable
+npm commands, process shutdown behaviour and platform validation boundary.
+
 RelayLab is a small experiment-and-review workspace. A researcher runs an
 experiment, submits its saved evidence, and a reviewer approves or rejects it
 with feedback. Execution outcome and review status stay separate.

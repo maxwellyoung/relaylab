@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import SqliteDatabase from 'better-sqlite3';
 import { fileURLToPath } from 'node:url';
+import { captureChild, stopChild, waitForHealth } from './smoke-support.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const directory = await mkdtemp(path.join(tmpdir(), 'relaylab-grpc-smoke-'));
@@ -22,12 +23,8 @@ let runnerPid;
 let coordinatorReady = false;
 let replacement;
 let group;
-async function stop(child) {
-  if (!child || child.exitCode !== null || child.signalCode !== null) return;
-  const exited = once(child, 'exit'); child.kill('SIGTERM');
-  const timer = setTimeout(() => child.kill('SIGKILL'), 3000);
-  try { await exited; } finally { clearTimeout(timer); }
-}
+// A supervisor needs time to stop its children before its own force-stop bound.
+const stop = child => stopChild(child, { graceMs: child === group ? 8000 : 3000 });
 async function wait(check, message) {
   const deadline = Date.now() + 15000;
   while (Date.now() < deadline) {
@@ -49,8 +46,8 @@ function tables(file) {
 try {
   group = spawn(process.execPath, [process.argv.includes('--dotnet') ? 'scripts/start-group-dotnet.mjs' : 'scripts/start-group.mjs'], { cwd: root, env: { ...process.env, PORT: String(publicPort), RUNNER_PORT: String(runnerPort), RELAYLAB_GROUP_DATA_DIR: directory, DOWNSTREAM_TIMEOUT_MS: '300', RUNNER_SLOW_DELAY_MS: '900' }, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] });
   group.on('message', (message) => { if (message.type === 'runner-ready') runnerPid = message.pid; if (message.type === 'coordinator-ready') coordinatorReady = true; });
-  for (const stream of [group.stdout, group.stderr]) stream.on('data', (value) => { output.push(value.toString()); if (output.length > 100) output.shift(); });
-  await wait(async () => coordinatorReady && runnerPid && (await fetch(base + '/health')).ok, 'Group startup failed');
+  captureChild(group, output);
+  await waitForHealth(base + '/health', { child: group, output, label: 'Group startup failed', accept: body => coordinatorReady && runnerPid && body.status === 'ok' });
   assert.equal((await http('/health')).executionTransport, 'grpc');
   const researcher = (await http('/api/demo-sessions', { method: 'POST', status: 201, body: { actorId: 'researcher-a' } })).token;
   const reviewer = (await http('/api/demo-sessions', { method: 'POST', status: 201, body: { actorId: 'reviewer' } })).token;
@@ -69,8 +66,13 @@ try {
   const recovered = await execute(slow.id, 'same-slow-operation');
   assert.equal(recovered.outcome, 'success'); assert.equal(recovered.response.execution.executionId, pending.executionId);
   assert.equal((await execute(slow.id, 'same-slow-operation', 200)).id, recovered.id);
-  const stopped = new Promise((resolve) => { const receive = (message) => { if (message.type === 'runner-exit') { group.off('message', receive); resolve(); } }; group.on('message', receive); });
-  process.kill(runnerPid, 'SIGTERM'); await stopped;
+  let runnerStopped = false;
+  const receive = message => { if (message.type === 'runner-exit') runnerStopped = true; };
+  group.on('message', receive);
+  try {
+    group.send({ type: 'relaylab-stop-runner' });
+    await wait(() => runnerStopped, 'Runner shutdown did not complete');
+  } finally { group.off('message', receive); }
   const missing = await execute(healthy.id, 'runner-unavailable');
   assert.equal(missing.outcome, 'unreachable'); assert.equal(missing.rpcErrorCode, 14);
   assert.equal((await http('/health')).status, 'ok');

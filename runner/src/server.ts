@@ -18,3 +18,6 @@ function stop() {
 }
 process.on("SIGINT", stop);
 process.on("SIGTERM", stop);
+process.on("message", (message: unknown) => {
+  if (message && typeof message === "object" && "type" in message && message.type === "relaylab-shutdown") stop();
+});

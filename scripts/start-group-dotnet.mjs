@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dotnetCommand } from './dotnet-command.mjs';
+import { stopChild } from './smoke-support.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const dll = path.join(root, 'coordinator-dotnet/bin/Release/net10.0/RelayLab.Coordinator.dll');
@@ -16,7 +17,9 @@ let coordinatorStarted = false;
 function stop() {
   if (stopping) return;
   stopping = true;
-  for (const child of children) child.kill('SIGTERM');
+  void Promise.all(children.map(child => stopChild(child))).then(() => {
+    if (process.connected) process.disconnect();
+  }, error => { console.error(error.message); process.exitCode = 1; if (process.connected) process.disconnect(); });
 }
 function track(child, isRunner = false) {
   children.push(child);
@@ -50,3 +53,9 @@ runner.on('message', message => {
 });
 process.on('SIGINT', stop);
 process.on('SIGTERM', stop);
+process.on('message', message => {
+  if (message?.type === 'relaylab-shutdown') stop();
+  else if (message?.type === 'relaylab-stop-runner') void stopChild(runner).catch(error => {
+    console.error(error.message); process.exitCode = 1; stop();
+  });
+});

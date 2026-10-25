@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { stopChild } from './smoke-support.mjs';
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const directory = process.env.RELAYLAB_GROUP_DATA_DIR ?? path.join(root, "data", "group");
@@ -25,7 +26,9 @@ function start(file, env, isRunner = false) {
 function stop() {
   if (stopping) return;
   stopping = true;
-  for (const child of children) child.kill("SIGTERM");
+  void Promise.all(children.map(child => stopChild(child))).then(() => {
+    if (process.connected) process.disconnect();
+  }, error => { console.error(error.message); process.exitCode = 1; if (process.connected) process.disconnect(); });
 }
 let coordinatorStarted = false;
 const runner = start("runner/dist/server.js", { RUNNER_PORT: runnerPort, RUNNER_DATA_DIR: path.join(directory, "runner") }, true);
@@ -45,3 +48,9 @@ runner.on("message", (message) => {
 });
 process.on("SIGINT", stop);
 process.on("SIGTERM", stop);
+process.on('message', message => {
+  if (message?.type === 'relaylab-shutdown') stop();
+  else if (message?.type === 'relaylab-stop-runner') void stopChild(runner).catch(error => {
+    console.error(error.message); process.exitCode = 1; stop();
+  });
+});
