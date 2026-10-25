@@ -39,7 +39,7 @@ public final class MainActivity extends Activity {
     private LinearLayout column;
     private TextView state, validation;
     private EditText feedback;
-    private Button refresh, approve, reject;
+    private Button refresh, approve, reject, discard;
     private final Handler handler = new Handler();
     private boolean resumed;
     private String screenSignature = "";
@@ -124,7 +124,7 @@ public final class MainActivity extends Activity {
         root.setOnApplyWindowInsetsListener((v, insets) -> { v.setPadding(insets.getSystemWindowInsetLeft(), insets.getSystemWindowInsetTop(), insets.getSystemWindowInsetRight(), insets.getSystemWindowInsetBottom()); return insets; }); root.requestApplyInsets();
         ScrollView scroll = new ScrollView(this); scroll.setFillViewport(true); root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
         column = new LinearLayout(this); column.setOrientation(LinearLayout.VERTICAL); column.setPadding(dp(24), dp(12), dp(24), dp(28)); scroll.addView(column);
-        refresh = approve = reject = null; feedback = null; validation = null;
+        refresh = approve = reject = discard = null; feedback = null; validation = null;
         LinearLayout bar = new LinearLayout(this); bar.setGravity(Gravity.CENTER_VERTICAL); column.addView(bar);
         TextView brand = new TextView(this); brand.setText("RelayLab"); brand.setTextSize(17); brand.setTextColor(INK); brand.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         RelayGlyph mark = new RelayGlyph(ACCENT, 0); mark.setBounds(0, 0, dp(24), dp(24)); brand.setCompoundDrawables(mark, null, null, null); brand.setCompoundDrawablePadding(dp(8));
@@ -167,7 +167,7 @@ public final class MainActivity extends Activity {
         for (int i = 0; i < rows.size(); i++) {
             Review review = rows.get(i); boolean focus = !history && i == 0;
             if (focus) { muted("Next to review", 13); gap(10); }
-            String detail = "Run #" + review.runId + " · " + review.outcome.replace('_', ' ') + " · " + review.durationMs + " ms";
+            String detail = "Run #" + review.runId + " · " + review.outcome.replace('_', ' ') + " · " + review.durationMs + " ms" + (model.drafts.has(model.origin, review.id) ? " · draft saved" : "");
             String value = review.name + "\n" + detail + "\n" + (focus ? "Open review  →" : history ? review.status + " · " + date(review.submittedAt) : date(review.submittedAt) + "  →");
             SpannableString label = new SpannableString(value); label.setSpan(new StyleSpan(Typeface.BOLD), 0, review.name.length(), 0); label.setSpan(new RelativeSizeSpan(focus ? 21f / 13f : 16f / 13f), 0, review.name.length(), 0);
             label.setSpan(new ForegroundColorSpan(MUTED), review.name.length() + 1, review.name.length() + 1 + detail.length(), 0);
@@ -208,7 +208,9 @@ public final class MainActivity extends Activity {
             text("Your feedback", 18, true); gap(6); muted("What does this run tell the researcher?", 13); gap(14);
             feedback = new EditText(this); feedback.setTextSize(15); feedback.setMinLines(3); feedback.setGravity(Gravity.TOP); feedback.setTextColor(INK); feedback.setPadding(dp(16), dp(14), dp(16), dp(14)); feedback.setBackground(shape(SURFACE, 12));
             feedback.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE | android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES); feedback.setFilters(new InputFilter[]{new InputFilter.LengthFilter(2000)}); feedback.setHint("Leave a useful note…"); feedback.setContentDescription("Review feedback"); feedback.setText(model.draft); column.addView(feedback);
-            feedback.addTextChangedListener(new TextWatcher() { public void beforeTextChanged(CharSequence s, int start, int count, int after) { } public void afterTextChanged(Editable s) { } public void onTextChanged(CharSequence s, int start, int before, int count) { model.edit(s.toString()); if (!model.draft.trim().isEmpty()) { model.validation = ""; updateState(); } } });
+            feedback.addTextChangedListener(new TextWatcher() { public void beforeTextChanged(CharSequence s, int start, int count, int after) { } public void afterTextChanged(Editable s) { } public void onTextChanged(CharSequence s, int start, int before, int count) { model.edit(s.toString()); if (!model.draft.trim().isEmpty()) { model.validation = ""; } updateState(); } });
+            discard = control("Discard draft", false, () -> { model.discardDraft(); feedback.setText(""); updateState(); }); discard.setTextColor(MUTED); discard.setTextSize(13); discard.setGravity(Gravity.START | Gravity.CENTER_VERTICAL); discard.setPadding(0, 0, 0, 0); discard.setBackgroundColor(Color.TRANSPARENT);
+            column.addView(discard, new LinearLayout.LayoutParams(-2, -2));
             gap(8); validation = text(model.validation, 13, false); validation.setTextColor(BAD); validation.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE); gap(14);
             LinearLayout actions = new LinearLayout(this); column.addView(actions);
             reject = control("Reject run", false, () -> model.decide("rejected")); approve = control("Approve run", true, () -> model.decide("approved"));
@@ -217,6 +219,13 @@ public final class MainActivity extends Activity {
         } else {
             TextView status = text(review.status.equals("approved") ? "Approved" : "Rejected", 18, true); status.setTextColor(review.status.equals("approved") ? ACCENT : BAD); gap(12);
             text(review.feedback, 16, false); gap(14); muted("Decision saved. The run's execution outcome is unchanged.", 12);
+            // Decided elsewhere while a note was in progress: show it, but never send it.
+            if (!model.draft.trim().isEmpty()) {
+                divider(); text("Your unsent note (not saved)", 15, true); gap(6);
+                muted("This review was decided before your note was sent. The decision above is final.", 12); gap(10);
+                text(model.draft, 15, false).setTextColor(MUTED);
+                Button drop = button("Discard unsent note", false, () -> { model.discardDraft(); screenSignature = ""; render(); }); drop.setTextColor(ACCENT); drop.setGravity(Gravity.START | Gravity.CENTER_VERTICAL); drop.setPadding(0, 0, 0, 0); drop.setBackgroundColor(Color.TRANSPARENT);
+            }
         }
     }
     private void updateState() {
@@ -226,11 +235,13 @@ public final class MainActivity extends Activity {
         if (approve != null) approve.setEnabled(!model.busy && !model.decisionNeedsRefresh);
         if (reject != null) reject.setEnabled(!model.busy && !model.decisionNeedsRefresh);
         if (feedback != null) feedback.setEnabled(!model.saving);
+        if (discard != null) discard.setVisibility(model.draft.trim().isEmpty() || model.saving ? View.GONE : View.VISIBLE);
     }
     private void settings() {
         text("Reviewer · local demo", 18, true); gap(8); muted("This is an open demo role, not password sign-in.", 13); divider();
         text("New run notifications", 18, true); gap(8); notificationSettings(); divider();
-        text("Connected API", 15, true); gap(8); muted(model.origin, 14); gap(12);
+        text("Connected API", 15, true); gap(8); muted(model.origin, 14); gap(8);
+        muted("Disconnecting also discards unsent feedback drafts saved on this phone for this API.", 12); gap(12);
         button("Disconnect / change API", false, () -> { model.page = 0; model.disconnect(); });
     }
     private void notificationSettings() {

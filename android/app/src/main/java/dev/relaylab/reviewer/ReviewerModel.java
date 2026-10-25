@@ -36,6 +36,7 @@ final class ReviewerModel {
     /** Returning to the queue keeps the stored draft for when this review is reopened. */
     void leave() { selected = -1; page = 0; draft = ""; }
     void edit(String text) { draft = text; drafts.save(origin, selected, text); }
+    void discardDraft() { drafts.discard(origin, selected); draft = ""; }
     void connect(String value) {
         String next = Endpoint.normalize(value);
         if (!next.equals(origin)) {
@@ -49,6 +50,8 @@ final class ReviewerModel {
     void disconnect() {
         generation++; connected = false; busy = false; saving = false;
         ReviewNotifications.enable(context, false);
+        // Disconnecting is the explicit way to clear this server's private data from the phone.
+        drafts.discardOrigin(origin);
         ReviewNotifications.preferences(context).edit().remove("origin").apply();
         reviews = new ArrayList<>(); selected = -1; draft = "";
         message = "Disconnected. Choose a local demo API to reconnect."; notifyChanged();
