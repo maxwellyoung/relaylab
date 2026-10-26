@@ -788,3 +788,59 @@ perpetual timeouts and stalled probes all fail. Existing 300 ms RPC deadlines,
 strict final unavailable assertions and same-key recovery remain. This records
 the observed CI failure and local correction, not a claim that the updated
 Windows run has passed before its current result is available.
+
+## 25 October: Android per-review feedback drafts (Hansith Perera, issue #3)
+
+Set up the project on Windows 11. Android builds needed the Gradle JDK set to
+21, because Android Studio's bundled Java 25 is newer than Gradle 8.7 supports;
+no project build files changed. The Windows verification run also surfaced
+Windows-only failures in the .NET smoke scripts (an env-var script syntax that
+cmd.exe cannot run, and a killed runner recorded as `timeout` rather than
+`unreachable` because the .NET gRPC client took about 2 s to fail against a
+300 ms deadline). These were reported to the backend owners and are not
+changed on this branch.
+
+The Android reviewer previously kept one in-memory draft, cleared whenever the
+reviewer went back, opened another receipt or followed a notification. Added
+`ReviewDrafts`, an origin- and review-scoped store in private SharedPreferences,
+test-first: six unit tests failed to compile before the class existed and pass
+now. The reviewer screen loads, saves and discards through it. A successful
+decision clears only the decided review's draft; failures keep it. Notes left
+on a review decided elsewhere are shown read-only as unsent and never
+submitted. Disconnect removes that origin's drafts.
+
+Verification: 11 Android unit tests, debug build and lint pass. Six manual
+emulator checks against the real API passed (see the Android reviewer guide).
+Commits `880a224`, `c159e97` and `5ba4916` were written with AI assistance;
+each passed the unit tests, build and lint before it was pushed, and Hansith
+then ran the emulator checks above against the pushed branch.
+
+## 26 October UTC: isolated combined-source recovery checkpoint
+
+The recovery assistant used a fresh clone inside its allocated task workspace,
+without changing the primary or earlier task checkouts. Main `4cec6d1`, PR5
+`0cbc882`, PR6 `73d1de4` and final PR7 `9b5e9ee` were verified. PR7 already
+contains PR5. Applied PR6's diff to PR7 locally; Android files match PR6 exactly.
+Both branches appended development notes at the same point, so Hansith's
+original attributed entry above was preserved after PR7's existing notes.
+No additional dependency update or application-code fix was necessary.
+
+Fresh combined-source checks passed: 119 automated Node/client/API/helper
+checks (one credential-dependent MySQL test skipped), type checks, production
+builds, locked .NET 10.0.401 restore/build, Node HTTP/review/gRPC smokes, both
+.NET EF/direct-SQL HTTP smokes and .NET gRPC recovery, production npm audit
+(zero vulnerabilities) and .NET dependency audit (no reported vulnerabilities).
+All 11 desktop/phone Chromium acceptance checks passed, one run with no retries.
+Java 21/Gradle 8.7 Android verification passed 11 unit tests, debug/release
+builds and both lint tasks. Each lint variant reports five warnings and no
+errors; the release APK is unsigned. Caches and raw logs remain local.
+
+The exact PR7 CI run 40185729670 was independently checked: all six jobs pass,
+including Windows and live MySQL. Those are upstream results, not results for
+the newly assembled Android-inclusive candidate. Native Android runtime,
+physical-device checks, live MySQL on this candidate, native Windows, a larger
+workload/Android latency benchmark, and fresh archive-extraction verification
+were not run here. No personal independent-contribution claim, new narrated
+demo, report submission, remote merge/push/deploy, or Teams send was made.
+See `RECOVERY_CHECKLIST.md` for concrete remaining work and the absent
+authoritative Assessment 3 requirements source.
