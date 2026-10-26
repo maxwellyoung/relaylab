@@ -38,22 +38,32 @@ npx playwright test
 
 - Researcher creates, executes and submits a run through the web UI.
 - Reviewer approves with required feedback in another browser context.
-- Researcher refreshes and sees the saved decision and the same execution
-  outcome. This models selectable local demo identities, not password accounts.
+- Researcher receives the saved decision and the same execution outcome over
+  the live .NET extension; explicit Refresh also remains covered. This models
+  selectable local demo identities, not password accounts.
 - Empty reviewer feedback is rejected; rejection of a slow run retains its
   timeout outcome and displays the saved explanation to the researcher.
 - Researcher review lists remain separate, while the reviewer sees both
   submissions. Experiment recipes remain shared as documented.
 - Browser network loss keeps draft feedback editable and decisions disabled
   until a successful refresh; receipt changes and guide navigation retain drafts.
-- A real competing reviewer decision produces a conflict and loads the saved
-  winner instead of overwriting it.
+- A competing reviewer sees the winning decision automatically; a stale HTTP
+  write must still return 409 instead of overwriting it.
 
 Both desktop (1280 x 800) and phone (320 x 740) Chromium projects run the five
 workflow scenarios. A phone-only case also checks invalid JSON, keyboard
 selection, focus return, filtered empty state, page overflow and reachable
-44-pixel decision controls. There are 11 acceptance checks in one normal run.
+44-pixel decision controls. These original scenarios provide 11 checks.
 The desktop and phone contexts use reduced motion.
+
+The 27 October [live-update extension](LIVE_REVIEW_UPDATES.md) adds five cases
+in both viewports: cross-role propagation, live-only failure/HTTP fallback,
+offline missed-change resync, open-draft/focus continuity, and stream
+authentication/scope/revocation/Origin boundaries. A further desktop-only
+bounded response-time case records 20 samples on a 200-review starting dataset.
+A full run has 22 executed checks and one deliberate phone measurement skip.
+Pure HTTP/socket boundary checks are repeated by project; this is not 22
+distinct workflows or native-device tests.
 
 To select one viewport or check repeatability after a build:
 
@@ -76,8 +86,10 @@ npx playwright show-trace path/to/trace.zip
 Evidence contains synthetic data and temporary demo sessions. Keep raw traces,
 databases and logs outside Git; run this suite only against its disposable
 fixture, not private accounts or shared data. Browser automation is separate
-from physical Android, performance benchmarking and the teammate queue/draft
-work. Network loss is injected with browser offline mode; it is not proof of a
+from physical Android and the teammate queue/draft work. The new local timing
+case is a declared synthetic measurement with raw samples, not a production
+benchmark or query-optimization comparison. Network loss is injected with
+browser offline mode; it is not proof of a
 server-process crash. A controlled SIGINT check also verified that Playwright
 cancellation stops its service and removes the temporary stores.
 Store removal also runs when writing failure diagnostics throws; a controlled

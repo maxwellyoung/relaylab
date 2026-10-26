@@ -844,3 +844,15 @@ were not run here. No personal independent-contribution claim, new narrated
 demo, report submission, remote merge/push/deploy, or Teams send was made.
 See `RECOVERY_CHECKLIST.md` for concrete remaining work and the absent
 authoritative Assessment 3 requirements source.
+
+
+## 27 October 2026 NZDT - Scoped WebSocket review updates (local review)
+
+- New assistant-assisted implementation on isolated branch `recovery/websocket-20261027`, based on preserved candidate4553c9d. No remote push/merge/deployment or student contribution reassignment. This new work is not historical three-week evidence.
+- .NET first-frame session authentication, origin checks, bounded actor-scoped invalidations after persisted writes, expiry/revocation and heartbeat. HTTP remains authoritative; unrelated researchers receive no review contents or change event.
+- Browser live submission/feedback, reconnect snapshot resync, backoff, draft/focus continuity and working HTTP fallback. Android and existing API payloads unchanged; Archie's DTO/pagination and proposed XML documentation work were not taken over.
+- RED: real-stack browser tracer failed at the absent live connection indicator. GREEN: live peer submission/feedback passed. A focus harness failure was corrected by keeping the reviewer tab focused while the other actor used HTTP; no product focus workaround was added. A stale OpenAPI inventory expectation was updated for the additive .NET-only endpoint. Original failed logs are retained outside Git.
+- Final `npm run verify:group` passed119 tests with1 credential-dependent MySQL skip, all types/builds, Node HTTP/review/gRPC and .NET EF/SQL HTTP/gRPC recovery smokes, zero reported production npm vulnerabilities and no reported locked .NET vulnerabilities. .NET build0 warnings/errors; existing large web documentation chunks remain a warning.
+- Final real Chromium run:22 passed, one intentional phone skip of the desktop-only measurement, zero retries. Includes multiple roles, offline missed changes, live-only failure with HTTP fallback, privacy/session/origin checks and phone UI.
+- Bounded live UI measurement:200 initial pending reviews,2 warmups,20 sequential samples,222 final reviews; HTTP submission start through WS invalidation/HTTP resync to visible queue row. Local Apple M3 Max/macOS arm64/Node26.8.2/.NET EF SQLite + Node gRPC; p95 44.712ms, maximum47.410ms, all within proposed1000ms target. Includes DOM observation delay; host load uncontrolled; target/workload require team acceptance. Not WAN, Android, production or a query-optimization comparison.
+- Android11 units, debug/release builds and both lint tasks passed using cached tooling; five warnings per variant, release unsigned. Native UI/notification delivery was not rerun against this new backend. Prior native evidence remains explicitly tied to4553c9d or the original dated checkpoint. Native Windows and live MySQL were not rerun for this candidate.

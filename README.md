@@ -1,5 +1,15 @@
 # RelayLab
 
+Repository: https://github.com/maxwellyoung/relaylab
+
+This isolated review candidate is identified by local tag
+`websocket-review-20261027`. It extends preserved candidate4553c9d; the tag and
+branch have not been pushed and this is not an approved final submission.
+Select the final version with the team before handing in its code ZIP.
+
+The .NET group lane now supports [live review updates and reconnect/resync](docs/LIVE_REVIEW_UPDATES.md).
+Android's HTTP workflow and the manual Refresh fallback remain available.
+
 See [Windows smoke verification](docs/WINDOWS_VERIFICATION.md) for the portable
 npm commands, process shutdown behaviour and platform validation boundary.
 

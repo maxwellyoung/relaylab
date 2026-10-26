@@ -1,4 +1,5 @@
-import { lazy, Suspense, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
+import { watchReviewUpdates, type LiveStatus } from "./review-live";
 
 const Guide = lazy(() => import("./Guide"));
 import {
@@ -50,10 +51,52 @@ export default function ReviewWorkspace({
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [showList, setShowList] = useState(true);
   const [requiresRefresh, setRequiresRefresh] = useState(false);
+  const [liveStatus, setLiveStatus] = useState<LiveStatus>("connecting");
+  const working = useRef(false);
+  const networkFailure = useRef(false);
+  const drainLive = useRef<(() => void) | undefined>(undefined);
+  function setWorking(value: boolean) { working.current = value; setBusy(value); }
+
+  useEffect(() => {
+    if (!session) return;
+    let active = true;
+    let dirty = false;
+    let reading = false;
+    async function drain() {
+      if (reading || working.current || !active) return;
+      reading = true;
+      try {
+        while (dirty && active && !working.current) {
+          dirty = false;
+          try {
+            const next = await listReviews(session!.token);
+            if (active && !working.current) receiveReviews(next);
+            else dirty = true;
+          } catch (reason) {
+            if (active) reportFailure(reason);
+          }
+        }
+      } finally { reading = false; }
+    }
+    drainLive.current = () => void drain();
+    const stop = watchReviewUpdates(session.token, {
+      changed: () => { dirty = true; void drain(); },
+      status: (status) => {
+        if (!active) return;
+        setLiveStatus(status);
+        if (status === "reconnecting" && !navigator.onLine) setRequiresRefresh(true);
+      },
+      expired: () => { if (active) reportFailure(new ApiError("Choose a demo account again; the session is missing or expired", 401)); },
+    });
+    return () => { active = false; drainLive.current = undefined; stop?.(); };
+  }, [session?.token]);
+
+  useEffect(() => { if (!busy) drainLive.current?.(); }, [busy]);
 
   function receiveReviews(next: RunReview[]) {
     setReviews(next);
     setRequiresRefresh(false);
+    if (networkFailure.current) { networkFailure.current = false; setError(""); }
     setSelectedId((current) =>
       next.some((review) => review.id === current)
         ? current
@@ -74,8 +117,10 @@ export default function ReviewWorkspace({
     if (
       reason instanceof TypeError ||
       (reason instanceof ApiError && reason.status >= 500)
-    )
+    ) {
+      networkFailure.current = true;
       setRequiresRefresh(true);
+    }
     if (reason instanceof ApiError && reason.status === 401) {
       setSession(null);
       setReviews([]);
@@ -87,7 +132,7 @@ export default function ReviewWorkspace({
 
   async function chooseAccount(actorId: DemoActorId) {
     if (busy || runBusy) return;
-    setBusy(true);
+    setWorking(true);
     setError("");
     setNotice("");
     setReviews([]);
@@ -110,13 +155,13 @@ export default function ReviewWorkspace({
     } catch (reason) {
       reportFailure(reason);
     } finally {
-      setBusy(false);
+      setWorking(false);
     }
   }
 
   async function refresh() {
     if (!session || busy) return;
-    setBusy(true);
+    setWorking(true);
     setError("");
     setNotice("");
     try {
@@ -125,13 +170,13 @@ export default function ReviewWorkspace({
     } catch (reason) {
       reportFailure(reason);
     } finally {
-      setBusy(false);
+      setWorking(false);
     }
   }
 
   async function submit() {
     if (!session || !latestRun || busy || runBusy) return;
-    setBusy(true);
+    setWorking(true);
     setError("");
     setNotice("");
     try {
@@ -143,7 +188,7 @@ export default function ReviewWorkspace({
     } catch (reason) {
       reportFailure(reason);
     } finally {
-      setBusy(false);
+      setWorking(false);
     }
   }
 
@@ -154,7 +199,7 @@ export default function ReviewWorkspace({
       setError("Provide feedback before approving or rejecting a run.");
       return;
     }
-    setBusy(true);
+    setWorking(true);
     setError("");
     setNotice("");
     try {
@@ -179,7 +224,7 @@ export default function ReviewWorkspace({
         }
       }
     } finally {
-      setBusy(false);
+      setWorking(false);
     }
   }
 
@@ -344,6 +389,12 @@ export default function ReviewWorkspace({
               </button>
             )}
           </header>
+          {session && <p className="review-identity" role="status" aria-label="Live review connection">
+            {liveStatus === "connected" ? "Live updates connected"
+              : liveStatus === "connecting" ? "Connecting live updates; Refresh is available."
+              : liveStatus === "manual" ? "Live updates unavailable; use Refresh."
+              : "Live updates disconnected; reconnecting. Refresh is available."}
+          </p>}
           {error && (
             <p className="error-message" role="alert">
               {error}

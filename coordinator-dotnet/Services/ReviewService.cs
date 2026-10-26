@@ -7,7 +7,7 @@ namespace RelayLab.Coordinator.Services;
 
 // Selectable actors are a local workflow demonstration, not password accounts.
 // Tokens are bounded, expiring, revocable and never persisted or logged.
-public sealed class ReviewService(ICoordinatorRepository repository)
+public sealed class ReviewService(ICoordinatorRepository repository, ReviewUpdates updates)
 {
     private record Session(Actor Actor, DateTimeOffset ExpiresAt);
     private readonly Dictionary<string, Session> sessions = new();
@@ -41,7 +41,7 @@ public sealed class ReviewService(ICoordinatorRepository repository)
             throw new ApiFailure(401, "Choose a demo account again; the session is missing or expired");
         }
     }
-    public void Revoke(string authorization) { _ = ActorFor(authorization); lock (gate) sessions.Remove(authorization[7..]); }
+    public void Revoke(string authorization) { _ = ActorFor(authorization); lock (gate) sessions.Remove(authorization[7..]); updates.SessionRevoked(authorization); }
     public IReadOnlyList<Review> List(Actor actor) => repository.ListReviews(actor.Role == "researcher" ? actor.Id : null);
     public Review Get(Actor actor, long id)
     {
@@ -53,7 +53,9 @@ public sealed class ReviewService(ICoordinatorRepository repository)
     {
         if (actor.Role != "researcher") throw new ApiFailure(403, "Only a researcher can submit a run");
         if (repository.GetRun(id) is null) throw new ApiFailure(404, "Run not found");
-        return repository.CreateReview(id, actor.Id);
+        var review = repository.CreateReview(id, actor.Id);
+        updates.Publish(review.ResearcherId);
+        return review;
     }
     public Review Decide(Actor actor, long id, JsonElement body)
     {
@@ -62,6 +64,8 @@ public sealed class ReviewService(ICoordinatorRepository repository)
             || !body.TryGetProperty("feedback", out var feedback) || feedback.ValueKind != JsonValueKind.String || feedback.GetString()!.Trim().Length is < 1 or > 2000)
             throw new ApiFailure(400, "Choose approved or rejected and provide feedback (1–2000 characters)");
         _ = Get(actor, id);
-        return repository.DecideReview(id, status.GetString()!, feedback.GetString()!.Trim(), actor.Id) ?? throw new ApiFailure(409, "This run has already been reviewed. Refresh to see the decision.");
+        var review = repository.DecideReview(id, status.GetString()!, feedback.GetString()!.Trim(), actor.Id) ?? throw new ApiFailure(409, "This run has already been reviewed. Refresh to see the decision.");
+        updates.Publish(review.ResearcherId);
+        return review;
     }
 }

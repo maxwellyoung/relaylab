@@ -12,6 +12,7 @@ import {
 } from "./api";
 
 vi.mock("./Guide", () => ({ default: () => <h1>System guide</h1> }));
+vi.mock("./review-live", () => ({ watchReviewUpdates: vi.fn(() => () => {}) }));
 
 vi.mock("./api", async (original) => ({
   ...(await original<typeof import("./api")>()),

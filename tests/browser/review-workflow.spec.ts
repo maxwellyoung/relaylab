@@ -179,15 +179,17 @@ test("reviewer keeps per-run drafts and requires a successful refresh after a br
   ).toBeVisible();
 });
 
-test("a stale reviewer sees the winning decision instead of overwriting it", async ({
-  actor,
+test("a competing reviewer receives the winning decision and a stale HTTP write cannot overwrite it", async ({
+  actor, request, stack,
 }) => {
   const researcher = await actor("Researcher A");
   const run = await submitRun(researcher);
   const firstReviewer = await actor("Reviewer");
   const secondReviewer = await actor("Reviewer");
   const firstReceipt = await openReview(firstReviewer, run.id);
+  const secondRead = secondReviewer.waitForRequest(request => request.method() === "GET" && request.url().endsWith("/api/reviews"));
   await openReview(secondReviewer, run.id);
+  const authorization = (await secondRead).headers().authorization!;
   await secondReviewer
     .getByLabel(`Feedback for run #${run.id} (required)`, { exact: true })
     .fill("A stale competing rejection.");
@@ -201,12 +203,14 @@ test("a stale reviewer sees the winning decision instead of overwriting it", asy
   await expect(
     firstReceipt.getByText("Approved", { exact: true }),
   ).toBeVisible();
-  await secondReviewer
-    .getByRole("button", { name: `Reject run #${run.id}`, exact: true })
-    .click();
-  await expect(secondReviewer.getByRole("alert")).toContainText(
-    "already been reviewed",
-  );
+  // Live state removes the stale decision controls. A stale public-API caller
+  // must still receive409; push delivery is never the concurrency authority.
+  const reviewId = /review-(\d+)/.exec(await firstReceipt.getAttribute("aria-labelledby") ?? "")![1];
+  const stale = await request.patch(`${stack.url}/api/reviews/${reviewId}`, {
+    headers: { Authorization: authorization },
+    data: { status: "rejected", feedback: "A stale competing rejection." },
+  });
+  expect(stale.status()).toBe(409);
   const secondReceipt = secondReviewer.getByRole("article", {
     name: new RegExp(` · Run #${run.id}$`),
   });
