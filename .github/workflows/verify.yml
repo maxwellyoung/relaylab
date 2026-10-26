@@ -2,7 +2,7 @@ name: verify
 
 on:
   push:
-    branches: [main, group-review-workflow, team-backend-integration]
+    branches: [main, group-review-workflow, team-backend-integration, recovery/websocket-20261027]
   pull_request:
 
 permissions:

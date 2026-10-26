@@ -856,3 +856,11 @@ authoritative Assessment 3 requirements source.
 - Final real Chromium run:22 passed, one intentional phone skip of the desktop-only measurement, zero retries. Includes multiple roles, offline missed changes, live-only failure with HTTP fallback, privacy/session/origin checks and phone UI.
 - Bounded live UI measurement:200 initial pending reviews,2 warmups,20 sequential samples,222 final reviews; HTTP submission start through WS invalidation/HTTP resync to visible queue row. Local Apple M3 Max/macOS arm64/Node26.8.2/.NET EF SQLite + Node gRPC; p95 44.712ms, maximum47.410ms, all within proposed1000ms target. Includes DOM observation delay; host load uncontrolled; target/workload require team acceptance. Not WAN, Android, production or a query-optimization comparison.
 - Android11 units, debug/release builds and both lint tasks passed using cached tooling; five warnings per variant, release unsigned. Native UI/notification delivery was not rerun against this new backend. Prior native evidence remains explicitly tied to4553c9d or the original dated checkpoint. Native Windows and live MySQL were not rerun for this candidate.
+
+
+## 27 October 2026 NZDT - Working-branch publication preparation
+
+- Maxwell explicitly authorized frequent meaningful commits/pushes on the working branch; main/force-push/merge/deployment remain outside scope.
+- Confirmed originhttps://github.com/maxwellyoung/relaylab, remote main4cec6d1 and unchanged PR5/6/7 heads. The new working-branch name was absent. Tracked feature delta contains only source/tests/docs, with no private-key/token patterns or generated/dependency files found.
+- Clarified the combined main+PR5/PR7+PR6snapshot base in rootREADME; original PR6 work is not silently reassigned. Enabled the existing read-only verification workflow on this specific recovery branch so a working-branch push receives the same CI gates without creating a misleading independent PR.
+- Executable source remains exactly6173eaa, already verified locally; this commit changes publication documentation and CI trigger selection only. Remote push/head/CI outcome must be independently checked after publication, not inferred here. Local review tag is not included in the branch push.

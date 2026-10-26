@@ -2,10 +2,14 @@
 
 Repository: https://github.com/maxwellyoung/relaylab
 
-This isolated review candidate is identified by local tag
-`websocket-review-20261027`. It extends preserved candidate4553c9d; the tag and
-branch have not been pushed and this is not an approved final submission.
-Select the final version with the team before handing in its code ZIP.
+The tested feature source is6173eaa724381019bd0098b0d053412fb67dbd79,
+identified by local tag `websocket-review-20261027`. Its working branch is
+`recovery/websocket-20261027`; publication-context/CI-only descendants do not
+change that tested executable source. The tag is local and is not pushed.
+This combined review candidate includes PR5 browser acceptance, PR7 Windows
+and dependency work, and the PR6 Android snapshot on top of main4cec6d1,
+before the new WebSocket change. It is not a small independent patch or an
+approved final submission. Select the final source with the team before hand-in.
 
 The .NET group lane now supports [live review updates and reconnect/resync](docs/LIVE_REVIEW_UPDATES.md).
 Android's HTTP workflow and the manual Refresh fallback remain available.
