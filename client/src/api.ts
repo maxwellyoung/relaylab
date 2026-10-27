@@ -95,8 +95,8 @@ export function createDemoSession(actorId: DemoActorId): Promise<DemoSession> {
 export function endDemoSession(token: string): Promise<void> {
   return request("/api/demo-sessions/current", { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
 }
-export function listReviews(token: string): Promise<RunReview[]> {
-  return request("/api/reviews", { headers: { Authorization: `Bearer ${token}` } });
+export function listReviews(token: string, signal?: AbortSignal): Promise<RunReview[]> {
+  return request("/api/reviews", { headers: { Authorization: `Bearer ${token}` }, signal });
 }
 export function submitReview(token: string, runId: number): Promise<RunReview> {
   return request(`/api/runs/${runId}/reviews`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });

@@ -27,6 +27,7 @@ describe("browser-facing REST contract", () => {
       "/api/demo-sessions",
       "/api/demo-sessions/current",
       "/api/reviews",
+      "/api/reviews/live",
       "/api/reviews/{reviewId}",
       "/api/runs/{runId}/reviews",
       "/api/runs/{runId}/execution",
@@ -40,6 +41,7 @@ describe("browser-facing REST contract", () => {
     expect(Object.keys(document.paths["/api/experiments/{experimentId}/runs"]).sort()).toEqual(["post"]);
     expect(Object.keys(document.paths["/api/experiments/{experimentId}/runs"].post.responses).sort()).toEqual(["200", "201", "404", "503"]);
     expect(Object.keys(document.paths["/api/reviews/{reviewId}"].patch.responses).sort()).toEqual(["200", "400", "401", "403", "404", "409", "503"]);
+    expect(Object.keys(document.paths["/api/reviews/live"].get.responses).sort()).toEqual(["101", "403", "426"]);
   });
 
   it("keeps an old client compatible with an additive response field", async () => {

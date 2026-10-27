@@ -10,6 +10,7 @@ import Database from 'better-sqlite3';
 import { once } from 'node:events';
 import { fileURLToPath } from 'node:url';
 import { dotnetCommand } from './dotnet-command.mjs';
+import { captureChild, stopChild, waitForHealth, waitForUnreachable } from './smoke-support.mjs';
 import { openDatabase } from '../server/dist/database.js';
 import { experimentRunResponseV1Schema, experimentDetailsResponseV1Schema } from '../server/dist/public-contract.js';
 
@@ -30,16 +31,10 @@ const base = `http://127.0.0.1:${publicPort}`;
 function start(command, args, env = {}, ipc = false) {
   const child = spawn(command, args, { cwd: root, env: { ...process.env, ...env }, stdio: ipc ? ['ignore', 'pipe', 'pipe', 'ipc'] : ['ignore', 'pipe', 'pipe'] });
   child.on('message', message => { if (message?.type === 'runner-ready') child.runnerReady = true; });
-  child.on('error', error => output.push(error.message));
-  child.stdout.on('data', data => output.push(data.toString())); child.stderr.on('data', data => output.push(data.toString()));
+  captureChild(child, output);
   children.push(child); return child;
 }
-async function stop(child) {
-  if (!child || child.exitCode !== null || child.signalCode !== null) return;
-  const ended = once(child, 'exit'); child.kill('SIGTERM');
-  const timer = setTimeout(() => child.kill('SIGKILL'), 5000);
-  try { await ended; } finally { clearTimeout(timer); }
-}
+const stop = stopChild;
 async function wait(check, label) {
   const deadline = Date.now() + 12000;
   while (Date.now() < deadline) {
@@ -48,8 +43,8 @@ async function wait(check, label) {
   }
   throw new Error(`${label}\n${output.join('')}`);
 }
-async function http(resource, { method = 'GET', body, token, key, status = 200 } = {}) {
-  const response = await fetch(base + resource, { method, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(key ? { 'Idempotency-Key': key } : {}) }, body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(6000) });
+async function http(resource, { method = 'GET', body, token, key, status = 200, signal } = {}) {
+  const response = await fetch(base + resource, { method, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(key ? { 'Idempotency-Key': key } : {}) }, body: body === undefined ? undefined : JSON.stringify(body), signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(6000)]) : AbortSignal.timeout(6000) });
   assert.equal(response.status, status, `${method} ${resource}: ${await response.clone().text()}`);
   return response.status === 204 ? undefined : response.json();
 }
@@ -81,7 +76,7 @@ try {
     await wait(() => runner.runnerReady, 'Initial runner did not become ready');
   }
   let api = coordinator();
-  await wait(async () => (await http('/health')).status === 'ok', '.NET coordinator did not become ready');
+  await waitForHealth(base + '/health', { child: api, output, label: '.NET coordinator did not become ready' });
   assert.equal((await http('/health')).persistenceAdapter, environment.RELAYLAB_PERSISTENCE_ADAPTER);
   await http('/api/experiments', { method: 'POST', body: { name: ' ', behavior: 'healthy', payload: {} }, status: 400 });
   await http('/api/experiments', { method: 'POST', body: { name: 'Invalid payload', behavior: 'healthy', payload: [] }, status: 400 });
@@ -91,7 +86,7 @@ try {
   assert.deepEqual((await http(`/api/experiments/${item.id}`)).runs, []);
   await http('/api/experiments/1junk', { status: 404 });
   await stop(api); api = coordinator();
-  await wait(async () => (await http('/health')).status === 'ok', 'Restart failed');
+  await waitForHealth(base + '/health', { child: api, output, label: 'Restart failed' });
   assert.equal((await http(`/api/experiments/${item.id}`)).name, item.name);
   await http(`/api/experiments/${item.id}`, { method: 'DELETE', status: 204 });
   await http(`/api/experiments/${item.id}`, { status: 404 });
@@ -115,7 +110,8 @@ try {
       assert.equal((await http(`/api/experiments/${item.id}/runs`, { method: 'POST', status: 201 })).outcome, outcome);
     }
     await stop(runner);
-    assert.equal((await http(`/api/experiments/${healthy.id}/runs`, { method: 'POST', status: 201, key: 'runner-down' })).outcome, 'unreachable');
+    const unavailable = await waitForUnreachable(signal => http(`/api/experiments/${healthy.id}/runs`, { method: 'POST', status: 201, key: 'runner-down', signal }));
+    assert.equal(unavailable.outcome, 'unreachable'); assert.equal(unavailable.rpcErrorCode, 14);
     await http(`/api/runs/${run.id}/execution`, { status: 503 });
     runner = start(process.execPath, ['runner/dist/server.js'], { RUNNER_PORT: String(runnerPort), RUNNER_DATA_DIR: path.join(directory, 'runner') }, true);
     await wait(() => runner.runnerReady, 'Restarted runner did not become ready');
@@ -146,7 +142,7 @@ try {
     await http('/api/demo-sessions/current', { method: 'DELETE', token: reviewer, status: 204 });
     await http('/api/reviews', { token: reviewer, status: 401 });
     await stop(api); api = coordinator();
-    await wait(async () => (await http('/health')).status === 'ok', 'Restart with reviews failed');
+    await waitForHealth(base + '/health', { child: api, output, label: 'Restart with reviews failed' });
     await http('/api/reviews', { token: researcher, status: 401 });
     researcher = await session('researcher-a');
     assert.deepEqual(await http(`/api/reviews/${review.id}`, { token: researcher }), decided);
@@ -169,7 +165,7 @@ try {
       await stop(api);
       environment.RELAYLAB_PERSISTENCE_ADAPTER = adapter;
       api = coordinator();
-      await wait(async () => (await http('/health')).status === 'ok', 'Adapter switch failed');
+      await waitForHealth(base + '/health', { child: api, output, label: 'Adapter switch failed' });
       assert.equal((await http('/health')).persistenceAdapter, adapter);
       researcher = await session('researcher-a');
       assert.deepEqual(await http(`/api/experiments/${healthy.id}`), expectedHistory);

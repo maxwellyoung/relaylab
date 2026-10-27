@@ -627,6 +627,24 @@
           }
         }
       }
+    },
+    "/api/reviews/live": {
+      "get": {
+        "operationId": "subscribeLiveReviews",
+        "summary": ".NET group-lane WebSocket invalidations; existing Node HTTP lane remains manual",
+        "description": "Upgrade, then authenticate with first complete <=512-byte text frame {type:subscribe,token:<demo session token>} within5seconds. Server emits ready,reviews-changed or heartbeat with no review contents. Reload authenticated GET /api/reviews after ready or change, including reconnect. See docs/LIVE_REVIEW_UPDATES.md for origin/session/scope/backpressure rules.",
+        "responses": {
+          "101": {
+            "description": "WebSocket upgraded; subscription requires first-frame authentication"
+          },
+          "403": {
+            "description": "Foreign browser Origin rejected"
+          },
+          "426": {
+            "description": "WebSocket upgrade required; HTTP Refresh is available"
+          }
+        }
+      }
     }
   },
   "components": {

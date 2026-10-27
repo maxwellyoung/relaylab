@@ -2,13 +2,28 @@ name: verify
 
 on:
   push:
-    branches: [main, group-review-workflow, team-backend-integration]
+    branches: [main, group-review-workflow, team-backend-integration, recovery/websocket-20261027]
   pull_request:
 
 permissions:
   contents: read
 
 jobs:
+  windows:
+    name: Windows Node and .NET smoke compatibility
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: npm ci
+      - run: npm run verify:group
+
   dotnet:
     name: .NET coordinator HTTP compatibility and gRPC recovery
     runs-on: ubuntu-latest
@@ -40,6 +55,32 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run verify
+
+  browser:
+    name: browser acceptance against .NET and gRPC
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:browser
+      - name: Retain synthetic browser diagnostics
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-acceptance
+          path: |
+            output/playwright/report/
+            output/playwright/results/
+          retention-days: 5
+          if-no-files-found: ignore
 
   mysql:
     name: adapter against a real MySQL 8.4

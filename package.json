@@ -22,23 +22,29 @@
     "build:dotnet": "node scripts/dotnet.mjs restore coordinator-dotnet --locked-mode && node scripts/dotnet.mjs build coordinator-dotnet -c Release --no-restore",
     "build:group": "npm run build && npm run build:dotnet",
     "smoke:dotnet": "node scripts/smoke-dotnet.mjs",
-    "smoke:dotnet:sql": "RELAYLAB_PERSISTENCE_ADAPTER=sql node scripts/smoke-dotnet.mjs",
+    "smoke:dotnet:sql": "cross-env RELAYLAB_PERSISTENCE_ADAPTER=sql node scripts/smoke-dotnet.mjs",
     "smoke:grpc:dotnet": "node scripts/smoke-grpc.mjs --dotnet",
     "audit:dotnet": "node scripts/audit-dotnet.mjs",
     "verify:group": "npm run verify && npm run build:dotnet && npm run smoke:dotnet && npm run smoke:dotnet:sql && npm run smoke:grpc:dotnet && npm run audit:dotnet",
     "db:inspect": "node --env-file-if-exists=.env scripts/inspect-database.mjs",
-    "test": "npm run test --workspaces --if-present",
+    "test": "node --test scripts/smoke-support.test.mjs && npm run test --workspaces --if-present",
     "test:contract": "npm run test -w server -- public-contract.test.ts",
-    "typecheck": "npm run typecheck --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present && npm run typecheck:browser",
     "build": "npm run build --workspaces --if-present",
     "smoke": "node scripts/smoke-production.mjs",
     "smoke:reviews": "node scripts/smoke-reviews.mjs",
     "package": "git archive --format=zip --prefix=relaylab/ -o relaylab-submission.zip HEAD && unzip -l relaylab-submission.zip | tail -1",
     "verify": "npm test && npm run typecheck && npm run build && npm run smoke && npm run smoke:reviews && npm run smoke:grpc && npm audit --omit=dev --audit-level=high",
-    "smoke:grpc": "node scripts/smoke-grpc.mjs"
+    "smoke:grpc": "node scripts/smoke-grpc.mjs",
+    "test:browser": "cross-env VITE_API_BASE_URL= npm run build:group && playwright test",
+    "typecheck:browser": "tsc --project tests/browser/tsconfig.json"
   },
   "devDependencies": {
-    "concurrently": "^10.0.4"
+    "@playwright/test": "1.64.1",
+    "@types/node": "26.1.2",
+    "concurrently": "^10.0.4",
+    "cross-env": "10.1.0",
+    "typescript": "7.0.2"
   },
   "dependencies": {
     "@grpc/grpc-js": "1.14.5",
