@@ -65,20 +65,23 @@ export default function ReviewWorkspace({
     let active = true;
     let dirty = false;
     let latest = 0;
-    // Each invalidation starts a fresh read and only the newest may apply, so a
-    // stalled request cannot block reconnect resync or later updates.
+    let reader: AbortController | undefined;
+    // Each invalidation replaces the previous read, aborting it, so a stalled
+    // request cannot block reconnect resync and stalled reads cannot pile up.
     async function drain() {
       if (!dirty || working.current || !active) return;
       dirty = false;
       const request = ++latest;
       const started = foreground.current;
+      reader?.abort();
+      reader = new AbortController();
       try {
-        const next = await listReviews(session!.token);
+        const next = await listReviews(session!.token, reader.signal);
         if (!active || request !== latest) return;
         if (started !== foreground.current) { dirty = true; void drain(); return; }
         receiveReviews(next);
       } catch (reason) {
-        if (active && request === latest) reportFailure(reason);
+        if (active && request === latest && started === foreground.current) reportFailure(reason);
       }
     }
     drainLive.current = () => void drain();
@@ -91,7 +94,7 @@ export default function ReviewWorkspace({
       },
       expired: () => { if (active) reportFailure(new ApiError("Choose a demo account again; the session is missing or expired", 401)); },
     });
-    return () => { active = false; drainLive.current = undefined; stop?.(); };
+    return () => { active = false; reader?.abort(); drainLive.current = undefined; stop?.(); };
   }, [session?.token]);
 
   useEffect(() => { if (!busy) drainLive.current?.(); }, [busy]);

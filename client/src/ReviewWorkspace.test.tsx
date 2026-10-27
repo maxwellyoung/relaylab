@@ -470,3 +470,16 @@ it("keeps applying live updates after an earlier live read stalls", async () => 
   changed();
   await screen.findByText("Approved");
 });
+
+it("aborts superseded live reads so stalled requests do not accumulate", async () => {
+  vi.mocked(listReviews).mockResolvedValueOnce([review]);
+  const { changed } = await signInWithLiveUpdates();
+  const signals: AbortSignal[] = [];
+  vi.mocked(listReviews).mockImplementation((_token, signal) => {
+    signals.push(signal!);
+    return new Promise(() => {});
+  });
+  for (let i = 0; i < 5; i++) changed();
+  expect(signals).toHaveLength(5);
+  expect(signals.filter((signal) => !signal.aborted)).toHaveLength(1);
+});
