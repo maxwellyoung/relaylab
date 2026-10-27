@@ -55,28 +55,31 @@ export default function ReviewWorkspace({
   const working = useRef(false);
   const networkFailure = useRef(false);
   const drainLive = useRef<(() => void) | undefined>(undefined);
-  function setWorking(value: boolean) { working.current = value; setBusy(value); }
+  // Bumped at the start and end of every foreground operation, so a live read
+  // that overlapped one cannot replace the newer result it produced.
+  const foreground = useRef(0);
+  function setWorking(value: boolean) { foreground.current++; working.current = value; setBusy(value); }
 
   useEffect(() => {
     if (!session) return;
     let active = true;
     let dirty = false;
-    let reading = false;
+    let latest = 0;
+    // Each invalidation starts a fresh read and only the newest may apply, so a
+    // stalled request cannot block reconnect resync or later updates.
     async function drain() {
-      if (reading || working.current || !active) return;
-      reading = true;
+      if (!dirty || working.current || !active) return;
+      dirty = false;
+      const request = ++latest;
+      const started = foreground.current;
       try {
-        while (dirty && active && !working.current) {
-          dirty = false;
-          try {
-            const next = await listReviews(session!.token);
-            if (active && !working.current) receiveReviews(next);
-            else dirty = true;
-          } catch (reason) {
-            if (active) reportFailure(reason);
-          }
-        }
-      } finally { reading = false; }
+        const next = await listReviews(session!.token);
+        if (!active || request !== latest) return;
+        if (started !== foreground.current) { dirty = true; void drain(); return; }
+        receiveReviews(next);
+      } catch (reason) {
+        if (active && request === latest) reportFailure(reason);
+      }
     }
     drainLive.current = () => void drain();
     const stop = watchReviewUpdates(session.token, {

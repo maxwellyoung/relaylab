@@ -26,6 +26,7 @@ public sealed class ReviewLiveController(ReviewService reviews, ReviewUpdates up
 
         using var socket = await HttpContext.WebSockets.AcceptWebSocketAsync();
         using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(HttpContext.RequestAborted);
+        Task<WebSocketReceiveResult>? incoming = null;
         try
         {
             // First-frame authentication keeps credentials out of URLs and logs.
@@ -46,7 +47,7 @@ public sealed class ReviewLiveController(ReviewService reviews, ReviewUpdates up
             var actor = reviews.ActorFor(authorization);
             using var subscription = updates.Subscribe(actor, authorization);
             await Send(socket, "ready", lifetime.Token);
-            var incoming = socket.ReceiveAsync(new ArraySegment<byte>(new byte[1]), lifetime.Token);
+            incoming = socket.ReceiveAsync(new ArraySegment<byte>(new byte[1]), lifetime.Token);
             var change = subscription.Changes.Reader.WaitToReadAsync(lifetime.Token).AsTask();
             using var heartbeat = new PeriodicTimer(TimeSpan.FromSeconds(15));
             var tick = heartbeat.WaitForNextTickAsync(lifetime.Token).AsTask();
@@ -56,8 +57,11 @@ public sealed class ReviewLiveController(ReviewService reviews, ReviewUpdates up
                 if (next == incoming)
                 {
                     var message = await incoming;
-                    await socket.CloseOutputAsync(message.MessageType == WebSocketMessageType.Close ? WebSocketCloseStatus.NormalClosure : WebSocketCloseStatus.PolicyViolation,
-                        "Reconnect to subscribe again", lifetime.Token);
+                    incoming = null;
+                    if (message.MessageType == WebSocketMessageType.Close)
+                        await socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "Reconnect to subscribe again", lifetime.Token);
+                    else
+                        await Close(socket, WebSocketCloseStatus.PolicyViolation, "Reconnect to subscribe again", null);
                     break;
                 }
                 _ = reviews.ActorFor(authorization); // expiry/revocation applies to every outbound frame
@@ -79,11 +83,26 @@ public sealed class ReviewLiveController(ReviewService reviews, ReviewUpdates up
         catch (Exception error) when (error is ApiFailure or JsonException or InvalidOperationException)
         {
             if (socket.State == WebSocketState.Open)
-                await socket.CloseOutputAsync(error is ApiFailure { Status: 429 } ? (WebSocketCloseStatus)1013 : WebSocketCloseStatus.PolicyViolation,
-                    "Choose a demo account again or use Refresh", CancellationToken.None);
+                await Close(socket, error is ApiFailure { Status: 429 } ? (WebSocketCloseStatus)1013 : WebSocketCloseStatus.PolicyViolation,
+                    "Choose a demo account again or use Refresh", incoming);
         }
         catch (Exception error) when (error is OperationCanceledException or WebSocketException) { }
         finally { lifetime.Cancel(); }
+    }
+    // Returning right after CloseOutputAsync lets Kestrel reset the connection,
+    // which can discard the close frame so the client sees 1006 instead of the
+    // policy code. Wait briefly for the client's close reply first.
+    private static async Task Close(WebSocket socket, WebSocketCloseStatus status, string reason, Task<WebSocketReceiveResult>? pending)
+    {
+        await socket.CloseOutputAsync(status, reason, CancellationToken.None);
+        using var wait = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        try
+        {
+            var receive = pending ?? socket.ReceiveAsync(new ArraySegment<byte>(new byte[64]), wait.Token);
+            while ((await receive.WaitAsync(wait.Token)).MessageType != WebSocketMessageType.Close)
+                receive = socket.ReceiveAsync(new ArraySegment<byte>(new byte[64]), wait.Token);
+        }
+        catch (Exception error) when (error is OperationCanceledException or WebSocketException) { }
     }
     private static Task Send(WebSocket socket, string type, CancellationToken cancellation) =>
         socket.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes("{\"type\":\"" + type + "\"}")), WebSocketMessageType.Text, true, cancellation);

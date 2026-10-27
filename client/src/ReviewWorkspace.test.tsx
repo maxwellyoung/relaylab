@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, it, vi } from "vitest";
 import ReviewWorkspace from "./ReviewWorkspace";
@@ -10,6 +10,7 @@ import {
   decideReview,
   type RunReview,
 } from "./api";
+import { watchReviewUpdates } from "./review-live";
 
 vi.mock("./Guide", () => ({ default: () => <h1>System guide</h1> }));
 vi.mock("./review-live", () => ({ watchReviewUpdates: vi.fn(() => () => {}) }));
@@ -423,4 +424,49 @@ it("keeps reviewer feedback when visiting the guide and returning", async () => 
     "Review this after reading the guide.",
   );
   expect(createDemoSession).toHaveBeenCalledTimes(1);
+});
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => { resolve = done; });
+  return { promise, resolve };
+}
+
+async function signInWithLiveUpdates() {
+  let changed!: () => void;
+  vi.mocked(watchReviewUpdates).mockImplementation((_token, callbacks) => {
+    changed = callbacks.changed;
+    return () => {};
+  });
+  const user = userEvent.setup();
+  render(<ReviewWorkspace latestRun={null} runBusy={false} onRoleChange={() => {}} />);
+  await user.click(screen.getByRole("button", { name: "Reviewer" }));
+  await screen.findByText("Pending review");
+  return { user, changed: () => act(() => changed()) };
+}
+
+const approved: RunReview = { ...review, status: "approved", feedback: "Good evidence", reviewerId: "reviewer" };
+
+it("does not let an older live snapshot replace a newer manual refresh", async () => {
+  vi.mocked(listReviews).mockResolvedValueOnce([review]);
+  const { user, changed } = await signInWithLiveUpdates();
+  const stale = deferred<RunReview[]>();
+  vi.mocked(listReviews).mockReturnValueOnce(stale.promise).mockResolvedValue([approved]);
+  changed();
+  await user.click(screen.getByRole("button", { name: "Refresh reviews" }));
+  await screen.findByText("Approved");
+  await act(async () => stale.resolve([review]));
+  await waitFor(() => expect(screen.getByText("Approved")).toBeVisible());
+  expect(screen.queryByText("Pending review")).toBeNull();
+});
+
+it("keeps applying live updates after an earlier live read stalls", async () => {
+  vi.mocked(listReviews).mockResolvedValueOnce([review]);
+  const { changed } = await signInWithLiveUpdates();
+  vi.mocked(listReviews)
+    .mockReturnValueOnce(new Promise(() => {}))
+    .mockResolvedValue([approved]);
+  changed();
+  changed();
+  await screen.findByText("Approved");
 });
