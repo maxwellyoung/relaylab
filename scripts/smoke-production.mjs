@@ -44,7 +44,7 @@ function startApplication({ dataDirectory, publicPort, downstreamPort }) {
       // demonstration deadline, so a busy machine must not fail it.
       DOWNSTREAM_TIMEOUT_MS: "5000",
     },
-    stdio: ["ignore", "pipe", "pipe"],
+    stdio: ["ignore", "pipe", "pipe", "ipc"],
   });
   for (const stream of [child.stdout, child.stderr]) {
     stream.setEncoding("utf8");
@@ -58,13 +58,45 @@ function startApplication({ dataDirectory, publicPort, downstreamPort }) {
 
 async function stopApplication(child) {
   if (child.exitCode !== null || child.signalCode !== null) return;
-  child.kill("SIGTERM");
-  await Promise.race([
-    new Promise((resolve) => child.once("exit", resolve)),
-    new Promise((resolve) => setTimeout(resolve, 3_000)),
-  ]);
-  if (child.exitCode === null && child.signalCode === null) {
-    child.kill("SIGKILL");
+  await new Promise((resolve, reject) => {
+    let forceTimer;
+    let failureTimer;
+    const finish = (error) => {
+      clearTimeout(forceTimer);
+      clearTimeout(failureTimer);
+      child.off("exit", exited);
+      error ? reject(error) : resolve();
+    };
+    const exited = () => finish();
+    child.once("exit", exited);
+    forceTimer = setTimeout(() => {
+      if (child.exitCode !== null || child.signalCode !== null) {
+        finish();
+        return;
+      }
+      try {
+        child.kill("SIGKILL");
+      } catch (error) {
+        finish(error);
+        return;
+      }
+      failureTimer = setTimeout(
+        () => finish(new Error(`Production supervisor ${child.pid} did not stop`)),
+        2_000,
+      );
+    }, 8_000);
+    if (child.connected) {
+      child.send({ type: "relaylab-shutdown" }, (error) => {
+        if (error && child.exitCode === null && child.signalCode === null) {
+          child.kill("SIGTERM");
+        }
+      });
+    } else {
+      child.kill("SIGTERM");
+    }
+  });
+  if (child.connected) {
+    child.disconnect();
   }
 }
 
