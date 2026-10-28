@@ -15,7 +15,18 @@ public sealed class ReviewsController(ReviewService service) : ControllerBase
     [HttpDelete("api/demo-sessions/current")]
     public IActionResult Revoke() { Response.Headers.CacheControl = "no-store"; service.Revoke(Authorization); return NoContent(); }
     [HttpGet("api/reviews")]
-    public IActionResult List() => Ok(service.List(Actor()));
+    public IActionResult List()
+    {
+        var actor = Actor();
+        // Read raw query values: string model binding converts supplied empty values to null.
+        // An explicit ?status= must be rejected, not treated as an omitted filter.
+        var query = Request.Query;
+        var options = ReviewListOptions.Parse(
+            query.TryGetValue("status", out var status) ? status.ToString() : null,
+            query.TryGetValue("page", out var page) ? page.ToString() : null,
+            query.TryGetValue("pageSize", out var pageSize) ? pageSize.ToString() : null);
+        return Ok(service.List(actor, options));
+    }
     [HttpGet("api/reviews/{id}")]
     public IActionResult Get(string id) => Ok(service.Get(Actor(), ExperimentsController.Id(id)));
     [HttpPost("api/runs/{id}/reviews")]

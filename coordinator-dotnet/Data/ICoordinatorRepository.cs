@@ -20,7 +20,7 @@ public interface ICoordinatorRepository
 
     // A run may be submitted once. Submitted evidence must survive deletion.
     Review CreateReview(long runId, string researcherId);
-    IReadOnlyList<Review> ListReviews(string? researcherId);
+    IReadOnlyList<Review> ListReviews(string? researcherId, ReviewListOptions options);
     Review? GetReview(long id);
     // Atomically decide only a pending review; null means another decision won.
     Review? DecideReview(long id, string status, string feedback, string reviewerId);

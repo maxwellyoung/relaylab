@@ -660,3 +660,25 @@ unassigned until the team agrees. The Android owner is also undecided. The next
 technical work should be member-owned small PRs with another member's review,
 rather than completing every remaining lane in the integration checkout.
 Commit timestamps represent actual work; no history is fabricated or backdated.
+
+## 28 October 2026: review queue filtering and pagination
+
+Completed the .NET review-list filter and bounded-page implementation for both
+EF Core and direct SQLite adapters. The HTTP queue smoke uses separate seeded
+databases and checks the legacy response, actor visibility, status filters,
+validation, ordering, page traversal, empty pages and adapter parity. Added a
+status-change-between-pages case: after page 1 of the pending queue, the test
+approves one listed review and verifies that the next offset page reflects the
+changed queue (and can skip an item). This exercises the documented
+non-snapshot behavior; it does not promise stable traversal across mutations.
+
+Maxwell reported that the build, HTTP tests and CRUD regressions passed. The
+queue smoke was rerun after the new mutation case: 60 checks passed for each
+adapter and the parity assertion passed. The reported 28 October confirmatory
+benchmark used Windows, .NET SDK 10.0.402,
+10,000 reviews, 10 clients, 300 measured requests and 30 warm-ups per scenario;
+it completed 1,200 measured requests with zero failures. Page-25 p95 was
+26.65 ms for EF Core and 86.80 ms for direct SQLite, both below the proposed
+500 ms local threshold. These are local synthetic results, not production
+guarantees. Detailed OS/CPU/Node metadata and output filenames were not included
+in the supplied summary.

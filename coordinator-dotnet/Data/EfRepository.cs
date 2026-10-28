@@ -111,12 +111,22 @@ public sealed class EfRepository : ICoordinatorRepository
         transaction.Commit();
         return result;
     });
-    public IReadOnlyList<Review> ListReviews(string? researcherId)
+    public IReadOnlyList<Review> ListReviews(string? researcherId, ReviewListOptions options)
     {
         using var database = factory.CreateDbContext();
         var query = ReviewQuery(database);
-        if (researcherId is not null) query = query.Where(row => row.Review.ResearcherId == researcherId);
-        return query.OrderBy(row => row.Review.Status == "pending" ? 0 : 1).ThenByDescending(row => row.Review.Id).ToList().Select(Map).ToList();
+        if (researcherId is not null)
+            query = query.Where(row => row.Review.ResearcherId == researcherId);
+        if (options.Status is not null)
+            query = query.Where(row => row.Review.Status == options.Status);
+
+        // Filter and page in SQLite before materializing the existing full Review contract.
+        query = query.OrderBy(row => row.Review.Status == "pending" ? 0 : 1)
+            .ThenByDescending(row => row.Review.Id);
+        if (options.IsPaged)
+            query = query.Skip(options.Offset).Take(options.PageSize!.Value);
+
+        return query.ToList().Select(Map).ToList();
     }
     public Review? GetReview(long id)
     {
