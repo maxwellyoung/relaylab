@@ -37,7 +37,7 @@
     "verify": "npm test && npm run typecheck && npm run build && npm run smoke && npm run smoke:reviews && npm run smoke:grpc && npm audit --omit=dev --audit-level=high",
     "smoke:grpc": "node scripts/smoke-grpc.mjs",
     "smoke:dotnet:queue": "node scripts/smoke-dotnet-queue.mjs",
-    "bench:dotnet:queue": "node scripts/benchmark-dotnet-queue.mjs"
+    "bench:dotnet:queue": "node scripts/benchmark-dotnet-queue.mjs",
     "test:browser": "cross-env VITE_API_BASE_URL= npm run build:group && playwright test",
     "typecheck:browser": "tsc --project tests/browser/tsconfig.json"
   },
