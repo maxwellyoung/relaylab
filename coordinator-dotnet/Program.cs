@@ -20,6 +20,7 @@ else if (persistenceAdapter == "sql") builder.Services.AddSingleton<ICoordinator
 else throw new InvalidOperationException("Persistence adapter must be ef or sql");
 builder.Services.AddSingleton<RunnerGateway>();
 builder.Services.AddSingleton<ExperimentService>();
+builder.Services.AddSingleton<ReviewUpdates>();
 builder.Services.AddSingleton<ReviewService>();
 builder.Services.AddControllers().ConfigureApiBehaviorOptions(options =>
 {
@@ -51,6 +52,7 @@ app.Use(async (context, next) =>
 });
 app.UseStatusCodePages(async context => await context.HttpContext.Response.WriteAsJsonAsync(new { error = "Request rejected" }));
 app.UseCors();
+app.UseWebSockets();
 var clientDirectory = Environment.GetEnvironmentVariable("CLIENT_DIST_DIR");
 if (clientDirectory is not null && Directory.Exists(clientDirectory)) app.UseStaticFiles(new StaticFileOptions { FileProvider = new PhysicalFileProvider(Path.GetFullPath(clientDirectory)) });
 app.MapControllers();

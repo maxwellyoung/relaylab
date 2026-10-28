@@ -27,9 +27,15 @@ Open http://localhost:3000 in two tabs. Choose **Researcher A** in the first and
 
 1. Run an experiment through the .NET coordinator and separate gRPC runner.
 2. Submit the selected run for review; its review status starts as pending.
-3. In the reviewer tab, refresh the queue, inspect the run evidence, enter
-   feedback, then approve or reject it.
-4. Refresh the researcher's reviews to see the decision and feedback.
+3. With **Live updates connected**, the reviewer queue updates automatically.
+   Inspect the run evidence, enter feedback, then approve or reject it.
+4. The researcher's receipt receives the decision and feedback automatically.
+   Refresh remains available if the WebSocket transport is unavailable.
+
+The 27 October local .NET extension adds scoped WebSocket invalidation and
+reconnect/resync; see [the live contract and tests](LIVE_REVIEW_UPDATES.md).
+Native Android retains its HTTP/polling workflow. Historical checkpoints below
+refer to their original sources and dates, before this extension.
 
 Researcher B sees only their own review submissions. The original experiment
 lab remains shared and unauthenticated: a researcher may submit any unclaimed
@@ -56,6 +62,7 @@ gRPC receipts have null `httpStatus` and protocol-labelled evidence in `response
 | GET | `/api/reviews/{reviewId}` | Read one visible review with its execution evidence. |
 | PATCH | `/api/reviews/{reviewId}` | Reviewer sends `{ "status": "approved", "feedback": "Evidence verified" }`, or `rejected`. |
 | GET | `/api/runs/{runId}/execution` | Read live runner execution over gRPC, without changing the persisted attempt. |
+| GET/upgrade | `/api/reviews/live` | .NET-only WebSocket extension; first-frame session authentication, scoped invalidations and reconnect snapshot. See live contract. |
 
 Review/session operations use `Authorization: Bearer <token>`. Identity is
 resolved by the server, not accepted from review request bodies. Feedback is
@@ -134,7 +141,7 @@ physical-device behaviour.
 - Team reports/demo, independent individual reports, deployment and
   final submission remain separate work and approval gates.
 
-WebSocket bonus work remains optional. See [the team handoff](TEAM_HANDOFF.md)
+The WebSocket bonus is implemented in the new local .NET review candidate; team acceptance remains pending. See [the team handoff](TEAM_HANDOFF.md)
 for proposed contribution lanes and remaining decisions. Source integration does
 not establish team agreement, member contributions, deployment or assessment
 submission.

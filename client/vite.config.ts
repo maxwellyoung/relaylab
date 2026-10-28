@@ -12,7 +12,7 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      "/api": "http://localhost:3000",
+      "/api": { target: "http://localhost:3000", ws: true },
       "/health": "http://localhost:3000",
     },
   },

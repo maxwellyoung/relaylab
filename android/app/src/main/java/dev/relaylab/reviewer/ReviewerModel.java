@@ -13,6 +13,7 @@ final class ReviewerModel {
     final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final Handler main = new Handler(Looper.getMainLooper());
     final Context context;
+    final ReviewDrafts drafts;
     Runnable changed;
     String origin, draft = "", validation = "", message = "Connect to load the review queue.";
     List<Review> reviews = new ArrayList<>();
@@ -22,7 +23,8 @@ final class ReviewerModel {
     private int generation;
     ReviewerModel(Context context) {
         this.context = context.getApplicationContext();
-        origin = ReviewNotifications.preferences(context).getString("origin", "http://10.0.2.2:3118");
+        drafts = ReviewDrafts.of(context);
+        origin =ReviewNotifications.preferences(context).getString("origin", "http://10.0.2.2:3118");
         connected = ReviewNotifications.preferences(context).contains("origin");
     }
     void notifyChanged() { if (changed != null) changed.run(); }
@@ -30,6 +32,11 @@ final class ReviewerModel {
         for (Review review : reviews) if (review.id == selected) return review;
         return null;
     }
+    void open(long reviewId) { selected = reviewId; draft = drafts.load(origin, reviewId); validation = ""; showEvidence = false; }
+    /** Returning to the queue keeps the stored draft for when this review is reopened. */
+    void leave() { selected = -1; page = 0; draft = ""; }
+    void edit(String text) { draft = text; drafts.save(origin, selected, text); }
+    void discardDraft() { drafts.discard(origin, selected); draft = ""; }
     void connect(String value) {
         String next = Endpoint.normalize(value);
         if (!next.equals(origin)) {
@@ -43,6 +50,8 @@ final class ReviewerModel {
     void disconnect() {
         generation++; connected = false; busy = false; saving = false;
         ReviewNotifications.enable(context, false);
+        // Disconnecting is the explicit way to clear this server's private data from the phone.
+        drafts.discardOrigin(origin);
         ReviewNotifications.preferences(context).edit().remove("origin").apply();
         reviews = new ArrayList<>(); selected = -1; draft = "";
         message = "Disconnected. Choose a local demo API to reconnect."; notifyChanged();
@@ -78,7 +87,9 @@ final class ReviewerModel {
                 main.post(() -> {
                     if (job != generation) return;
                     for (int i = 0; i < reviews.size(); i++) if (reviews.get(i).id == updated.id) reviews.set(i, updated);
-                    draft = ""; busy = false; saving = false; message = "Decision saved. The researcher can now see your feedback."; notifyChanged();
+                    // Only the decided review's draft is cleared, even if another review is now open.
+                    drafts.discard(endpoint, review.id); if (selected == review.id) draft = "";
+                    busy = false; saving = false; message = "Decision saved. The researcher can now see your feedback."; notifyChanged();
                 });
             } catch (Exception error) { fail(job, error, true); }
         });

@@ -51,3 +51,6 @@ function shutdown() {
 
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
+process.on("message", (message: unknown) => {
+  if (message && typeof message === "object" && "type" in message && message.type === "relaylab-shutdown") shutdown();
+});

@@ -682,3 +682,214 @@ it completed 1,200 measured requests with zero failures. Page-25 p95 was
 500 ms local threshold. These are local synthetic results, not production
 guarantees. Detailed OS/CPU/Node metadata and output filenames were not included
 in the supplied summary.
+## 20 October: browser acceptance handoff
+
+Added a Playwright acceptance test for the researcher run/submit, reviewer
+approval and researcher feedback path. It opens separate browser contexts and
+uses the real built web client, .NET/EF API and gRPC runner. Every test starts
+with new temporary stores and owns the supervisor/service process group that
+it later stops. The fixture refuses an unexpected health identity or nonempty
+experiment store; it never reuses the normal preview.
+
+The initial browser attempt exposed an overly strict label locator in the new
+test helper: the native select's enclosing label includes option text. Using
+its accessible combobox role made the handoff pass without a product change.
+This is new acceptance coverage of existing behavior, not an implemented API
+or Android feature. Setup, cleanup and local evidence commands are documented
+in BROWSER_ACCEPTANCE.md. Issue #4 tracks this browser scope separately from
+the teammate issues #2 and #3.
+
+The next browser slice verifies required feedback, rejection of actual gRPC
+timeout evidence and separate researcher review lists. Three isolated browser
+contexts show that the reviewer can see both researchers' submissions without
+making one researcher's submission visible in the other's queue. Both added
+cases pass against the existing product; no backend behavior changed.
+
+Browser recovery coverage now exercises an explicitly simulated client network
+outage, editable per-review drafts, refresh-before-decision protection and guide
+navigation continuity. A separate test uses two live reviewer sessions to
+produce a real 409 conflict and verifies the winning feedback for both the
+stale reviewer and researcher. Successful operations still reach the real API;
+there are no stubbed approval/rejection responses. Both scenarios pass without
+changing product code.
+
+The browser suite now runs all five workflow scenarios at desktop and 320-pixel
+phone widths, plus a phone keyboard/navigation case: 11 acceptance checks pass.
+The first phone attempt correctly exposed a desktop-only assumption in the new
+test helper: the queue is hidden while a receipt is open. The helper now takes
+the visible mobile Back path before selecting another receipt. Visibility
+assertions explicitly open the queue, avoiding false passes against a hidden
+list. Keyboard activation, focus return, invalid JSON, empty filters, contained
+page width and reachable decision controls are covered without product edits.
+
+A controlled SIGINT probe confirmed exit 130, a stopped disposable API and
+removed temporary stores. Slow-run delay and coordinator deadline are pinned
+within the fixture so local environment overrides cannot change the scenario.
+
+The first five-repeat browser run finished with 54 passes and one failure in
+the outage recovery test. That test refreshed the researcher immediately after
+clicking Approve, before confirming the reviewer's asynchronous save. It now
+waits for the visible saved approval before switching actors, matching the
+other decision tests. Browser type checking passes; a fresh five-repeat run
+will verify this test correction. No product code changed.
+
+The next repeat run passed 54 checks, including all repeats of the corrected
+outage case. One phone setup failed with HTTP 503 while the host exhausted
+disk space; Playwright also reported ENOSPC writing diagnostics. A failed
+diagnostic attachment skipped temporary-store removal. Store removal now runs
+in its own finally block. A controlled diagnostic-write failure confirmed that
+the disposable API stops and its stores are removed even when attachment
+writing throws. The abandoned store from the disk-full run was removed.
+This is a test-harness cleanup fix; repeatability remains unverified until a
+clean run completes with sufficient disk space.
+
+A separate CI browser job now installs Chromium with Linux dependencies and
+runs the documented build-and-test command. It retains the synthetic report
+and results for five days. The workflow parses with its existing four jobs
+preserved, and the README links the acceptance guide. This is CI configuration
+only; the branch has not been pushed or run remotely. Final group verification
+and a clean five-repeat browser run are pending host disk capacity. The earlier
+11-check browser matrix, workspace tests and type checks passed before the
+disk-full event; those results do not establish the final verification gate.
+
+After host disk capacity recovered, final local verification completed:
+
+- `npm run verify:group` passed 109 workspace tests, type checks, builds,
+  production/review/gRPC smokes, both .NET persistence adapters and dependency
+  audits. The credential-dependent MySQL test was skipped; live MySQL and
+  physical Android are outside this browser checkpoint.
+- `npm run test:browser -- --repeat-each=5` rebuilt the group lane and passed
+  all 55 desktop/phone checks with zero retries. The corrected outage case
+  passed every repetition, and there were no disk-full errors in this run.
+- Browser type checking and workflow YAML parsing pass. Controlled SIGINT
+  and diagnostic-write failure probes both verified service/store cleanup.
+
+Issue #4 remains open for integration and review. All changes are local on
+`test/web-browser-acceptance`; remote browser CI is still unverified until a
+push and CI run. Teammate queue API and Android draft work remain separate.
+
+## 25 October: portable npm commands and smoke-process reliability
+
+Prepared with assistant support in an isolated checkout based on the browser
+acceptance head. This records technical work and real local checks, not student
+review, teammate contributions or assessment submission.
+
+Pinned cross-env for npm environment assignments on cmd.exe and POSIX shells.
+Added bounded process/health helpers and graceful IPC shutdown for owned Node
+fixtures, the group supervisor and the Node coordinator. Supervisors have more
+time to stop children than each child's fallback bound. Readiness fails promptly
+on spawn or exit and retains last-probe/startup diagnostics. Intentional 300 ms
+RPC deadlines, code 4 versus code 14 assertions, durable receipts and same-key
+recovery remain intact.
+
+Six new process/HTTP tests, the 109 existing workspace tests (one separate
+credential-dependent MySQL skip), types/builds, Node HTTP/review/gRPC smokes,
+both .NET adapters, .NET gRPC recovery and locked .NET audit passed on macOS.
+Eleven headless desktop/phone browser acceptance checks passed. Compatible
+locked dependency updates cleared the blocking production audit advisories.
+The existing KaTeX override is preserved; no forced broad dependency upgrade
+was used.
+
+The new windows-latest CI job exercises verify:group. Its result at the current
+commit, rather than macOS checks, establishes actual Windows validation. Native
+Windows browser-fixture support remains outside this change. No teammate code,
+API contract or final assessment package is changed here.
+
+### Windows CI follow-up: distinguish RPC deadline from outage observation
+
+The first published Windows job passed the portable command, all unit checks,
+builds and Node gRPC smoke, then reproduced timeout instead of unreachable at
+the .NET outage assertion. The runner had exited; the first 300 ms call still
+expired before the client/TCP stack reported unavailable. Linux checks passed.
+
+Added four regression tests and a separate bounded outage-observation helper.
+It requires correctly classified code-4 interim timeouts and eventually a real
+code-14 unreachable result within 10 seconds; success, misclassified codes,
+perpetual timeouts and stalled probes all fail. Existing 300 ms RPC deadlines,
+strict final unavailable assertions and same-key recovery remain. This records
+the observed CI failure and local correction, not a claim that the updated
+Windows run has passed before its current result is available.
+
+## 25 October: Android per-review feedback drafts (Hansith Perera, issue #3)
+
+Set up the project on Windows 11. Android builds needed the Gradle JDK set to
+21, because Android Studio's bundled Java 25 is newer than Gradle 8.7 supports;
+no project build files changed. The Windows verification run also surfaced
+Windows-only failures in the .NET smoke scripts (an env-var script syntax that
+cmd.exe cannot run, and a killed runner recorded as `timeout` rather than
+`unreachable` because the .NET gRPC client took about 2 s to fail against a
+300 ms deadline). These were reported to the backend owners and are not
+changed on this branch.
+
+The Android reviewer previously kept one in-memory draft, cleared whenever the
+reviewer went back, opened another receipt or followed a notification. Added
+`ReviewDrafts`, an origin- and review-scoped store in private SharedPreferences,
+test-first: six unit tests failed to compile before the class existed and pass
+now. The reviewer screen loads, saves and discards through it. A successful
+decision clears only the decided review's draft; failures keep it. Notes left
+on a review decided elsewhere are shown read-only as unsent and never
+submitted. Disconnect removes that origin's drafts.
+
+Verification: 11 Android unit tests, debug build and lint pass. Six manual
+emulator checks against the real API passed (see the Android reviewer guide).
+Commits `880a224`, `c159e97` and `5ba4916` were written with AI assistance;
+each passed the unit tests, build and lint before it was pushed, and Hansith
+then ran the emulator checks above against the pushed branch.
+
+## 26 October UTC: isolated combined-source recovery checkpoint
+
+The recovery assistant used a fresh clone inside its allocated task workspace,
+without changing the primary or earlier task checkouts. Main `4cec6d1`, PR5
+`0cbc882`, PR6 `73d1de4` and final PR7 `9b5e9ee` were verified. PR7 already
+contains PR5. Applied PR6's diff to PR7 locally; Android files match PR6 exactly.
+Both branches appended development notes at the same point, so Hansith's
+original attributed entry above was preserved after PR7's existing notes.
+No additional dependency update or application-code fix was necessary.
+
+Fresh combined-source checks passed: 119 automated Node/client/API/helper
+checks (one credential-dependent MySQL test skipped), type checks, production
+builds, locked .NET 10.0.401 restore/build, Node HTTP/review/gRPC smokes, both
+.NET EF/direct-SQL HTTP smokes and .NET gRPC recovery, production npm audit
+(zero vulnerabilities) and .NET dependency audit (no reported vulnerabilities).
+All 11 desktop/phone Chromium acceptance checks passed, one run with no retries.
+Java 21/Gradle 8.7 Android verification passed 11 unit tests, debug/release
+builds and both lint tasks. Each lint variant reports five warnings and no
+errors; the release APK is unsigned. Caches and raw logs remain local.
+
+The exact PR7 CI run 40185729670 was independently checked: all six jobs pass,
+including Windows and live MySQL. Those are upstream results, not results for
+the newly assembled Android-inclusive candidate. Native Android runtime,
+physical-device checks, live MySQL on this candidate, native Windows, a larger
+workload/Android latency benchmark, and fresh archive-extraction verification
+were not run here. No personal independent-contribution claim, new narrated
+demo, report submission, remote merge/push/deploy, or Teams send was made.
+See `RECOVERY_CHECKLIST.md` for concrete remaining work and the absent
+authoritative Assessment 3 requirements source.
+
+
+## 27 October 2026 NZDT - Scoped WebSocket review updates (local review)
+
+- New assistant-assisted implementation on isolated branch `recovery/websocket-20261027`, based on preserved candidate4553c9d. No remote push/merge/deployment or student contribution reassignment. This new work is not historical three-week evidence.
+- .NET first-frame session authentication, origin checks, bounded actor-scoped invalidations after persisted writes, expiry/revocation and heartbeat. HTTP remains authoritative; unrelated researchers receive no review contents or change event.
+- Browser live submission/feedback, reconnect snapshot resync, backoff, draft/focus continuity and working HTTP fallback. Android and existing API payloads unchanged; Archie's DTO/pagination and proposed XML documentation work were not taken over.
+- RED: real-stack browser tracer failed at the absent live connection indicator. GREEN: live peer submission/feedback passed. A focus harness failure was corrected by keeping the reviewer tab focused while the other actor used HTTP; no product focus workaround was added. A stale OpenAPI inventory expectation was updated for the additive .NET-only endpoint. Original failed logs are retained outside Git.
+- Final `npm run verify:group` passed119 tests with1 credential-dependent MySQL skip, all types/builds, Node HTTP/review/gRPC and .NET EF/SQL HTTP/gRPC recovery smokes, zero reported production npm vulnerabilities and no reported locked .NET vulnerabilities. .NET build0 warnings/errors; existing large web documentation chunks remain a warning.
+- Final real Chromium run:22 passed, one intentional phone skip of the desktop-only measurement, zero retries. Includes multiple roles, offline missed changes, live-only failure with HTTP fallback, privacy/session/origin checks and phone UI.
+- Bounded live UI measurement:200 initial pending reviews,2 warmups,20 sequential samples,222 final reviews; HTTP submission start through WS invalidation/HTTP resync to visible queue row. Local Apple M3 Max/macOS arm64/Node26.8.2/.NET EF SQLite + Node gRPC; p95 44.712ms, maximum47.410ms, all within proposed1000ms target. Includes DOM observation delay; host load uncontrolled; target/workload require team acceptance. Not WAN, Android, production or a query-optimization comparison.
+- Android11 units, debug/release builds and both lint tasks passed using cached tooling; five warnings per variant, release unsigned. Native UI/notification delivery was not rerun against this new backend. Prior native evidence remains explicitly tied to4553c9d or the original dated checkpoint. Native Windows and live MySQL were not rerun for this candidate.
+
+
+## 27 October 2026 NZDT - Working-branch publication preparation
+
+- Maxwell explicitly authorized frequent meaningful commits/pushes on the working branch; main/force-push/merge/deployment remain outside scope.
+- Confirmed originhttps://github.com/maxwellyoung/relaylab, remote main4cec6d1 and unchanged PR5/6/7 heads. The new working-branch name was absent. Tracked feature delta contains only source/tests/docs, with no private-key/token patterns or generated/dependency files found.
+- Clarified the combined main+PR5/PR7+PR6snapshot base in rootREADME; original PR6 work is not silently reassigned. Enabled the existing read-only verification workflow on this specific recovery branch so a working-branch push receives the same CI gates without creating a misleading independent PR.
+- Executable source remains exactly6173eaa, already verified locally; this commit changes publication documentation and CI trigger selection only. Remote push/head/CI outcome must be independently checked after publication, not inferred here. Local review tag is not included in the branch push.
+
+
+## 28 October 2026 NZDT - PR6 history merge and live-read ordering fix
+
+- At Hansith's request, merged PR6 `feature/android-review-drafts` into this branch as a normal merge (`38078fa`) so his four original commits are in its history. The tree was unchanged: the Android source already matched PR6, and this branch's log already contained his entry.
+- Assistant review of `6173eaa` found two browser live-update defects. A live read that started before a manual refresh could finish after it and restore the older snapshot. A stalled live read also blocked reconnect resync and every later invalidation.
+- RED: two new `ReviewWorkspace` tests reproduced both cases. GREEN: each invalidation now starts its own read, only the newest may apply, a read that overlapped a foreground operation is retried instead of applied, and each new live read aborts the one it replaces so stalled requests cannot pile up. HTTP remains the source of truth and the server's 409 protection is unchanged.
+- CI run `40587508430` failed the socket-boundary browser test on desktop and phone: a revoked session's socket closed with 1006 instead of 1008. Reproduced locally (1 failure in 25 repeats). The coordinator returned straight after sending its close frame, so Kestrel could reset the connection before the client read it. Policy closes now wait up to 2 s for the client's close reply. After the fix: 80/80 repeats, full browser suite 22 passed with the existing intentional phone skip, `verify:group`, and the .NET HTTP, SQL and gRPC smokes passed.

@@ -1,5 +1,22 @@
 # RelayLab
 
+Repository: https://github.com/maxwellyoung/relaylab
+
+The tested feature source is6173eaa724381019bd0098b0d053412fb67dbd79,
+identified by local tag `websocket-review-20261027`. Its working branch is
+`recovery/websocket-20261027`; publication-context/CI-only descendants do not
+change that tested executable source. The tag is local and is not pushed.
+This combined review candidate includes PR5 browser acceptance, PR7 Windows
+and dependency work, and the PR6 Android snapshot on top of main4cec6d1,
+before the new WebSocket change. It is not a small independent patch or an
+approved final submission. Select the final source with the team before hand-in.
+
+The .NET group lane now supports [live review updates and reconnect/resync](docs/LIVE_REVIEW_UPDATES.md).
+Android's HTTP workflow and the manual Refresh fallback remain available.
+
+See [Windows smoke verification](docs/WINDOWS_VERIFICATION.md) for the portable
+npm commands, process shutdown behaviour and platform validation boundary.
+
 RelayLab is a small experiment-and-review workspace. A researcher runs an
 experiment, submits its saved evidence, and a reviewer approves or rejects it
 with feedback. Execution outcome and review status stay separate.
@@ -21,6 +38,9 @@ checks.
   decisions and small reviewable PRs. Member agreement remains outstanding.
 - [Review queue pagination and benchmarks](docs/REVIEW_QUEUE_PAGINATION.md):
   optional filter/page API, EF/SQL parity checks and reproducible HTTP measurements.
+
+For repeatable desktop and phone browser checks, see
+[browser acceptance tests](docs/BROWSER_ACCEPTANCE.md).
 
 ## Run locally
 
