@@ -272,7 +272,7 @@
     "/api/reviews": {
       "get": {
         "operationId": "listReviews",
-        "summary": "Reviewer sees all submissions; researcher sees only their own. Pending first, then newest ID. Refresh explicitly.",
+        "summary": "List reviews visible to the demo actor; optional server-side status filtering and pagination; pending first, then newest ID.",
         "security": [
           {
             "DemoSession": []
@@ -311,8 +311,56 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Invalid status, pagination pair, page number, page size or offset",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
-        }
+        },
+        "description": "With no query parameters, returns the original complete array for existing web and Android clients. Supplying status without paging filters the full visible array. For bounded paging provide both page (1-based) and pageSize (1–100). Results use pending-first then descending review ID; paging over a changing queue is not snapshot-isolated and may repeat/omit entries across requests. Refresh/restart paging after changes.",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "Optional exact, lowercase review status. Filters only reviews visible to the current actor.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "approved",
+                "rejected"
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "1-based page number; requires pageSize.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "description": "Number of reviews per page (1–100); requires page.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ]
       }
     },
     "/api/runs/{runId}/reviews": {

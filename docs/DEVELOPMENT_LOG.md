@@ -661,6 +661,27 @@ technical work should be member-owned small PRs with another member's review,
 rather than completing every remaining lane in the integration checkout.
 Commit timestamps represent actual work; no history is fabricated or backdated.
 
+## 28 October 2026: review queue filtering and pagination
+
+Completed the .NET review-list filter and bounded-page implementation for both
+EF Core and direct SQLite adapters. The HTTP queue smoke uses separate seeded
+databases and checks the legacy response, actor visibility, status filters,
+validation, ordering, page traversal, empty pages and adapter parity. Added a
+status-change-between-pages case: after page 1 of the pending queue, the test
+approves one listed review and verifies that the next offset page reflects the
+changed queue (and can skip an item). This exercises the documented
+non-snapshot behavior; it does not promise stable traversal across mutations.
+
+Maxwell reported that the build, HTTP tests and CRUD regressions passed. The
+queue smoke was rerun after the new mutation case: 60 checks passed for each
+adapter and the parity assertion passed. The reported 28 October confirmatory
+benchmark used Windows, .NET SDK 10.0.402,
+10,000 reviews, 10 clients, 300 measured requests and 30 warm-ups per scenario;
+it completed 1,200 measured requests with zero failures. Page-25 p95 was
+26.65 ms for EF Core and 86.80 ms for direct SQLite, both below the proposed
+500 ms local threshold. These are local synthetic results, not production
+guarantees. Detailed OS/CPU/Node metadata and output filenames were not included
+in the supplied summary.
 ## 20 October: browser acceptance handoff
 
 Added a Playwright acceptance test for the researcher run/submit, reviewer
@@ -872,3 +893,9 @@ authoritative Assessment 3 requirements source.
 - Assistant review of `6173eaa` found two browser live-update defects. A live read that started before a manual refresh could finish after it and restore the older snapshot. A stalled live read also blocked reconnect resync and every later invalidation.
 - RED: two new `ReviewWorkspace` tests reproduced both cases. GREEN: each invalidation now starts its own read, only the newest may apply, a read that overlapped a foreground operation is retried instead of applied, and each new live read aborts the one it replaces so stalled requests cannot pile up. HTTP remains the source of truth and the server's 409 protection is unchanged.
 - CI run `40587508430` failed the socket-boundary browser test on desktop and phone: a revoked session's socket closed with 1006 instead of 1008. Reproduced locally (1 failure in 25 repeats). The coordinator returned straight after sending its close frame, so Kestrel could reset the connection before the client read it. Policy closes now wait up to 2 s for the client's close reply. After the fix: 80/80 repeats, full browser suite 22 passed with the existing intentional phone skip, `verify:group`, and the .NET HTTP, SQL and gRPC smokes passed.
+
+## 28 October 2026 NZDT - Windows production-smoke cleanup
+
+- The Windows CI verification failed after the production smoke printed success: its teardown terminated only the supervisor, leaving coordinator/downstream children alive with SQLite handles open. Removing the temporary directory then failed with `EBUSY`.
+- The smoke now requests graceful shutdown over IPC and waits for the supervisor to exit before deleting its data. The production supervisor forwards the shutdown request to both services, and the downstream process handles the same graceful-shutdown message as the coordinator.
+- Validation on Windows: `npm run verify:group` passed, including tests (112 passed, one credential-dependent MySQL test skipped), typechecks, builds, production/review/gRPC smokes, .NET EF/SQL compatibility and gRPC recovery smokes, and both dependency audits. The standalone .NET queue smoke also passed 60 checks per adapter with parity.

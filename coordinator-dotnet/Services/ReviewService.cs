@@ -41,8 +41,9 @@ public sealed class ReviewService(ICoordinatorRepository repository, ReviewUpdat
             throw new ApiFailure(401, "Choose a demo account again; the session is missing or expired");
         }
     }
+    public IReadOnlyList<Review> List(Actor actor, ReviewListOptions options) =>
+        repository.ListReviews(actor.Role == "researcher" ? actor.Id : null, options);
     public void Revoke(string authorization) { _ = ActorFor(authorization); lock (gate) sessions.Remove(authorization[7..]); updates.SessionRevoked(authorization); }
-    public IReadOnlyList<Review> List(Actor actor) => repository.ListReviews(actor.Role == "researcher" ? actor.Id : null);
     public Review Get(Actor actor, long id)
     {
         var review = repository.GetReview(id);

@@ -36,6 +36,8 @@ checks.
   is available under **How it works** in the browser workspace.
 - [Team handoff](docs/TEAM_HANDOFF.md): proposed contribution lanes, open
   decisions and small reviewable PRs. Member agreement remains outstanding.
+- [Review queue pagination and benchmarks](docs/REVIEW_QUEUE_PAGINATION.md):
+  optional filter/page API, EF/SQL parity checks and reproducible HTTP measurements.
 
 For repeatable desktop and phone browser checks, see
 [browser acceptance tests](docs/BROWSER_ACCEPTANCE.md).

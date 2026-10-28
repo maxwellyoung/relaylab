@@ -17,7 +17,7 @@ const children = [
       ...process.env,
       DOWNSTREAM_PORT: downstreamPort,
     },
-    stdio: "inherit",
+    stdio: ["inherit", "inherit", "inherit", "ipc"],
   }),
   spawn(process.execPath, ["server/dist/server.js"], {
     cwd: rootDirectory,
@@ -28,7 +28,7 @@ const children = [
       DOWNSTREAM_URL: `http://127.0.0.1:${downstreamPort}`,
       CLIENT_DIST_DIR: path.join(rootDirectory, "client/dist"),
     },
-    stdio: "inherit",
+    stdio: ["inherit", "inherit", "inherit", "ipc"],
   }),
 ];
 
@@ -38,9 +38,23 @@ function shutdown(signal) {
   if (shuttingDown) return;
   shuttingDown = true;
   for (const child of children) {
-    child.kill(signal);
+    if (child.connected) {
+      child.send({ type: "relaylab-shutdown" }, (error) => {
+        if (error && child.exitCode === null && child.signalCode === null) {
+          child.kill(signal ?? "SIGTERM");
+        }
+      });
+    } else if (child.exitCode === null && child.signalCode === null) {
+      child.kill(signal ?? "SIGTERM");
+    }
   }
 }
+
+process.on("message", (message) => {
+  if (message && typeof message === "object" && message.type === "relaylab-shutdown") {
+    shutdown();
+  }
+});
 
 for (const child of children) {
   child.on("exit", (code, signal) => {
